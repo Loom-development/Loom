@@ -1,0 +1,32 @@
+version: 1
+name: python-django-example
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: python
+    image: python:3.12-slim
+    workdir: /workspace
+    command: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./:/workspace
+    healthcheck:
+      command: python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2)"
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 120
+      startPeriodSeconds: 2
+routes:
+  - host: django.loom.local
+    service: app
+    port: 8001
+    https: true
+tasks:
+  test:
+    service: app
+    command: python manage.py test

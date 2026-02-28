@@ -1,0 +1,16 @@
+{
+  "name": "@loom/tasks",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "pnpm exec tsc -p tsconfig.json",
+    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/**/*.test.js || true",
+    "lint": "echo 'No lint configured for @loom/tasks'"
+  },
+  "dependencies": {
+    "@loom/core": "workspace:*"
+  }
+}

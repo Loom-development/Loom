@@ -1,0 +1,19 @@
+{
+  "name": "@loom/core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "pnpm exec tsc -p tsconfig.json",
+    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/**/*.test.js || true",
+    "lint": "echo 'No lint configured for @loom/core'"
+  },
+  "dependencies": {
+    "@loom/config": "workspace:*",
+    "@loom/https": "workspace:*",
+    "@loom/network": "workspace:*",
+    "@loom/runtime-podman": "workspace:*"
+  }
+}

@@ -1,0 +1,33 @@
+version: 1
+name: php-example
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: php
+    image: php:8.3-cli
+    workdir: /workspace
+    command: php -S 0.0.0.0:8080 -t public
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/workspace
+  db:
+    type: postgres
+    image: postgres:16-alpine
+    env:
+      POSTGRES_USER: loom
+      POSTGRES_PASSWORD: loom
+      POSTGRES_DB: app
+routes:
+  - host: php.loom.local
+    service: app
+    port: 8080
+    https: true
+tasks:
+  test:
+    service: app
+    command: php artisan test

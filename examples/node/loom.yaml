@@ -1,0 +1,26 @@
+version: 1
+name: node-example
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: node
+    image: node:20-alpine
+    workdir: /workspace
+    command: pnpm dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/workspace
+routes:
+  - host: node.loom.local
+    service: app
+    port: 3000
+    https: true
+tasks:
+  test:
+    service: app
+    command: pnpm test

@@ -1,0 +1,29 @@
+version: 1
+name: python-example
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: python
+    image: python:3.12-slim
+    workdir: /workspace
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/workspace
+  cache:
+    type: redis
+    image: redis:7-alpine
+routes:
+  - host: python.loom.local
+    service: app
+    port: 8000
+    https: true
+tasks:
+  test:
+    service: app
+    command: pytest -q

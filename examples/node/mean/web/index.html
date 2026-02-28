@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MEAN Example</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+  <style>body{font-family:sans-serif;margin:2rem}li{margin:.25rem 0}</style>
+</head>
+<body ng-app="meanApp" ng-controller="MainCtrl as vm">
+  <h1>MEAN Example</h1>
+  <p>Status: {{vm.status}}</p>
+  <ul>
+    <li ng-repeat="item in vm.items track by $index">{{item.name}} - {{item.done ? 'done' : 'open'}}</li>
+  </ul>
+  <script>
+    angular.module('meanApp', []).controller('MainCtrl', function($http) {
+      const vm = this;
+      vm.status = 'loading';
+      vm.items = [];
+      const apiBase = (location.hostname === 'mean.loom.local') ? 'http://api:3001' : 'http://localhost:3001';
+      $http.get(apiBase + '/health').then(function(res){ vm.status = res.data.status; });
+      $http.get(apiBase + '/items').then(function(res){ vm.items = res.data; });
+    });
+  </script>
+</body>
+</html>

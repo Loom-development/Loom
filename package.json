@@ -1,0 +1,22 @@
+{
+  "name": "loom-dev",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Loom - Podman-based local development platform",
+  "packageManager": "pnpm@10.6.5",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "build": "pnpm exec tsc -p tsconfig.json",
+    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
+    "dev": "pnpm --filter @loom/cli dev",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

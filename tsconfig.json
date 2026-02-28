@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/config" },
+    { "path": "packages/runtime-podman" },
+    { "path": "packages/network" },
+    { "path": "packages/https" },
+    { "path": "packages/core" },
+    { "path": "packages/tasks" },
+    { "path": "apps/cli" }
+  ]
+}

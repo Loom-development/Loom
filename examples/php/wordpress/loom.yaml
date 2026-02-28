@@ -1,0 +1,51 @@
+version: 1
+name: php-wordpress-example
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  db:
+    type: mysql
+    image: mysql:8.4
+    env:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    ports:
+      - "3307:3306"
+    healthcheck:
+      command: mysqladmin ping -h 127.0.0.1 -proot
+      intervalSeconds: 5
+      timeoutSeconds: 5
+      retries: 30
+      startPeriodSeconds: 5
+  app:
+    type: php
+    image: wordpress:6.7-php8.3-apache
+    dependsOn:
+      - db
+    env:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    ports:
+      - "8090:80"
+    healthcheck:
+      command: php -r "exit((int)!@fsockopen('127.0.0.1', 80));"
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 20
+      startPeriodSeconds: 5
+routes:
+  - host: wordpress.loom.local
+    service: app
+    port: 80
+    https: true
+tasks:
+  test:
+    service: app
+    command: php -v
