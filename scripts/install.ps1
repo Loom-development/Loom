@@ -4,6 +4,27 @@ param(
   [string]$InstallDir = $(if ($env:LOOM_INSTALL_DIR) { $env:LOOM_INSTALL_DIR } else { "$HOME\\.loom\\bin" })
 )
 
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  throw "Node.js 20+ is required. Install Node.js and retry."
+}
+
+if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
+  throw "Podman is required. Install Podman and retry."
+}
+
+$nodeVersionRaw = & node -p "process.versions.node"
+$nodeMajor = [int]($nodeVersionRaw.Split('.')[0])
+if ($nodeMajor -lt 20) {
+  throw "Node.js 20+ is required. Current version: $nodeVersionRaw"
+}
+
+try {
+  & podman info *> $null
+} catch {
+  Write-Warning "Podman is installed but not currently reachable."
+  Write-Warning "Run 'loom start' after installation; Loom will auto-start Podman Machine on macOS/Windows."
+}
+
 $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
   "AMD64" { "x64" }
   "ARM64" { "arm64" }

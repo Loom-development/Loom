@@ -8,16 +8,22 @@ runtime:
 services:
   app:
     type: php
-    image: php:8.3-cli
-    workdir: /workspace
-    command: php -S 0.0.0.0:8080 -t public
+    image: php:8.3-apache
+    workdir: /var/www/html
+    command: |
+      if [ ! -f /var/www/html/index.php ]; then
+        printf '%s\n' '<?php echo "Loom PHP example is running.";' > /var/www/html/index.php
+      fi
+      apache2-foreground
     ports:
-      - "8080:8080"
+      - "8085:80"
     volumes:
-      - ./:/workspace
+      - ./:/var/www/html
   db:
     type: postgres
     image: postgres:16-alpine
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
     env:
       POSTGRES_USER: loom
       POSTGRES_PASSWORD: loom
@@ -25,7 +31,7 @@ services:
 routes:
   - host: php.loom.local
     service: app
-    port: 8080
+    port: 80
     https: true
 tasks:
   test:

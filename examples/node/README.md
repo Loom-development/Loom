@@ -1,13 +1,21 @@
-# Node stack examples
+# JavaScript runtime examples
 
-## MEAN
+## Node runtime examples
+
+### MEAN
 
 - Config: `examples/node/mean/loom.yaml`
 - Start: `pnpm --filter @loom/cli dev start --config examples/node/mean/loom.yaml`
 - Stop: `pnpm --filter @loom/cli dev stop --config examples/node/mean/loom.yaml`
 
-## MERN
+### MERN
 
 - Config: `examples/node/mern/loom.yaml`
 - Start: `pnpm --filter @loom/cli dev start --config examples/node/mern/loom.yaml`
 - Stop: `pnpm --filter @loom/cli dev stop --config examples/node/mern/loom.yaml`
+
+## Bun runtime example
+
+- Config: `examples/node/bun/loom.yaml`
+- Start: `pnpm --filter @loom/cli dev start --config examples/node/bun/loom.yaml`
+- Stop: `pnpm --filter @loom/cli dev stop --config examples/node/bun/loom.yaml`

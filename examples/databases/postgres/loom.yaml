@@ -1,0 +1,25 @@
+version: 1
+name: loom-db-postgres
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  db:
+    type: postgres
+    image: postgres:16-alpine
+    env:
+      POSTGRES_USER: loom
+      POSTGRES_PASSWORD: loom
+      POSTGRES_DB: loom
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      command: pg_isready -U loom
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 30
+      startPeriodSeconds: 5

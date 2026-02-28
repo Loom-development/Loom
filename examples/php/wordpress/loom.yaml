@@ -9,6 +9,8 @@ services:
   db:
     type: mysql
     image: mysql:8.4
+    volumes:
+      - ./data/mysql:/var/lib/mysql
     env:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: wordpress
@@ -25,6 +27,8 @@ services:
   app:
     type: php
     image: wordpress:6.7-php8.3-apache
+    volumes:
+      - ./data/wp-content:/var/www/html/wp-content
     dependsOn:
       - db
     env:

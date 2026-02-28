@@ -1,0 +1,19 @@
+version: 1
+name: loom-db-mongodb
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  db:
+    type: mongodb
+    image: mongo:7
+    env:
+      MONGO_INITDB_ROOT_USERNAME: loom
+      MONGO_INITDB_ROOT_PASSWORD: loom
+      MONGO_INITDB_DATABASE: loom
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongodb:/data/db

@@ -1,0 +1,33 @@
+version: 1
+name: loom-spring-react
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  backend:
+    type: java
+    image: maven:3.9-eclipse-temurin-21
+    workdir: /workspace/backend
+    command: mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.address=0.0.0.0 -Dserver.port=8080"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./:/workspace
+  web:
+    type: node
+    image: node:24-alpine
+    workdir: /workspace/frontend
+    command: npm install && npm run dev -- --host 0.0.0.0 --port 5175
+    ports:
+      - "5175:5175"
+    volumes:
+      - ./:/workspace
+    dependsOn:
+      - backend
+routes:
+  - host: spring-react.loom.local
+    service: web
+    port: 5175
+    https: true

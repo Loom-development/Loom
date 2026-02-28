@@ -1,0 +1,123 @@
+version: 1
+name: loom-db-all
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  mysql:
+    type: mysql
+    image: mysql:8.4
+    env:
+      MYSQL_ROOT_PASSWORD: loomroot
+      MYSQL_DATABASE: loom
+      MYSQL_USER: loom
+      MYSQL_PASSWORD: loom
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      command: mysqladmin ping -h 127.0.0.1 -uroot -ploomroot
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 30
+      startPeriodSeconds: 10
+
+  sqlserver:
+    type: sqlserver
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    env:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "LoomDev!Passw0rd"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - ./data/sqlserver:/var/opt/mssql
+
+  postgres:
+    type: postgres
+    image: postgres:16-alpine
+    env:
+      POSTGRES_USER: loom
+      POSTGRES_PASSWORD: loom
+      POSTGRES_DB: loom
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      command: pg_isready -U loom
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 30
+      startPeriodSeconds: 5
+
+  mongodb:
+    type: mongodb
+    image: mongo:7
+    env:
+      MONGO_INITDB_ROOT_USERNAME: loom
+      MONGO_INITDB_ROOT_PASSWORD: loom
+      MONGO_INITDB_DATABASE: loom
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongodb:/data/db
+
+  redis:
+    type: redis
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      command: redis-cli ping | grep PONG
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 30
+      startPeriodSeconds: 2
+
+  elasticsearch:
+    type: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    env:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - ./data/elasticsearch:/usr/share/elasticsearch/data
+
+  sqlite:
+    type: sqlite
+    image: alpine:3.20
+    command: sh -lc "apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null"
+    workdir: /data
+    volumes:
+      - ./data/sqlite:/data
+
+  mariadb:
+    type: mariadb
+    image: mariadb:11
+    env:
+      MARIADB_ROOT_PASSWORD: loomroot
+      MARIADB_DATABASE: loom
+      MARIADB_USER: loom
+      MARIADB_PASSWORD: loom
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./data/mariadb:/var/lib/mysql
+    healthcheck:
+      command: mariadb-admin ping -h 127.0.0.1 -uroot -ploomroot
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 30
+      startPeriodSeconds: 10

@@ -9,6 +9,8 @@ services:
   mongo:
     type: mongodb
     image: mongo:7
+    volumes:
+      - ./data/mongodb:/data/db
     ports:
       - "27021:27017"
     healthcheck:

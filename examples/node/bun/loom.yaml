@@ -1,0 +1,24 @@
+version: 1
+name: loom-node-bun
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: node
+    image: docker.io/oven/bun:1.2
+    workdir: /workspace
+    command: bun run dev
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./:/workspace
+    env:
+      NODE_ENV: development
+routes:
+  - host: bun.loom.local
+    service: app
+    port: 3004
+    https: true

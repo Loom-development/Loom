@@ -1,0 +1,22 @@
+version: 1
+name: loom-rails7
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: ruby
+    image: ruby:3.3
+    workdir: /workspace
+    command: gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && if [ ! -f rails7/Gemfile ]; then rails _7.1.5_ new rails7 --skip-javascript --skip-test --skip-system-test; fi && cd rails7 && bundle install && bin/rails server -b 0.0.0.0 -p 3006
+    ports:
+      - "3006:3006"
+    volumes:
+      - ./:/workspace
+routes:
+  - host: rails7.loom.local
+    service: app
+    port: 3006
+    https: true

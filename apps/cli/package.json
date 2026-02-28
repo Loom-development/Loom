@@ -1,18 +1,45 @@
 {
   "name": "@loom/cli",
   "version": "0.1.0",
+  "description": "Command-line interface for Loom local development workflows.",
+  "keywords": [
+    "loom",
+    "cli",
+    "podman"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Loom-development/Loom.git",
+    "directory": "apps/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Loom-development/Loom/issues"
+  },
+  "homepage": "https://github.com/Loom-development/Loom#readme",
   "type": "module",
   "bin": {
     "loom": "dist/index.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
   "scripts": {
-    "build": "pnpm exec tsc -p tsconfig.json",
-    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
-    "test": "node --test dist/**/*.test.js || true",
+    "build": "pnpm exec tsc -b tsconfig.json",
+    "typecheck": "pnpm exec tsc -b tsconfig.json",
+    "test": "node --test dist/**/*.test.js",
     "dev": "tsx src/index.ts",
-    "lint": "echo 'No lint configured for @loom/cli'"
+    "lint": "echo 'No lint rules configured'"
   },
   "dependencies": {
     "@loom/config": "workspace:*",

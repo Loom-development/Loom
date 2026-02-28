@@ -1,5 +1,9 @@
 import type { LoomConfig } from "@loom/config";
+import { resolve } from "node:path";
 import {
+  backupExtensionForServiceType,
+  backupServiceToFile,
+  SUPPORTED_BACKUP_SERVICE_TYPES,
   containerName,
   detectPodmanCapabilities,
   ensureComposerAvailable,
@@ -52,6 +56,50 @@ export interface LoomStatus {
   };
 }
 
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = Array.from({ length: a.length + 1 }, () =>
+    Array.from({ length: b.length + 1 }, () => 0)
+  );
+
+  for (let index = 0; index <= a.length; index += 1) {
+    matrix[index][0] = index;
+  }
+
+  for (let index = 0; index <= b.length; index += 1) {
+    matrix[0][index] = index;
+  }
+
+  for (let row = 1; row <= a.length; row += 1) {
+    for (let column = 1; column <= b.length; column += 1) {
+      const substitutionCost = a[row - 1] === b[column - 1] ? 0 : 1;
+      matrix[row][column] = Math.min(
+        matrix[row - 1][column] + 1,
+        matrix[row][column - 1] + 1,
+        matrix[row - 1][column - 1] + substitutionCost
+      );
+    }
+  }
+
+  return matrix[a.length][b.length];
+}
+
+function closestServiceName(target: string, candidates: string[]): string | undefined {
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  const scored = candidates
+    .map((candidate) => ({
+      candidate,
+      score: levenshteinDistance(target.toLowerCase(), candidate.toLowerCase())
+    }))
+    .sort((left, right) => left.score - right.score);
+
+  const best = scored[0];
+  const threshold = Math.max(2, Math.ceil(target.length * 0.4));
+  return best.score <= threshold ? best.candidate : undefined;
+}
+
 function dependencyOrder(config: LoomConfig): string[] {
   const visited = new Set<string>();
   const temp = new Set<string>();
@@ -96,7 +144,7 @@ export class LoomOrchestrator {
     void this.projectRoot;
   }
 
-  async start(): Promise<void> {
+  private async ensureRuntimeReady(): Promise<void> {
     await ensureMachineRunning(this.config.runtime.machine?.managed ?? true);
     const capabilities = await detectPodmanCapabilities();
 
@@ -107,40 +155,86 @@ export class LoomOrchestrator {
     if (this.config.runtime.rootless && !capabilities.rootless) {
       throw new Error("Loom config requires rootless Podman, but Podman is running rootful.");
     }
+  }
+
+  private async resolveHttpsInfo(): Promise<{ certPath: string; keyPath: string } | undefined> {
+    const routeBindings = resolveRouteBindings(this.config);
+    if (!routeBindings.some((binding) => binding.https)) {
+      return undefined;
+    }
+
+    const hosts = routeBindings.filter((binding) => binding.https).map((binding) => binding.host);
+    return ensureLocalCertificates(this.config.name, hosts);
+  }
+
+  private async startServiceByName(serviceName: string, networkName: string): Promise<void> {
+    const service = this.config.services[serviceName];
+    await ensureServiceStarted(this.config.name, serviceName, service, networkName);
+
+    if (service.type.toLowerCase() === "php") {
+      await ensureComposerAvailable(this.config.name, serviceName);
+    }
+
+    await waitForServiceReady(this.config.name, serviceName, {
+      ...service.healthcheck,
+      ports: service.ports
+    });
+    process.stdout.write(`- started ${serviceName}\n`);
+  }
+
+  private printRouteBindings(): void {
+    const routeBindings = resolveRouteBindings(this.config);
+    if (routeBindings.length === 0) {
+      return;
+    }
+
+    process.stdout.write("Route bindings:\n");
+    for (const binding of routeBindings) {
+      const protocol = binding.https ? "https" : "http";
+      process.stdout.write(
+        `- ${protocol}://${binding.host} -> ${binding.service}:${binding.targetPort} (host:${binding.externalPort})\n`
+      );
+    }
+  }
+
+  private getService(serviceName: string) {
+    return this.config.services[serviceName];
+  }
+
+  private async requireService(serviceName: string) {
+    const service = this.getService(serviceName);
+    if (!service) {
+      throw await this.serviceNotFoundError(serviceName);
+    }
+
+    return service;
+  }
+
+  private listBackupSupportedServices(): Array<[string, LoomConfig["services"][string]]> {
+    return Object.entries(this.config.services).filter(([, service]) =>
+      Boolean(backupExtensionForServiceType(service.type))
+    );
+  }
+
+  async start(): Promise<void> {
+    await this.ensureRuntimeReady();
 
     const networkName = await ensureServiceNetwork(this.config);
     const routeBindings = resolveRouteBindings(this.config);
-
-    let httpsInfo: { certPath: string; keyPath: string } | undefined;
-    if (routeBindings.some((binding) => binding.https)) {
-      const hosts = routeBindings.filter((binding) => binding.https).map((binding) => binding.host);
-      httpsInfo = await ensureLocalCertificates(this.config.name, hosts);
-    }
+    const httpsInfo = await this.resolveHttpsInfo();
 
     const order = dependencyOrder(this.config);
     process.stdout.write(`Starting ${order.length} service(s) for ${this.config.name} on network ${networkName}...\n`);
 
     for (const serviceName of order) {
-      const service = this.config.services[serviceName];
-      await ensureServiceStarted(this.config.name, serviceName, service, networkName);
-      if (service.type.toLowerCase() === "php") {
-        await ensureComposerAvailable(this.config.name, serviceName);
-      }
-      await waitForServiceReady(this.config.name, serviceName, {
-        ...service.healthcheck,
-        ports: service.ports
-      });
-      process.stdout.write(`- started ${serviceName}\n`);
+      await this.startServiceByName(serviceName, networkName);
     }
 
     if (routeBindings.length > 0) {
-      const proxy = await ensureRouteProxy(this.config, routeBindings, httpsInfo ?? (await ensureLocalCertificates(this.config.name, routeBindings.map((route) => route.host))), networkName);
+      const certificateInfo = httpsInfo ?? (await ensureLocalCertificates(this.config.name, routeBindings.map((route) => route.host)));
+      const proxy = await ensureRouteProxy(this.config, routeBindings, certificateInfo, networkName);
 
-      process.stdout.write("Route bindings:\n");
-      for (const binding of routeBindings) {
-        const protocol = binding.https ? "https" : "http";
-        process.stdout.write(`- ${protocol}://${binding.host} -> ${binding.service}:${binding.targetPort} (host:${binding.externalPort})\n`);
-      }
+      this.printRouteBindings();
 
       process.stdout.write(`Proxy ports: http://localhost:${proxy.httpPort} https://localhost:${proxy.httpsPort}\n`);
     }
@@ -226,19 +320,77 @@ export class LoomOrchestrator {
     await execServiceCommand(this.config.name, task.service, ["sh", "-lc", task.command]);
   }
 
+  private async serviceNotFoundError(serviceName: string): Promise<Error> {
+    const availableServices = Object.keys(this.config.services).sort();
+    const containers = await listProjectContainers(this.config.name);
+    const runningServices = containers
+      .filter((container) => container.running)
+      .map((container) => container.name.replace(new RegExp(`^${this.config.name}-`), ""))
+      .filter((name) => this.config.services[name])
+      .sort();
+
+    const availableMessage =
+      availableServices.length > 0 ? availableServices.join(", ") : "none";
+    const runningMessage =
+      runningServices.length > 0 ? runningServices.join(", ") : "none";
+    const closestMatch = closestServiceName(serviceName, availableServices);
+    const suggestion = closestMatch ? ` Did you mean '${closestMatch}'?` : "";
+
+    return new Error(
+      `Service '${serviceName}' is not defined in loom.yaml.${suggestion} Available services: ${availableMessage}. Running services: ${runningMessage}.`
+    );
+  }
+
   async logs(serviceName: string, follow = true): Promise<void> {
-    if (!this.config.services[serviceName]) {
-      throw new Error(`Service '${serviceName}' is not defined in loom.yaml.`);
-    }
+    await this.requireService(serviceName);
 
     await tailServiceLogs(this.config.name, serviceName, follow);
   }
 
   async exec(serviceName: string, command: string[]): Promise<void> {
-    if (!this.config.services[serviceName]) {
-      throw new Error(`Service '${serviceName}' is not defined in loom.yaml.`);
-    }
+    await this.requireService(serviceName);
 
     await execServiceCommand(this.config.name, serviceName, command);
+  }
+
+  async backup(serviceName: string, outputPath?: string): Promise<string> {
+    const service = await this.requireService(serviceName);
+
+    const extension = backupExtensionForServiceType(service.type);
+    if (!extension) {
+      throw new Error(
+        `Service '${serviceName}' has type '${service.type}', which is not currently supported by 'loom backup'. Supported types: ${SUPPORTED_BACKUP_SERVICE_TYPES.join(", ")}.`
+      );
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:]/g, "-");
+    const defaultPath = resolve(
+      this.projectRoot,
+      ".loom",
+      "backups",
+      `${this.config.name}-${serviceName}-${timestamp}.${extension}`
+    );
+
+    const finalPath = outputPath ? resolve(this.projectRoot, outputPath) : defaultPath;
+    await backupServiceToFile(this.config.name, serviceName, service, finalPath);
+    return finalPath;
+  }
+
+  async backupAll(): Promise<Array<{ service: string; path: string }>> {
+    const results: Array<{ service: string; path: string }> = [];
+    const supported = this.listBackupSupportedServices();
+
+    if (supported.length === 0) {
+      throw new Error(
+        `No backup-supported services found in loom.yaml. Supported types: ${SUPPORTED_BACKUP_SERVICE_TYPES.join(", ")}.`
+      );
+    }
+
+    for (const [serviceName] of supported) {
+      const path = await this.backup(serviceName);
+      results.push({ service: serviceName, path });
+    }
+
+    return results;
   }
 }

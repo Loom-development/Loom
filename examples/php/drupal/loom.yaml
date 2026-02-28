@@ -9,6 +9,8 @@ services:
   db:
     type: mysql
     image: mysql:8.4
+    volumes:
+      - ./data/mysql:/var/lib/mysql
     env:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: drupal
@@ -25,6 +27,8 @@ services:
   app:
     type: php
     image: drupal:10-apache
+    volumes:
+      - ./data/files:/var/www/html/sites/default/files
     dependsOn:
       - db
     env:

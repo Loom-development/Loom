@@ -12,8 +12,20 @@ yarn-debug.log*
 yarn-error.log*
 
 .loom/
-.tmp-init/
-.tmp-init-clean/
+**/.loom/
+.tmp-*/
+**/.tmp-*/
+tmp-*/
+**/tmp-*/
+apps/cli/.tmp-*/
+apps/cli/db/
+apps/cli/.loom/
+data/
+**/data/
+.data
+**/.data
+*.data
+**/*.data
 
 .env
 .env.*

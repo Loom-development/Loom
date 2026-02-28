@@ -5,6 +5,28 @@ REPO="${LOOM_REPO:-Loom-development/Loom}"
 VERSION="${LOOM_VERSION:-latest}"
 INSTALL_DIR="${LOOM_INSTALL_DIR:-$HOME/.local/bin}"
 
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Required command not found: $1"
+    exit 1
+  fi
+}
+
+require_command node
+require_command podman
+require_command tar
+
+node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
+if [ -z "$node_major" ] || [ "$node_major" -lt 20 ]; then
+  echo "Node.js 20+ is required. Current version: $(node -v 2>/dev/null || echo unknown)"
+  exit 1
+fi
+
+if ! podman info >/dev/null 2>&1; then
+  echo "Warning: Podman is installed but not currently reachable."
+  echo "Run 'loom start' after installation; Loom will auto-start Podman Machine on macOS/Windows."
+fi
+
 uname_s="$(uname -s)"
 uname_m="$(uname -m)"
 

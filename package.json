@@ -8,9 +8,10 @@
     "node": ">=20.11.0"
   },
   "scripts": {
-    "build": "pnpm exec tsc -p tsconfig.json",
-    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
+    "build": "pnpm exec tsc -b tsconfig.json",
+    "typecheck": "pnpm exec tsc -b tsconfig.json",
     "dev": "pnpm --filter @loom/cli dev",
+    "smoke:stacks": "./scripts/smoke-stacks.sh",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint"
   },

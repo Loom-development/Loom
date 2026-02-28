@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
+import { createWriteStream } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { Socket } from "node:net";
+import { dirname, resolve } from "node:path";
 import type { LoomService } from "@loom/config";
 
 export interface CommandResult {
@@ -26,6 +29,21 @@ export interface ContainerSummary {
   health?: string;
   image: string;
 }
+
+interface BackupStrategy {
+  extension: string;
+  command: string[];
+}
+
+export const SUPPORTED_BACKUP_SERVICE_TYPES = [
+  "mysql",
+  "mariadb",
+  "postgres",
+  "mongodb",
+  "redis",
+  "sqlite",
+  "sqlserver"
+] as const;
 
 function run(command: string, args: string[]): Promise<CommandResult> {
   return new Promise((resolve) => {
@@ -159,6 +177,117 @@ function parseHostPorts(portMappings: string[] = []): number[] {
     .filter((value) => Number.isFinite(value) && value > 0);
 }
 
+function parseVolumeSource(volume: string): string | null {
+  const source = volume.split(":")[0]?.trim();
+  if (!source) {
+    return null;
+  }
+
+  return source;
+}
+
+function isBindMountSource(source: string): boolean {
+  return source.startsWith(".") || source.startsWith("/") || source.includes("/");
+}
+
+async function ensureBindMountParentDirs(volumes: string[] = []): Promise<void> {
+  for (const volume of volumes) {
+    const source = parseVolumeSource(volume);
+    if (!source || !isBindMountSource(source)) {
+      continue;
+    }
+
+    const absoluteSource = source.startsWith("/") ? source : resolve(process.cwd(), source);
+    await mkdir(absoluteSource, { recursive: true });
+  }
+}
+
+async function containerExists(name: string): Promise<boolean> {
+  const exists = await run("podman", ["container", "exists", name]);
+  return exists.ok;
+}
+
+async function inspectContainerImage(name: string): Promise<string> {
+  const imageInspect = await run("podman", ["inspect", "--format", "{{.ImageName}}", name]);
+  return imageInspect.ok ? imageInspect.stdout.trim() : "";
+}
+
+async function removeContainer(name: string): Promise<void> {
+  const remove = await run("podman", ["rm", "-f", name]);
+  if (!remove.ok) {
+    throw new Error(`Failed to recreate container '${name}': ${remove.stderr || "unknown error"}`);
+  }
+}
+
+async function startContainer(name: string): Promise<void> {
+  const start = await run("podman", ["start", name]);
+  if (!start.ok) {
+    throw new Error(`Failed to start existing container '${name}': ${start.stderr || "unknown error"}`);
+  }
+}
+
+function appendHealthcheckArgs(args: string[], service: LoomService): void {
+  if (!service.healthcheck?.command) {
+    return;
+  }
+
+  args.push("--health-cmd", service.healthcheck.command);
+  args.push("--health-interval", `${service.healthcheck.intervalSeconds ?? 10}s`);
+  args.push("--health-timeout", `${service.healthcheck.timeoutSeconds ?? 3}s`);
+  args.push("--health-retries", String(service.healthcheck.retries ?? 5));
+  args.push("--health-start-period", `${service.healthcheck.startPeriodSeconds ?? 0}s`);
+}
+
+async function buildPodmanRunArgs(
+  serviceName: string,
+  containerNameValue: string,
+  service: LoomService,
+  networkName: string,
+  expectedImage: string
+): Promise<string[]> {
+  const args: string[] = [
+    "run",
+    "-d",
+    "--name",
+    containerNameValue,
+    "--network",
+    networkName,
+    "--network-alias",
+    serviceName
+  ];
+
+  if (service.workdir) {
+    args.push("-w", service.workdir);
+  }
+
+  if (service.entrypoint !== undefined) {
+    args.push("--entrypoint", service.entrypoint);
+  }
+
+  for (const port of service.ports ?? []) {
+    args.push("-p", port);
+  }
+
+  await ensureBindMountParentDirs(service.volumes ?? []);
+
+  for (const volume of service.volumes ?? []) {
+    args.push("-v", volume);
+  }
+
+  for (const [key, value] of Object.entries(service.env ?? {})) {
+    args.push("-e", `${key}=${value}`);
+  }
+
+  appendHealthcheckArgs(args, service);
+  args.push(expectedImage);
+
+  if (service.command) {
+    args.push("sh", "-lc", service.command);
+  }
+
+  return args;
+}
+
 async function isPortOpen(port: number, timeoutMs: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = new Socket();
@@ -270,68 +399,18 @@ export async function ensureServiceStarted(
     return;
   }
 
-  const exists = await run("podman", ["container", "exists", name]);
-  if (exists.ok) {
-    const imageInspect = await run("podman", ["inspect", "--format", "{{.ImageName}}", name]);
-    const currentImage = imageInspect.ok ? imageInspect.stdout.trim() : "";
+  if (await containerExists(name)) {
+    const currentImage = await inspectContainerImage(name);
 
     if (currentImage && currentImage !== expectedImage) {
-      const remove = await run("podman", ["rm", "-f", name]);
-      if (!remove.ok) {
-        throw new Error(`Failed to recreate container '${name}': ${remove.stderr || "unknown error"}`);
-      }
+      await removeContainer(name);
     } else {
-      const start = await run("podman", ["start", name]);
-      if (!start.ok) {
-        throw new Error(`Failed to start existing container '${name}': ${start.stderr || "unknown error"}`);
-      }
+      await startContainer(name);
       return;
     }
   }
 
-  const args: string[] = [
-    "run",
-    "-d",
-    "--name",
-    name,
-    "--network",
-    networkName,
-    "--network-alias",
-    serviceName
-  ];
-
-  if (service.workdir) {
-    args.push("-w", service.workdir);
-  }
-
-  if (service.entrypoint !== undefined) {
-    args.push("--entrypoint", service.entrypoint);
-  }
-
-  for (const port of service.ports ?? []) {
-    args.push("-p", port);
-  }
-
-  for (const volume of service.volumes ?? []) {
-    args.push("-v", volume);
-  }
-
-  for (const [key, value] of Object.entries(service.env ?? {})) {
-    args.push("-e", `${key}=${value}`);
-  }
-
-  if (service.healthcheck?.command) {
-    args.push("--health-cmd", service.healthcheck.command);
-    args.push("--health-interval", `${service.healthcheck.intervalSeconds ?? 10}s`);
-    args.push("--health-timeout", `${service.healthcheck.timeoutSeconds ?? 3}s`);
-    args.push("--health-retries", String(service.healthcheck.retries ?? 5));
-    args.push("--health-start-period", `${service.healthcheck.startPeriodSeconds ?? 0}s`);
-  }
-
-  args.push(expectedImage);
-  if (service.command) {
-    args.push("sh", "-lc", service.command);
-  }
+  const args = await buildPodmanRunArgs(serviceName, name, service, networkName, expectedImage);
 
   const runResult = await run("podman", args);
   if (!runResult.ok) {
@@ -387,6 +466,140 @@ export async function ensureComposerAvailable(projectName: string, serviceName: 
   if (!result.ok) {
     throw new Error(`Failed to ensure Composer in '${name}': ${result.stderr || "unknown error"}`);
   }
+}
+
+function databaseBackupStrategy(serviceType: string): BackupStrategy | null {
+  const normalized = serviceType.toLowerCase();
+
+  if (normalized === "mysql") {
+    return {
+      extension: "sql",
+      command: [
+        "sh",
+        "-lc",
+        "mysqldump -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\" \"${MYSQL_DATABASE:-loom}\""
+      ]
+    };
+  }
+
+  if (normalized === "mariadb") {
+    return {
+      extension: "sql",
+      command: [
+        "sh",
+        "-lc",
+        "mariadb-dump -h 127.0.0.1 -uroot -p\"$MARIADB_ROOT_PASSWORD\" \"${MARIADB_DATABASE:-loom}\""
+      ]
+    };
+  }
+
+  if (normalized === "postgres") {
+    return {
+      extension: "sql",
+      command: ["sh", "-lc", "pg_dump -U \"${POSTGRES_USER:-postgres}\" \"${POSTGRES_DB:-postgres}\""]
+    };
+  }
+
+  if (normalized === "mongodb") {
+    return {
+      extension: "archive.gz",
+      command: [
+        "sh",
+        "-lc",
+        "mongodump --archive --gzip --authenticationDatabase admin --username \"${MONGO_INITDB_ROOT_USERNAME:-root}\" --password \"${MONGO_INITDB_ROOT_PASSWORD:-example}\" --db \"${MONGO_INITDB_DATABASE:-admin}\""
+      ]
+    };
+  }
+
+  if (normalized === "redis") {
+    return {
+      extension: "rdb",
+      command: ["sh", "-lc", "redis-cli SAVE >/dev/null && cat /data/dump.rdb"]
+    };
+  }
+
+  if (normalized === "sqlite") {
+    return {
+      extension: "db",
+      command: ["sh", "-lc", "cat /data/loom.db"]
+    };
+  }
+
+  if (normalized === "sqlserver" || normalized === "mssql") {
+    return {
+      extension: "bak",
+      command: [
+        "sh",
+        "-lc",
+        "mkdir -p /var/opt/mssql/backup && /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -Q \"BACKUP DATABASE [master] TO DISK='/var/opt/mssql/backup/loom.bak' WITH INIT\" >/dev/null && cat /var/opt/mssql/backup/loom.bak"
+      ]
+    };
+  }
+
+  return null;
+}
+
+export function backupExtensionForServiceType(serviceType: string): string | null {
+  return databaseBackupStrategy(serviceType)?.extension ?? null;
+}
+
+export async function backupServiceToFile(
+  projectName: string,
+  serviceName: string,
+  service: LoomService,
+  outputPath: string
+): Promise<void> {
+  const strategy = databaseBackupStrategy(service.type);
+  if (!strategy) {
+    throw new Error(
+      `Service type '${service.type}' does not currently support 'loom backup'. Supported types: mysql, mariadb, postgres, mongodb, redis, sqlite, sqlserver.`
+    );
+  }
+
+  const name = containerName(projectName, serviceName);
+  const running = await isContainerRunning(name);
+  if (!running) {
+    throw new Error(`Service '${serviceName}' is not running. Start it before creating a backup.`);
+  }
+
+  await mkdir(dirname(outputPath), { recursive: true });
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn("podman", ["exec", "-i", name, ...strategy.command], {
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    const target = createWriteStream(outputPath);
+    let stderr = "";
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on("error", () => {
+      target.destroy();
+      reject(new Error(`Failed to run backup command for '${serviceName}'.`));
+    });
+
+    target.on("error", () => {
+      child.kill();
+      reject(new Error(`Failed to write backup file '${outputPath}'.`));
+    });
+
+    child.stdout.pipe(target);
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `Backup failed for service '${serviceName}': ${stderr.trim() || "unknown error"}`
+        )
+      );
+    });
+  });
 }
 
 export async function detectPodmanCapabilities(): Promise<PodmanCapabilities> {

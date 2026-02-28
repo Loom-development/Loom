@@ -1,14 +1,41 @@
 {
   "name": "@loom/tasks",
   "version": "0.1.0",
+  "description": "Task execution helpers for Loom project workflows.",
+  "keywords": [
+    "loom",
+    "tasks",
+    "workflow"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Loom-development/Loom.git",
+    "directory": "packages/tasks"
+  },
+  "bugs": {
+    "url": "https://github.com/Loom-development/Loom/issues"
+  },
+  "homepage": "https://github.com/Loom-development/Loom#readme",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
   "scripts": {
-    "build": "pnpm exec tsc -p tsconfig.json",
-    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
-    "test": "node --test dist/**/*.test.js || true",
-    "lint": "echo 'No lint configured for @loom/tasks'"
+    "build": "pnpm exec tsc -b tsconfig.json",
+    "typecheck": "pnpm exec tsc -b tsconfig.json",
+    "test": "node --test dist/**/*.test.js",
+    "lint": "echo 'No lint rules configured'"
   },
   "dependencies": {
     "@loom/core": "workspace:*"
