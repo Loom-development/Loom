@@ -1,45 +1,20 @@
-# Loom Technical Architecture
+# How Loom Works (User-Friendly)
 
-## Goals
+This page explains what Loom does for you when you run commands, in plain terms.
 
-- Podman-first local development for Node.js, PHP, and Python applications.
-- Cross-platform support on Linux, macOS, and Windows using Podman Machine where required.
-- Rootless compatibility by default.
-- Native Loom YAML config with optional Compose import.
-- Extensible plugin system and build/task automation.
+## What Loom is doing in the background
 
-## Core Components
+When you run `loom start`, Loom:
 
-1. **CLI (`@loom/cli`)**
-   - User commands (`start`, `status`, `test`, later `stop`, `logs`, `exec`, `plugin`).
-   - Config loading and orchestration invocation.
+1. Checks Podman is available.
+2. Reads your `loom.yaml`.
+3. Starts services in the right dependency order.
+4. Waits for them to become actually ready.
+5. Sets up local route proxy + HTTPS certs if routes are configured.
 
-2. **Config (`@loom/config`)**
-   - YAML parsing and schema validation.
-   - Defaults normalization and config versioning.
+This is why Loom feels predictable even for bigger stacks.
 
-3. **Orchestrator (`@loom/core`)**
-   - Service graph lifecycle and dependency ordering.
-   - Runtime coordination with Podman adapter.
-   - Task execution routing.
-
-4. **Podman Runtime (`@loom/runtime-podman`)**
-   - Podman capability detection.
-   - Rootless guardrails.
-   - Podman Machine initialization/start support on macOS/Windows.
-
-5. **Future Packages**
-   - `@loom/network`: service networking and DNS abstraction.
-   - `@loom/https`: local CA + certificate automation.
-   - `@loom/plugin-host` and `@loom/plugin-sdk`: plugin lifecycle and API contracts.
-
-## Runtime Strategy
-
-- Linux: use native rootless Podman as primary path.
-- macOS/Windows: use fully managed Podman Machine lifecycle.
-- Capability checks happen before lifecycle actions for deterministic diagnostics.
-
-## Runtime Flow Diagram
+## Runtime flow diagram
 
 ```mermaid
 flowchart LR
@@ -73,13 +48,14 @@ flowchart LR
    PROXY --> APP
 ```
 
-## Host vs Machine
+## Host vs Podman Machine (simple explanation)
 
-- Loom itself runs on the host as a CLI tool.
-- Loom does not install itself inside Podman Machine.
-- Loom creates and manages containers/networks/proxy inside Podman (native on Linux, inside VM on macOS/Windows).
+- Loom runs as a CLI on your computer.
+- On Linux, Loom talks to Podman directly.
+- On macOS/Windows, Loom uses Podman Machine automatically when needed.
+- Your app services still run in containers either way.
 
-## `loom start` Sequence
+## `loom start` sequence
 
 ```mermaid
 sequenceDiagram
@@ -120,13 +96,9 @@ sequenceDiagram
    CLI-->>User: success output
 ```
 
-## Build Automation
+## Why this matters for beginners
 
-- Named tasks in `loom.yaml` map to service-scoped commands.
-- CLI task runner calls orchestrator and runtime adapter execution APIs.
-
-## Plugin Model (Planned)
-
-- Hook-based lifecycle (`beforeStart`, `afterStart`, `beforeTask`, `afterTask`).
-- Versioned API contracts to keep plugin compatibility stable.
-- Plugin manifests loaded from project and global plugin directories.
+- Fewer startup surprises.
+- Faster onboarding for new projects.
+- Same command flow across many stacks.
+- Cleaner local environments with one stop command.

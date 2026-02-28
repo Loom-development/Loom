@@ -27,6 +27,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm exec tsc -b tsconfig.json
+
+      - name: Run tests with coverage gate
+        run: pnpm test:coverage
+
       - name: Build release assets
         run: node scripts/build-release-assets.mjs
 

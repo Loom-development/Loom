@@ -5,6 +5,9 @@ import { parse } from "yaml";
 import { z } from "zod";
 import type { LoomConfig } from "./types.js";
 
+const SAFE_IDENTIFIER_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
+const SAFE_HOST_PATTERN = /^(?:\*\.)?(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+$/;
+
 export interface LoadedLoomProject {
   config: LoomConfig;
   configPath: string;
@@ -12,8 +15,8 @@ export interface LoadedLoomProject {
 }
 
 const serviceSchema = z.object({
-  type: z.string(),
-  image: z.string(),
+  type: z.string().min(1),
+  image: z.string().min(1),
   entrypoint: z.string().optional(),
   command: z.string().optional(),
   workdir: z.string().optional(),
@@ -34,7 +37,9 @@ const serviceSchema = z.object({
 
 const configSchema = z.object({
   version: z.number().int().positive(),
-  name: z.string().min(1),
+  name: z.string().regex(SAFE_IDENTIFIER_PATTERN, {
+    message: "Project name must start with an alphanumeric character and contain only letters, digits, dot, underscore, or dash."
+  }),
   runtime: z.object({
     engine: z.literal("podman"),
     rootless: z.boolean().default(true),
@@ -44,11 +49,18 @@ const configSchema = z.object({
       })
       .optional()
   }),
-  services: z.record(serviceSchema),
+  services: z.record(
+    z.string().regex(SAFE_IDENTIFIER_PATTERN, {
+      message: "Service names must start with an alphanumeric character and contain only letters, digits, dot, underscore, or dash."
+    }),
+    serviceSchema
+  ),
   routes: z
     .array(
       z.object({
-        host: z.string(),
+        host: z.string().regex(SAFE_HOST_PATTERN, {
+          message: "Route host must be a valid hostname and may start with '*.'."
+        }),
         service: z.string(),
         port: z.number().int().positive(),
         https: z.boolean().optional()

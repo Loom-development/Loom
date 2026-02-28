@@ -217,7 +217,7 @@ async function inspectContainerLabel(name: string, label: string): Promise<strin
   const labelInspect = await run("podman", [
     "inspect",
     "--format",
-    `{{ index .Config.Labels \"${label}\" }}`,
+    `{{ index .Config.Labels "${label}" }}`,
     name
   ]);
 
@@ -358,10 +358,28 @@ async function arePortsReachable(ports: number[], timeoutMs: number): Promise<bo
   return results.every(Boolean);
 }
 
+function isInteractiveTerminal(): boolean {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+export function buildExecArgs(
+  containerNameValue: string,
+  command: string[],
+  interactiveTerminal: boolean
+): string[] {
+  if (command.length === 0) {
+    throw new Error("Command required for loom exec.");
+  }
+
+  const ttyArgs = interactiveTerminal ? ["-it"] : [];
+  return ["exec", ...ttyArgs, containerNameValue, ...command];
+}
+
 export async function waitForServiceReady(
   projectName: string,
   serviceName: string,
   options?: {
+    command?: string;
     ports?: string[];
     intervalSeconds?: number;
     timeoutSeconds?: number;
@@ -380,6 +398,9 @@ export async function waitForServiceReady(
   const timeoutMs = Math.max(retries * intervalMs, 60_000);
   const probeTimeoutMs = (options?.timeoutSeconds ?? 2) * 1000;
   const hostPorts = parseHostPorts(options?.ports);
+  const hasExplicitReadinessProbe = Boolean(options?.command) || hostPorts.length > 0;
+  const stableRunningChecksRequired = hasExplicitReadinessProbe ? 1 : 2;
+  let stableRunningChecks = 0;
 
   let attempts = 0;
   const startedAt = Date.now();
@@ -394,6 +415,8 @@ export async function waitForServiceReady(
     if (!info.running) {
       throw new Error(`Container '${name}' exited before becoming ready.`);
     }
+
+    stableRunningChecks += 1;
 
     if (info.health) {
       if (info.health.toLowerCase() === "healthy") {
@@ -418,7 +441,11 @@ export async function waitForServiceReady(
       continue;
     }
 
-    return;
+    if (stableRunningChecks >= stableRunningChecksRequired) {
+      return;
+    }
+
+    await sleep(intervalMs);
   }
 
   throw new Error(`Timed out waiting for service '${serviceName}' to become ready.`);
@@ -494,11 +521,7 @@ export async function tailServiceLogs(projectName: string, serviceName: string, 
 
 export async function execServiceCommand(projectName: string, serviceName: string, command: string[]): Promise<void> {
   const name = containerName(projectName, serviceName);
-  if (command.length === 0) {
-    throw new Error("Command required for loom exec.");
-  }
-
-  const args = ["exec", "-it", name, ...command];
+  const args = buildExecArgs(name, command, isInteractiveTerminal());
   const code = await runInherit("podman", args);
   if (code !== 0) {
     throw new Error(`Failed to exec in '${name}'.`);
@@ -512,7 +535,7 @@ export async function ensureComposerAvailable(projectName: string, serviceName: 
     name,
     "sh",
     "-lc",
-    "command -v composer >/dev/null 2>&1 || (php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\" && php composer-setup.php --install-dir=/usr/local/bin --filename=composer && rm -f composer-setup.php)"
+    "command -v composer >/dev/null 2>&1 || (EXPECTED_SIGNATURE=$(php -r \"copy('https://composer.github.io/installer.sig', 'php://stdout');\") && php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\" && ACTUAL_SIGNATURE=$(php -r \"echo hash_file('sha384', 'composer-setup.php');\") && [ \"$EXPECTED_SIGNATURE\" = \"$ACTUAL_SIGNATURE\" ] && php composer-setup.php --install-dir=/usr/local/bin --filename=composer && rm -f composer-setup.php)"
   ]);
 
   if (!result.ok) {

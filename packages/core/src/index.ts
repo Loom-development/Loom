@@ -136,6 +136,49 @@ function dependencyOrder(config: LoomConfig): string[] {
   return ordered;
 }
 
+interface StopProjectResourcesOptions {
+  stopServiceByName?: (projectName: string, serviceName: string) => Promise<void>;
+  stopRouteProxyByProject?: (projectName: string) => Promise<void>;
+  writeOut?: (message: string) => unknown;
+  writeErr?: (message: string) => unknown;
+}
+
+export async function stopProjectResources(
+  projectName: string,
+  order: string[],
+  options: StopProjectResourcesOptions = {}
+): Promise<void> {
+  const stopServiceByName = options.stopServiceByName ?? stopService;
+  const stopRouteProxyByProject = options.stopRouteProxyByProject ?? stopRouteProxy;
+  const writeOut = options.writeOut ?? process.stdout.write.bind(process.stdout);
+  const writeErr = options.writeErr ?? process.stderr.write.bind(process.stderr);
+  const errors: string[] = [];
+
+  for (const serviceName of order) {
+    try {
+      await stopServiceByName(projectName, serviceName);
+      writeOut(`- stopped ${serviceName}\n`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`service '${serviceName}': ${message}`);
+      writeErr(`- failed stopping ${serviceName}: ${message}\n`);
+    }
+  }
+
+  try {
+    await stopRouteProxyByProject(projectName);
+    writeOut("- stopped route proxy\n");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    errors.push(`route proxy: ${message}`);
+    writeErr(`- failed stopping route proxy: ${message}\n`);
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`One or more resources failed to stop: ${errors.join(" | ")}`);
+  }
+}
+
 export class LoomOrchestrator {
   constructor(
     private readonly config: LoomConfig,
@@ -248,14 +291,7 @@ export class LoomOrchestrator {
   async stop(): Promise<void> {
     const order = dependencyOrder(this.config).reverse();
     process.stdout.write(`Stopping ${order.length} service(s) for ${this.config.name}...\n`);
-
-    for (const serviceName of order) {
-      await stopService(this.config.name, serviceName);
-      process.stdout.write(`- stopped ${serviceName}\n`);
-    }
-
-    await stopRouteProxy(this.config.name);
-    process.stdout.write("- stopped route proxy\n");
+    await stopProjectResources(this.config.name, order);
   }
 
   async restart(): Promise<void> {

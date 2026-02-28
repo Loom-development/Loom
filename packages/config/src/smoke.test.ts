@@ -42,3 +42,51 @@ test("loadLoomProject resolves config from parent directories", async () => {
     process.chdir(previousCwd);
   }
 });
+
+test("loadLoomProject rejects unsafe service names", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-config-invalid-service-"));
+  const configPath = join(root, "loom.yaml");
+
+  await writeFile(
+    configPath,
+    [
+      "version: 1",
+      "name: test-project",
+      "runtime:",
+      "  engine: podman",
+      "services:",
+      "  bad service:",
+      "    type: node",
+      "    image: node:20-alpine"
+    ].join("\n"),
+    "utf8"
+  );
+
+  await assert.rejects(() => loadLoomProject(configPath), /Service names must start with an alphanumeric character/i);
+});
+
+test("loadLoomProject rejects invalid route host", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-config-invalid-host-"));
+  const configPath = join(root, "loom.yaml");
+
+  await writeFile(
+    configPath,
+    [
+      "version: 1",
+      "name: test-project",
+      "runtime:",
+      "  engine: podman",
+      "services:",
+      "  app:",
+      "    type: node",
+      "    image: node:20-alpine",
+      "routes:",
+      "  - host: bad host",
+      "    service: app",
+      "    port: 3000"
+    ].join("\n"),
+    "utf8"
+  );
+
+  await assert.rejects(() => loadLoomProject(configPath), /Route host must be a valid hostname/i);
+});

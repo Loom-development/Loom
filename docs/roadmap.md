@@ -1,34 +1,37 @@
-# Loom Implementation Roadmap
+# Loom Roadmap (For Users)
 
-## Phase 1 - Foundation (In Progress)
+This roadmap focuses on what users will feel and gain as Loom evolves.
 
-- [x] pnpm monorepo scaffold.
-- [x] Basic config schema and loader.
-- [x] Podman availability/rootless/machine capability checks.
-- [x] CLI commands: `loom start`, `loom status`, `loom test`.
-- [ ] Compose import pathway.
+## Current focus
 
-## Phase 2 - Service Lifecycle
+- Better onboarding for new users.
+- More stable startup and readiness behavior.
+- Improved cross-platform reliability (Linux, macOS, Windows).
 
-- [ ] Container create/start/stop and logs.
-- [ ] Service dependency graph orchestration.
-- [ ] Health checks and readiness gates.
+## What’s next
 
-## Phase 3 - Networking + HTTPS
+### 1) Easier setup
 
-- [ ] Routing layer for local hostnames.
-- [ ] Automatic certificate issuance and trust setup.
-- [ ] Cross-platform DNS integration strategy.
+- More beginner templates and smoother defaults.
+- Better first-run guidance and error messages.
 
-## Phase 4 - Build + Plugin Ecosystem
+### 2) Better local networking
 
-- [ ] Build hook runner (`preStart`, `build`, `postStop`).
-- [ ] Plugin host runtime.
-- [ ] Plugin SDK and template generator.
+- Cleaner local domains and route handling.
+- Improved HTTPS flow for development routes.
 
-## Phase 5 - Hardening + Release
+### 3) Faster daily workflows
 
-- [ ] Rootless permission edge-case handling.
-- [ ] Podman Machine parity tests across macOS/Windows.
-- [ ] CI matrix and release automation.
-- [ ] Public documentation and contribution guides.
+- More quality-of-life command improvements.
+- Better logs/status output for quick debugging.
+
+### 4) Stronger reliability
+
+- Better edge-case handling for startup and shutdown.
+- More platform parity testing for Podman Machine behavior.
+
+## Product direction
+
+Loom is being shaped for developers who want this outcome:
+
+"I can clone a project, run one command, and start building immediately."

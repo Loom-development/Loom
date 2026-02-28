@@ -175,7 +175,7 @@ function buildPhpBaseCommand(containerDocroot: string): string {
     "command: |",
     `      mkdir -p ${containerDocroot}`,
     `      if [ ! -f ${containerDocroot}/index.php ]; then`,
-    `        printf '%s\\n' '<?php echo \"Loom PHP example is running.\";' > ${containerDocroot}/index.php`,
+    `        printf '%s\\n' '<?php echo "Loom PHP example is running.";' > ${containerDocroot}/index.php`,
     "      fi",
     `      php -S 0.0.0.0:80 -t ${containerDocroot}`,
     "    ports:"
