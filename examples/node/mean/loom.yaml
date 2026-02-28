@@ -21,7 +21,7 @@ services:
       startPeriodSeconds: 4
   api:
     type: node
-    image: node:20-alpine
+    image: node:24-alpine
     dependsOn:
       - mongo
     workdir: /workspace
@@ -41,7 +41,7 @@ services:
       startPeriodSeconds: 5
   web:
     type: node
-    image: node:20-alpine
+    image: node:24-alpine
     dependsOn:
       - api
     workdir: /workspace

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { Socket } from "node:net";
@@ -212,6 +213,42 @@ async function inspectContainerImage(name: string): Promise<string> {
   return imageInspect.ok ? imageInspect.stdout.trim() : "";
 }
 
+async function inspectContainerLabel(name: string, label: string): Promise<string> {
+  const labelInspect = await run("podman", [
+    "inspect",
+    "--format",
+    `{{ index .Config.Labels \"${label}\" }}`,
+    name
+  ]);
+
+  return labelInspect.ok ? labelInspect.stdout.trim() : "";
+}
+
+function serviceConfigHash(service: LoomService): string {
+  const signature = {
+    type: service.type,
+    image: normalizeImage(service.image),
+    entrypoint: service.entrypoint ?? null,
+    command: service.command ?? null,
+    workdir: service.workdir ?? null,
+    ports: [...(service.ports ?? [])],
+    volumes: [...(service.volumes ?? [])],
+    env: Object.entries(service.env ?? {}).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)),
+    dependsOn: [...(service.dependsOn ?? [])],
+    healthcheck: service.healthcheck
+      ? {
+          command: service.healthcheck.command,
+          intervalSeconds: service.healthcheck.intervalSeconds ?? null,
+          timeoutSeconds: service.healthcheck.timeoutSeconds ?? null,
+          retries: service.healthcheck.retries ?? null,
+          startPeriodSeconds: service.healthcheck.startPeriodSeconds ?? null
+        }
+      : null
+  };
+
+  return createHash("sha256").update(JSON.stringify(signature)).digest("hex");
+}
+
 async function removeContainer(name: string): Promise<void> {
   const remove = await run("podman", ["rm", "-f", name]);
   if (!remove.ok) {
@@ -243,7 +280,8 @@ async function buildPodmanRunArgs(
   containerNameValue: string,
   service: LoomService,
   networkName: string,
-  expectedImage: string
+  expectedImage: string,
+  expectedServiceHash: string
 ): Promise<string[]> {
   const args: string[] = [
     "run",
@@ -279,6 +317,7 @@ async function buildPodmanRunArgs(
   }
 
   appendHealthcheckArgs(args, service);
+  args.push("--label", `loom.service-hash=${expectedServiceHash}`);
   args.push(expectedImage);
 
   if (service.command) {
@@ -393,6 +432,7 @@ export async function ensureServiceStarted(
 ): Promise<void> {
   const name = containerName(projectName, serviceName);
   const expectedImage = normalizeImage(service.image);
+  const expectedServiceHash = serviceConfigHash(service);
 
   const running = await isContainerRunning(name);
   if (running) {
@@ -401,8 +441,13 @@ export async function ensureServiceStarted(
 
   if (await containerExists(name)) {
     const currentImage = await inspectContainerImage(name);
+    const currentServiceHash = await inspectContainerLabel(name, "loom.service-hash");
 
-    if (currentImage && currentImage !== expectedImage) {
+    if (
+      (currentImage && currentImage !== expectedImage) ||
+      !currentServiceHash ||
+      currentServiceHash !== expectedServiceHash
+    ) {
       await removeContainer(name);
     } else {
       await startContainer(name);
@@ -410,7 +455,14 @@ export async function ensureServiceStarted(
     }
   }
 
-  const args = await buildPodmanRunArgs(serviceName, name, service, networkName, expectedImage);
+  const args = await buildPodmanRunArgs(
+    serviceName,
+    name,
+    service,
+    networkName,
+    expectedImage,
+    expectedServiceHash
+  );
 
   const runResult = await run("podman", args);
   if (!runResult.ok) {

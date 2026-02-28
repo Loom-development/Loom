@@ -51,4 +51,4 @@ routes:
 tasks:
   test:
     service: app
-    command: pnpm typecheck
+    command: corepack enable && pnpm typecheck

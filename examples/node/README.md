@@ -2,6 +2,12 @@
 
 ## Node runtime examples
 
+### Base Node
+
+- Config: `examples/node/loom.yaml`
+- Start: `pnpm --filter @loom/cli dev start --config examples/node/loom.yaml`
+- Stop: `pnpm --filter @loom/cli dev stop --config examples/node/loom.yaml`
+
 ### MEAN
 
 - Config: `examples/node/mean/loom.yaml`

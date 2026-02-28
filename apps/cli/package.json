@@ -44,6 +44,9 @@
   "dependencies": {
     "@loom/config": "workspace:*",
     "@loom/core": "workspace:*",
+    "@loom/https": "workspace:*",
+    "@loom/network": "workspace:*",
+    "@loom/runtime-podman": "workspace:*",
     "@loom/tasks": "workspace:*",
     "cac": "^6.7.14"
   }

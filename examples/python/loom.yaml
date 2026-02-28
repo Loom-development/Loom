@@ -9,17 +9,16 @@ services:
   app:
     type: python
     image: python:3.12-slim
-    workdir: /workspace
+    workdir: /app
     command: |
-      mkdir -p public
-      if [ ! -f public/index.html ]; then
-        printf '%s\n' 'Loom Python example is running.' > public/index.html
+      if [ ! -f index.html ]; then
+        printf '%s\n' 'Loom Python example is running.' > index.html
       fi
-      python -m http.server 8000 --directory public
+      python -m http.server 8000
     ports:
       - "8000:8000"
     volumes:
-      - ./:/workspace
+      - ./:/app
   cache:
     type: redis
     image: redis:7-alpine

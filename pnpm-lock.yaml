@@ -26,6 +26,15 @@ importers:
       '@loom/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@loom/https':
+        specifier: workspace:*
+        version: link:../../packages/https
+      '@loom/network':
+        specifier: workspace:*
+        version: link:../../packages/network
+      '@loom/runtime-podman':
+        specifier: workspace:*
+        version: link:../../packages/runtime-podman
       '@loom/tasks':
         specifier: workspace:*
         version: link:../../packages/tasks
