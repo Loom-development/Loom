@@ -6,6 +6,9 @@ on:
       - "v*"
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: write
 
@@ -28,7 +31,6 @@ jobs:
         with:
           version: 10.6.5
           run_install: false
-          registry-url: https://registry.npmjs.org
 
       - name: Enable Corepack
         run: corepack enable
@@ -50,7 +52,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: pnpm publish apps/cli --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.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 }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish release assets
         if: startsWith(github.ref, 'refs/tags/v')
