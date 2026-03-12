@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: mysql
-    image: mysql:8.4
+    image: ${MYSQL_IMAGE:-mysql:8.4}
     volumes:
       - ./data/mysql:/var/lib/mysql
     env:
@@ -26,9 +26,13 @@ services:
       startPeriodSeconds: 5
   app:
     type: php
-    image: drupal:10-apache
+    image: ${PHP_IMAGE:-dunglas/frankenphp:1-php8.3}
+    workdir: /app
+    command: |
+      frankenphp php-server --listen :80 --root /app/web
     volumes:
-      - ./data/files:/var/www/html/sites/default/files
+      - ./:/app
+      - ./data/files:/app/web/sites/default/files
     dependsOn:
       - db
     env:

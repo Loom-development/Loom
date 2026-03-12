@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: node
-    image: docker.io/oven/bun:1.2
+    image: ${BUN_IMAGE:-docker.io/oven/bun:1.2}
     workdir: /workspace
     command: bun run dev
     ports:

@@ -1,0 +1,22 @@
+version: 1
+name: loom-rails7-hotwire
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: ruby
+    image: ${RUBY_IMAGE:-ruby:3.3}
+    workdir: /workspace
+    command: gem install bundler --no-document && bundle install && bin/rails server -b 0.0.0.0 -p 3008
+    ports:
+      - "3008:3008"
+    volumes:
+      - ./:/workspace
+routes:
+  - host: rails7-hotwire.loom.local
+    service: app
+    port: 3008
+    https: true

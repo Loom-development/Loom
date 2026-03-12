@@ -27,14 +27,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm exec tsc -b tsconfig.json
-
-      - name: Run tests with coverage gate and report output
-        run: pnpm test:coverage:report
+      - name: Verify with coverage gate and report output
+        run: pnpm verify:coverage
 
       - name: Upload coverage report artifact
         uses: actions/upload-artifact@v4
@@ -48,6 +42,12 @@ jobs:
       - name: Build release assets
         run: node scripts/build-release-assets.mjs
 
+      - name: Build npm CLI package
+        run: pnpm --dir apps/cli build
+
+      - name: Pack npm CLI package
+        run: pnpm --dir apps/cli pack --pack-destination ../../dist/release
+
       - name: Upload release assets artifact
         uses: actions/upload-artifact@v4
         with:
@@ -59,4 +59,5 @@ jobs:
             dist/release/loom-darwin-arm64.tar.gz
             dist/release/loom-windows-x64.zip
             dist/release/loom-windows-arm64.zip
+            dist/release/loom-cli-*.tgz
           if-no-files-found: error

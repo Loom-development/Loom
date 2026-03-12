@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: mariadb
-    image: mariadb:11
+    image: ${MARIADB_IMAGE:-mariadb:11}
     env:
       MARIADB_ROOT_PASSWORD: loomroot
       MARIADB_DATABASE: loom

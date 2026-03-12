@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: postgres
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     env:
@@ -25,7 +25,7 @@ services:
       startPeriodSeconds: 4
   app:
     type: node
-    image: node:24-alpine
+    image: ${NODE_IMAGE:-node:24-alpine}
     dependsOn:
       - db
     workdir: /workspace

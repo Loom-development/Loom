@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: redis
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:-redis:7-alpine}
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"

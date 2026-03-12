@@ -101,14 +101,97 @@ async function findConfigPath(configPath: string): Promise<string> {
   }
 }
 
+function parseDotEnv(raw: string): Record<string, string> {
+  const values: Record<string, string> = {};
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    let value = trimmed.slice(separatorIndex + 1).trim();
+
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    values[key] = value;
+  }
+
+  return values;
+}
+
+async function loadProjectEnv(projectRoot: string): Promise<Record<string, string>> {
+  const envPath = resolve(projectRoot, ".env");
+
+  try {
+    const raw = await readFile(envPath, "utf-8");
+    return {
+      ...parseDotEnv(raw),
+      ...Object.fromEntries(
+        Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      )
+    };
+  } catch {
+    return Object.fromEntries(
+      Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+    );
+  }
+}
+
+function interpolateString(value: string, env: Record<string, string>): string {
+  return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g, (_match, key: string, defaultValue?: string) => {
+    const resolved = env[key];
+    if (resolved !== undefined) {
+      return resolved;
+    }
+
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
+
+    throw new Error(`Missing required environment variable '${key}' while loading Loom config.`);
+  });
+}
+
+function interpolateConfigValue(value: unknown, env: Record<string, string>): unknown {
+  if (typeof value === "string") {
+    return interpolateString(value, env);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => interpolateConfigValue(entry, env));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, interpolateConfigValue(entry, env)])
+    );
+  }
+
+  return value;
+}
+
 export async function loadLoomProject(configPath = "loom.yaml"): Promise<LoadedLoomProject> {
   const absolutePath = await findConfigPath(configPath);
   const raw = await readFile(absolutePath, "utf-8");
-  const parsed = parse(raw);
+  const projectRoot = dirname(absolutePath);
+  const env = await loadProjectEnv(projectRoot);
+  const parsed = interpolateConfigValue(parse(raw), env);
   return {
     config: configSchema.parse(parsed) as LoomConfig,
     configPath: absolutePath,
-    projectRoot: dirname(absolutePath)
+    projectRoot
   };
 }
 

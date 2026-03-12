@@ -90,3 +90,56 @@ test("loadLoomProject rejects invalid route host", async () => {
 
   await assert.rejects(() => loadLoomProject(configPath), /Route host must be a valid hostname/i);
 });
+
+test("loadLoomProject interpolates image strings from .env with defaults", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-config-env-"));
+  const configPath = join(root, "loom.yaml");
+  const envPath = join(root, ".env");
+
+  await writeFile(envPath, ["APP_IMAGE=node:22-alpine"].join("\n"), "utf8");
+  await writeFile(
+    configPath,
+    [
+      "version: 1",
+      "name: test-project",
+      "runtime:",
+      "  engine: podman",
+      "  rootless: true",
+      "services:",
+      "  app:",
+      "    type: node",
+      "    image: ${APP_IMAGE:-node:24-alpine}",
+      "  cache:",
+      "    type: redis",
+      "    image: ${CACHE_IMAGE:-redis:7-alpine}"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const loaded = await loadLoomProject(configPath);
+  assert.equal(loaded.config.services.app.image, "node:22-alpine");
+  assert.equal(loaded.config.services.cache.image, "redis:7-alpine");
+});
+
+test("loadLoomProject throws when an interpolated variable is missing and has no default", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-config-missing-env-"));
+  const configPath = join(root, "loom.yaml");
+
+  await writeFile(
+    configPath,
+    [
+      "version: 1",
+      "name: test-project",
+      "runtime:",
+      "  engine: podman",
+      "  rootless: true",
+      "services:",
+      "  app:",
+      "    type: node",
+      "    image: ${APP_IMAGE}"
+    ].join("\n"),
+    "utf8"
+  );
+
+  await assert.rejects(() => loadLoomProject(configPath), /Missing required environment variable 'APP_IMAGE'/i);
+});

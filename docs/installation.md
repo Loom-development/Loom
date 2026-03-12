@@ -91,6 +91,7 @@ loom stop
 
 - `loom init <template> --dir <folder>`
 - `loom start`
+- `loom start --recreate`
 - `loom stop`
 - `loom restart`
 - `loom status`
@@ -122,5 +123,6 @@ loom backup --all
 
 - **`loom: command not found`**: reopen terminal or add install location to `PATH`.
 - **Podman not reachable**: run `podman version`.
+- **Existing containers conflict with your current config**: run `loom start --recreate` to remove the current project's containers and rebuild them cleanly.
 - **macOS/Windows Podman machine issues**: run `loom start` (Loom auto-handles machine start in normal flow).
 - **Windows + WSL**: use one environment per project (don’t mix commands between Windows and WSL for the same running stack).

@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: mysql
-    image: mysql:8.4
+    image: ${MYSQL_IMAGE:-mysql:8.4}
     volumes:
       - ./data/mysql:/var/lib/mysql
     env:
@@ -26,9 +26,18 @@ services:
       startPeriodSeconds: 5
   app:
     type: php
-    image: wordpress:6.7-php8.3-apache
+    image: ${PHP_IMAGE:-php:8.3-apache}
+    command: |
+      a2enmod rewrite >/dev/null 2>&1
+      cat >/etc/apache2/conf-enabled/loom-wordpress.conf <<'EOF'
+      <Directory /var/www/html>
+        AllowOverride All
+        Require all granted
+      </Directory>
+      EOF
+      apache2-foreground
     volumes:
-      - ./data/wp-content:/var/www/html/wp-content
+      - ./:/var/www/html
     dependsOn:
       - db
     env:

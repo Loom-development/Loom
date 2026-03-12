@@ -1,12 +1,20 @@
 #!/usr/bin/env node
 import { cac } from "cac";
-import { access, copyFile, cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, copyFile, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadLoomProject } from "@loom/config";
 import { LoomOrchestrator } from "@loom/core";
 import { runNamedTask } from "@loom/tasks";
+import { detectInitTemplateSuggestion } from "./init-detect.js";
+import {
+  chooseInitImageOverrides,
+  chooseInitTemplate,
+  describeInitTemplate,
+  initImageChoicesByTemplate
+} from "./init-prompt.js";
+import { prepareInitTarget } from "./init-template.js";
 
 const cli = cac("loom");
 
@@ -36,16 +44,13 @@ const templateMap: Record<string, string> = {
   "db-sqlite": "databases/sqlite",
   "db-mariadb": "databases/mariadb",
   "db-all": "databases/all",
-  dotnet: "stacks/dotnet",
-  "stack-dotnet": "stacks/dotnet",
-  rails7: "stacks/rails7",
-  "stack-rails7": "stacks/rails7",
-  jamstack: "stacks/jamstack",
-  "stack-jamstack": "stacks/jamstack",
-  serverless: "stacks/serverless",
-  "stack-serverless": "stacks/serverless",
-  "spring-react": "stacks/spring-react",
-  "stack-spring-react": "stacks/spring-react"
+  dotnet: "dotnet",
+  rails7: "rails7",
+  "rails7-hotwire": "rails7-hotwire",
+  jamstack: "jamstack",
+  serverless: "serverless",
+  "spring-react": "spring-react",
+  "django-react": "django-react"
 };
 
 const ignoredTemplateEntries = new Set([
@@ -74,15 +79,6 @@ async function bootstrapProject(configPath?: string): Promise<LoomOrchestrator> 
   const project = await loadLoomProject(configPath);
   process.chdir(project.projectRoot);
   return new LoomOrchestrator(project.config, project.projectRoot);
-}
-
-async function directoryHasFiles(path: string): Promise<boolean> {
-  try {
-    const entries = await readdir(path);
-    return entries.length > 0;
-  } catch {
-    return false;
-  }
 }
 
 async function ensureEnvFileFromExample(targetDir: string): Promise<void> {
@@ -132,6 +128,10 @@ function resolvePhpDocrootOption(template: string, phpDocroot?: string): string 
     return phpDocroot;
   }
 
+  if (template === "php-symfony") {
+    return phpDocroot ?? "public";
+  }
+
   return phpDocroot ?? ".";
 }
 
@@ -146,14 +146,109 @@ async function copyTemplate(sourceDir: string, targetDir: string, force: boolean
   });
 }
 
+async function copyTemplateEntries(
+  sourceDir: string,
+  targetDir: string,
+  entries: string[],
+  force: boolean
+): Promise<void> {
+  for (const entry of entries) {
+    await cp(resolve(sourceDir, entry), resolve(targetDir, entry), {
+      recursive: true,
+      force
+    });
+  }
+}
+
+async function copyTemplateEntriesIfMissing(
+  sourceDir: string,
+  targetDir: string,
+  entries: string[]
+): Promise<void> {
+  for (const entry of entries) {
+    const targetPath = resolve(targetDir, entry);
+    try {
+      await access(targetPath);
+      continue;
+    } catch {
+      await cp(resolve(sourceDir, entry), targetPath, {
+        recursive: true,
+        force: false
+      });
+    }
+  }
+}
+
 function normalizeProjectToken(raw: string): string {
   const normalized = raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   return normalized || "project";
 }
 
+function deriveProjectName(targetDir: string): string {
+  const targetName = basename(targetDir) === "db" ? basename(resolve(targetDir, "..")) : basename(targetDir);
+  return `loom-${normalizeProjectToken(targetName)}`;
+}
+
+async function applyProjectName(targetDir: string): Promise<void> {
+  const loomPath = resolve(targetDir, "loom.yaml");
+  const projectName = deriveProjectName(targetDir);
+  const loomYaml = await readFile(loomPath, "utf8");
+  const updatedLoomYaml = loomYaml.replace(/^(name:\s*).+$/m, `$1${projectName}`);
+
+  if (updatedLoomYaml !== loomYaml) {
+    await writeFile(loomPath, updatedLoomYaml, "utf8");
+  }
+}
+
 function replaceEnvVariable(content: string, key: string, value: string): string {
   const pattern = new RegExp(`^${key}=.*$`, "m");
   return pattern.test(content) ? content.replace(pattern, `${key}=${value}`) : content;
+}
+
+function parseEnvAssignments(optionValue: string | string[] | undefined): Record<string, string> {
+  if (!optionValue) {
+    return {};
+  }
+
+  const values = Array.isArray(optionValue) ? optionValue : [optionValue];
+  const assignments: Record<string, string> = {};
+
+  for (const value of values) {
+    const separatorIndex = value.indexOf("=");
+    if (separatorIndex <= 0) {
+      throw new Error(`Invalid --image value '${value}'. Use KEY=VALUE.`);
+    }
+
+    const key = value.slice(0, separatorIndex).trim();
+    const assignedValue = value.slice(separatorIndex + 1).trim();
+    if (!key || !assignedValue) {
+      throw new Error(`Invalid --image value '${value}'. Use KEY=VALUE.`);
+    }
+
+    assignments[key] = assignedValue;
+  }
+
+  return assignments;
+}
+
+function parseEnvFile(content: string): Record<string, string> {
+  const values: Record<string, string> = {};
+
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    values[trimmed.slice(0, separatorIndex).trim()] = trimmed.slice(separatorIndex + 1).trim();
+  }
+
+  return values;
 }
 
 function hasEnvVariable(content: string, key: string): boolean {
@@ -177,7 +272,7 @@ function buildPhpBaseCommand(containerDocroot: string): string {
     `      if [ ! -f ${containerDocroot}/index.php ]; then`,
     `        printf '%s\\n' '<?php echo "Loom PHP example is running.";' > ${containerDocroot}/index.php`,
     "      fi",
-    `      php -S 0.0.0.0:80 -t ${containerDocroot}`,
+    `      frankenphp php-server --listen :80 --root ${containerDocroot}`,
     "    ports:"
   ].join("\n");
 }
@@ -203,11 +298,11 @@ async function applyPhpDocroot(targetDir: string, template: string, phpDocrootRa
   let loomYaml = await readFile(loomPath, "utf8");
 
   if (template === "php") {
-    const containerDocroot = phpDocroot === "." ? "/var/www/html" : `/var/www/html/${phpDocroot}`;
+    const containerDocroot = phpDocroot === "." ? "/app" : `/app/${phpDocroot}`;
     loomYaml = loomYaml.replace(/command:\s*\|[\s\S]*?\n\s*ports:/m, buildPhpBaseCommand(containerDocroot));
   } else {
     const templateDocroot = phpDocroot === "." ? "." : phpDocroot;
-    loomYaml = loomYaml.replace(/(php\s+-S\s+[^\n]*?\s+-t\s+)([^\s"']+)/, `$1${templateDocroot}`);
+    loomYaml = loomYaml.replace(/(frankenphp\s+php-server\s+--listen\s+:[0-9]+\s+--root\s+)([^\s"']+)/, `$1${templateDocroot}`);
   }
 
   await writeFile(loomPath, loomYaml, "utf8");
@@ -297,40 +392,98 @@ async function customizeDbTemplateCredentials(targetDir: string): Promise<void> 
   process.stdout.write(`Generated project-specific DB credentials in ${envPath}\n`);
 }
 
+async function applyRuntimeImageSelections(
+  targetDir: string,
+  template: string,
+  imageAssignments: Record<string, string>
+): Promise<void> {
+  const envPath = resolve(targetDir, ".env");
+
+  let envContent: string;
+  try {
+    envContent = await readFile(envPath, "utf8");
+  } catch {
+    return;
+  }
+
+  const currentValues = parseEnvFile(envContent);
+  const chosenImages = { ...imageAssignments };
+
+  const hasInteractiveChoices = (initImageChoicesByTemplate[template] ?? []).length > 0;
+  if (hasInteractiveChoices && process.stdin.isTTY) {
+    const prompted = await chooseInitImageOverrides(template, { ...currentValues, ...chosenImages });
+    Object.assign(chosenImages, prompted);
+  }
+
+  if (Object.keys(chosenImages).length === 0) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(chosenImages)) {
+    envContent = replaceEnvVariable(envContent, key, value);
+  }
+
+  await writeFile(envPath, envContent, "utf8");
+  process.stdout.write(`Configured runtime image selections in ${envPath}\n`);
+}
+
 cli
-  .command("init <template>", "Initialize a sample project in a target directory")
+  .command("init [template]", "Initialize a sample project in a target directory")
   .option("--dir <path>", "Target directory", { default: "." })
   .option("--force", "Allow writing into non-empty target directory", { default: false })
   .option("--php-docroot <path>", "PHP docroot path inside project (php/php-symfony templates)")
+  .option("--image <key=value>", "Override a template image variable during init (repeatable)")
   .action(
-    withErrorHandling(async (template: string, options: { dir?: string; force?: boolean; phpDocroot?: string }) => {
-      const relativeTemplate = templateMap[template];
+    withErrorHandling(async (template: string | undefined, options: { dir?: string; force?: boolean; phpDocroot?: string; image?: string | string[] }) => {
+      const selectedTemplate = template ?? (await chooseInitTemplate(
+        await detectInitTemplateSuggestion(process.cwd())
+      ));
+      const relativeTemplate = templateMap[selectedTemplate];
       if (!relativeTemplate) {
         const available = Object.keys(templateMap).sort().join(", ");
-        throw new Error(`Unknown template '${template}'. Available templates: ${available}`);
+        throw new Error(`Unknown template '${selectedTemplate}'. Available templates: ${available}`);
       }
 
-      validateInitOptions(template, options.phpDocroot);
-      const effectivePhpDocroot = resolvePhpDocrootOption(template, options.phpDocroot);
+      process.stdout.write(`Initializing '${selectedTemplate}': ${describeInitTemplate(selectedTemplate)}\n`);
+
+      validateInitOptions(selectedTemplate, options.phpDocroot);
+      const effectivePhpDocroot = resolvePhpDocrootOption(selectedTemplate, options.phpDocroot);
 
       const sourceDir = resolve(templatesRoot, relativeTemplate);
-      const targetDir = resolveInitTargetDir(template, options.dir);
+      const targetDir = resolveInitTargetDir(selectedTemplate, options.dir);
 
       await mkdir(targetDir, { recursive: true });
 
-      if (!options.force && (await directoryHasFiles(targetDir))) {
-        throw new Error(`Target directory '${targetDir}' is not empty. Use --force to continue.`);
+      const initPreparation = await prepareInitTarget(selectedTemplate, targetDir, options.force ?? false);
+
+      if (initPreparation.templateEntriesToUpdate) {
+        await copyTemplateEntries(
+          sourceDir,
+          targetDir,
+          initPreparation.templateEntriesToUpdate,
+          (options.force ?? false) || initPreparation.overwriteTemplateFiles
+        );
+      } else {
+        await copyTemplate(sourceDir, targetDir, (options.force ?? false) || initPreparation.overwriteTemplateFiles);
       }
 
-      await copyTemplate(sourceDir, targetDir, options.force ?? false);
+      if (initPreparation.templateEntriesToCreateIfMissing) {
+        await copyTemplateEntriesIfMissing(
+          sourceDir,
+          targetDir,
+          initPreparation.templateEntriesToCreateIfMissing
+        );
+      }
 
-      await applyPhpDocroot(targetDir, template, effectivePhpDocroot);
+      await applyProjectName(targetDir);
+      await applyPhpDocroot(targetDir, selectedTemplate, effectivePhpDocroot);
 
       await ensureEnvFileFromExample(targetDir);
-      if (template.startsWith("db-")) {
+      await applyRuntimeImageSelections(targetDir, selectedTemplate, parseEnvAssignments(options.image));
+      if (selectedTemplate.startsWith("db-")) {
         await customizeDbTemplateCredentials(targetDir);
       }
-      process.stdout.write(`Initialized '${template}' in ${targetDir}\n`);
+      process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);
     })
   );
@@ -338,10 +491,11 @@ cli
 cli
   .command("start", "Start Loom project services")
   .option("--config <path>", "Path to loom config", { default: "loom.yaml" })
+  .option("--recreate", "Remove existing project containers before starting", { default: false })
   .action(
-    withErrorHandling(async (options: { config?: string }) => {
+    withErrorHandling(async (options: { config?: string; recreate?: boolean }) => {
       const orchestrator = await bootstrapProject(options.config);
-      await orchestrator.start();
+      await orchestrator.start({ recreate: options.recreate ?? false });
     })
   );
 
@@ -358,10 +512,11 @@ cli
 cli
   .command("restart", "Restart Loom project services")
   .option("--config <path>", "Path to loom config", { default: "loom.yaml" })
+  .option("--recreate", "Remove existing project containers before starting again", { default: false })
   .action(
-    withErrorHandling(async (options: { config?: string }) => {
+    withErrorHandling(async (options: { config?: string; recreate?: boolean }) => {
       const orchestrator = await bootstrapProject(options.config);
-      await orchestrator.restart();
+      await orchestrator.restart({ recreate: options.recreate ?? false });
     })
   );
 

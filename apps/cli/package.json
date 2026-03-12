@@ -17,6 +17,9 @@
   },
   "homepage": "https://github.com/Loom-development/Loom#readme",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "loom": "dist/index.js"
   },

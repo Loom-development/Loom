@@ -1,0 +1,49 @@
+version: 1
+name: loom-jamstack
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  api:
+    type: node
+    image: ${NODE_IMAGE:-node:24-alpine}
+    workdir: /workspace/api
+    command: npm install && npm start
+    ports:
+      - "3006:3006"
+    volumes:
+      - ./:/workspace
+    healthcheck:
+      command: node -e "fetch('http://127.0.0.1:3006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      intervalSeconds: 4
+      timeoutSeconds: 4
+      retries: 80
+      startPeriodSeconds: 4
+  web:
+    type: node
+    image: ${NODE_IMAGE:-node:24-alpine}
+    dependsOn:
+      - api
+    workdir: /workspace/web
+    command: npm install && npm run dev -- --host 0.0.0.0 --port 5174
+    ports:
+      - "5174:5174"
+    volumes:
+      - ./:/workspace
+    healthcheck:
+      command: node -e "fetch('http://127.0.0.1:5174').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      intervalSeconds: 4
+      timeoutSeconds: 4
+      retries: 80
+      startPeriodSeconds: 5
+routes:
+  - host: jamstack.loom.local
+    service: web
+    port: 5174
+    https: true
+tasks:
+  test:
+    service: api
+    command: node -e "console.log('jamstack ok')"

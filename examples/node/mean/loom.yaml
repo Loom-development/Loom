@@ -8,7 +8,7 @@ runtime:
 services:
   mongo:
     type: mongodb
-    image: mongo:7
+    image: ${MONGO_IMAGE:-mongo:7}
     volumes:
       - ./data/mongodb:/data/db
     ports:
@@ -21,7 +21,7 @@ services:
       startPeriodSeconds: 4
   api:
     type: node
-    image: node:24-alpine
+    image: ${NODE_IMAGE:-node:24-alpine}
     dependsOn:
       - mongo
     workdir: /workspace
@@ -41,7 +41,7 @@ services:
       startPeriodSeconds: 5
   web:
     type: node
-    image: node:24-alpine
+    image: ${NODE_IMAGE:-node:24-alpine}
     dependsOn:
       - api
     workdir: /workspace

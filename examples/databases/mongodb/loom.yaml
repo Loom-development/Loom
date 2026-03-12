@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: mongodb
-    image: mongo:7
+    image: ${MONGO_IMAGE:-mongo:7}
     env:
       MONGO_INITDB_ROOT_USERNAME: loom
       MONGO_INITDB_ROOT_PASSWORD: loom

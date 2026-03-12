@@ -20,6 +20,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          registry-url: https://registry.npmjs.org
 
       - name: Enable Corepack
         run: corepack enable
@@ -27,17 +28,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm exec tsc -b tsconfig.json
-
-      - name: Run tests with coverage gate
-        run: pnpm test:coverage
+      - name: Verify with coverage gate
+        run: pnpm verify:coverage
 
       - name: Build release assets
         run: node scripts/build-release-assets.mjs
+
+      - name: Build npm CLI package
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: pnpm --dir apps/cli build
+
+      - name: Publish npm CLI package
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: pnpm publish apps/cli --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.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 }}
 
       - name: Publish release assets
         if: startsWith(github.ref, 'refs/tags/v')

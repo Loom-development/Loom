@@ -1,0 +1,241 @@
+import { createHash } from "node:crypto";
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
+import type { LoomService } from "@loom/config";
+import { runPodman } from "./podman.js";
+import type { ContainerSummary } from "./types.js";
+
+export function normalizeImage(image: string): string {
+  const hasRegistry = image.includes("/") || image.includes("localhost/");
+  return hasRegistry ? image : `docker.io/library/${image}`;
+}
+
+export function containerName(projectName: string, serviceName: string): string {
+  return `${projectName}-${serviceName}`;
+}
+
+export async function ensurePodmanNetwork(networkName: string): Promise<void> {
+  const inspect = await runPodman(["network", "exists", networkName]);
+  if (inspect.ok) {
+    return;
+  }
+
+  const create = await runPodman(["network", "create", networkName]);
+  if (!create.ok) {
+    throw new Error(`Failed to create network '${networkName}': ${create.stderr || "unknown error"}`);
+  }
+}
+
+export async function isContainerRunning(name: string): Promise<boolean> {
+  const inspect = await runPodman(["inspect", "--format", "{{.State.Running}}", name]);
+  return inspect.ok && inspect.stdout.toLowerCase() === "true";
+}
+
+export async function inspectContainer(name: string): Promise<ContainerSummary | null> {
+  const inspect = await runPodman([
+    "inspect",
+    "--format",
+    "{{.Name}}|{{.State.Status}}|{{.State.Running}}|{{if .State.Healthcheck}}{{.State.Healthcheck.Status}}{{end}}|{{.ImageName}}",
+    name
+  ]);
+
+  if (!inspect.ok) {
+    return null;
+  }
+
+  const [containerNameRaw, state, runningRaw, healthRaw, image] = inspect.stdout.split("|");
+
+  return {
+    name: containerNameRaw.replace(/^\//, ""),
+    state,
+    running: runningRaw.toLowerCase() === "true",
+    health: healthRaw || undefined,
+    image
+  };
+}
+
+export async function listProjectContainers(projectName: string): Promise<ContainerSummary[]> {
+  const list = await runPodman([
+    "ps",
+    "-a",
+    "--filter",
+    `name=^${projectName}-`,
+    "--format",
+    "{{.Names}}"
+  ]);
+
+  if (!list.ok || !list.stdout) {
+    return [];
+  }
+
+  const names = list.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const inspected = await Promise.all(names.map((name) => inspectContainer(name)));
+  return inspected.filter((entry): entry is ContainerSummary => entry !== null);
+}
+
+export function parseHostPorts(portMappings: string[] = []): number[] {
+  return portMappings
+    .map((mapping) => {
+      const parts = mapping.split(":").map((part) => part.trim());
+      if (parts.length < 2) {
+        return Number.NaN;
+      }
+
+      const hostPart = parts[parts.length - 2];
+      return Number(hostPart);
+    })
+    .filter((value) => Number.isFinite(value) && value > 0);
+}
+
+function parseVolumeSource(volume: string): string | null {
+  const source = volume.split(":")[0]?.trim();
+  if (!source) {
+    return null;
+  }
+
+  return source;
+}
+
+function isBindMountSource(source: string): boolean {
+  return source.startsWith(".") || source.startsWith("/") || source.includes("/");
+}
+
+export async function ensureBindMountParentDirs(volumes: string[] = []): Promise<void> {
+  for (const volume of volumes) {
+    const source = parseVolumeSource(volume);
+    if (!source || !isBindMountSource(source)) {
+      continue;
+    }
+
+    const absoluteSource = source.startsWith("/") ? source : resolve(process.cwd(), source);
+    await mkdir(absoluteSource, { recursive: true });
+  }
+}
+
+export async function containerExists(name: string): Promise<boolean> {
+  const exists = await runPodman(["container", "exists", name]);
+  return exists.ok;
+}
+
+export async function inspectContainerImage(name: string): Promise<string> {
+  const imageInspect = await runPodman(["inspect", "--format", "{{.ImageName}}", name]);
+  return imageInspect.ok ? imageInspect.stdout.trim() : "";
+}
+
+export async function inspectContainerLabel(name: string, label: string): Promise<string> {
+  const labelInspect = await runPodman([
+    "inspect",
+    "--format",
+    `{{ index .Config.Labels "${label}" }}`,
+    name
+  ]);
+
+  return labelInspect.ok ? labelInspect.stdout.trim() : "";
+}
+
+export function serviceConfigHash(service: LoomService): string {
+  const signature = {
+    type: service.type,
+    image: normalizeImage(service.image),
+    entrypoint: service.entrypoint ?? null,
+    command: service.command ?? null,
+    workdir: service.workdir ?? null,
+    ports: [...(service.ports ?? [])],
+    volumes: [...(service.volumes ?? [])],
+    env: Object.entries(service.env ?? {}).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)),
+    dependsOn: [...(service.dependsOn ?? [])],
+    healthcheck: service.healthcheck
+      ? {
+          command: service.healthcheck.command,
+          intervalSeconds: service.healthcheck.intervalSeconds ?? null,
+          timeoutSeconds: service.healthcheck.timeoutSeconds ?? null,
+          retries: service.healthcheck.retries ?? null,
+          startPeriodSeconds: service.healthcheck.startPeriodSeconds ?? null
+        }
+      : null
+  };
+
+  return createHash("sha256").update(JSON.stringify(signature)).digest("hex");
+}
+
+export async function removeContainer(name: string): Promise<void> {
+  const remove = await runPodman(["rm", "-f", name]);
+  if (!remove.ok) {
+    throw new Error(`Failed to recreate container '${name}': ${remove.stderr || "unknown error"}`);
+  }
+}
+
+export async function startContainer(name: string): Promise<void> {
+  const start = await runPodman(["start", name]);
+  if (!start.ok) {
+    throw new Error(`Failed to start existing container '${name}': ${start.stderr || "unknown error"}`);
+  }
+}
+
+function appendHealthcheckArgs(args: string[], service: LoomService): void {
+  if (!service.healthcheck?.command) {
+    return;
+  }
+
+  args.push("--health-cmd", service.healthcheck.command);
+  args.push("--health-interval", `${service.healthcheck.intervalSeconds ?? 10}s`);
+  args.push("--health-timeout", `${service.healthcheck.timeoutSeconds ?? 3}s`);
+  args.push("--health-retries", String(service.healthcheck.retries ?? 5));
+  args.push("--health-start-period", `${service.healthcheck.startPeriodSeconds ?? 0}s`);
+}
+
+export async function buildPodmanRunArgs(
+  serviceName: string,
+  containerNameValue: string,
+  service: LoomService,
+  networkName: string,
+  expectedImage: string,
+  expectedServiceHash: string
+): Promise<string[]> {
+  const args: string[] = [
+    "run",
+    "-d",
+    "--name",
+    containerNameValue,
+    "--network",
+    networkName,
+    "--network-alias",
+    serviceName
+  ];
+
+  if (service.workdir) {
+    args.push("-w", service.workdir);
+  }
+
+  if (service.entrypoint !== undefined) {
+    args.push("--entrypoint", service.entrypoint);
+  }
+
+  for (const port of service.ports ?? []) {
+    args.push("-p", port);
+  }
+
+  await ensureBindMountParentDirs(service.volumes ?? []);
+
+  for (const volume of service.volumes ?? []) {
+    args.push("-v", volume);
+  }
+
+  for (const [key, value] of Object.entries(service.env ?? {})) {
+    args.push("-e", `${key}=${value}`);
+  }
+
+  appendHealthcheckArgs(args, service);
+  args.push("--label", `loom.service-hash=${expectedServiceHash}`);
+  args.push(expectedImage);
+
+  if (service.command) {
+    args.push("sh", "-lc", service.command);
+  }
+
+  return args;
+}

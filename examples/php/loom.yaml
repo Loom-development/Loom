@@ -8,20 +8,20 @@ runtime:
 services:
   app:
     type: php
-    image: php:8.3-apache
-    workdir: /var/www/html
+    image: ${PHP_IMAGE:-dunglas/frankenphp:1-php8.3}
+    workdir: /app
     command: |
-      if [ ! -f /var/www/html/index.php ]; then
-        printf '%s\n' '<?php echo "Loom PHP example is running.";' > /var/www/html/index.php
+      if [ ! -f /app/index.php ]; then
+        printf '%s\n' '<?php echo "Loom PHP example is running.";' > /app/index.php
       fi
-      apache2-foreground
+      frankenphp php-server --listen :80 --root /app
     ports:
       - "8085:80"
     volumes:
-      - ./:/var/www/html
+      - ./:/app
   db:
     type: postgres
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     env:

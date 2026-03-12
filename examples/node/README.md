@@ -15,6 +15,7 @@ Run examples directly with the installed `loom` command.
 - Config: `examples/node/mean/loom.yaml`
 - Start: `loom start --config examples/node/mean/loom.yaml`
 - Stop: `loom stop --config examples/node/mean/loom.yaml`
+- Notes: Express API + MongoDB backend with a real Angular frontend in `examples/node/mean/web`
 
 ### MERN
 

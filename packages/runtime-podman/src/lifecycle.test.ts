@@ -1,0 +1,111 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import type { LoomService } from "@loom/config";
+import { serviceConfigHash } from "./containers.js";
+import { ensureServiceStartedWithDependencies } from "./lifecycle.js";
+
+const service: LoomService = {
+  type: "node",
+  image: "node:20-alpine",
+  command: "node server.js",
+  ports: ["3000:3000"]
+};
+
+test("ensureServiceStarted starts an existing matching container", async () => {
+  const started: string[] = [];
+
+  await ensureServiceStartedWithDependencies("demo", "app", service, "demo-net", {
+    isContainerRunningByName: async () => false,
+    containerExistsByName: async () => true,
+    inspectContainerImageByName: async () => "docker.io/library/node:20-alpine",
+    inspectContainerLabelByName: async () => serviceConfigHash(service),
+    startContainerByName: async (name) => {
+      started.push(name);
+    },
+    removeContainerByName: async () => {
+      throw new Error("should not remove");
+    },
+    buildRunArgs: async () => {
+      throw new Error("should not build run args");
+    },
+    runPodmanCommand: async () => ({ ok: true, stderr: "" })
+  });
+
+  assert.deepEqual(started, ["demo-app"]);
+});
+
+test("ensureServiceStarted recreates a container when config drift is detected", async () => {
+  const events: string[] = [];
+  let builtArgs: string[] = [];
+
+  await ensureServiceStartedWithDependencies("demo", "app", service, "demo-net", {
+    isContainerRunningByName: async () => false,
+    containerExistsByName: async () => true,
+    inspectContainerImageByName: async () => "docker.io/library/node:18-alpine",
+    inspectContainerLabelByName: async () => "old-hash",
+    removeContainerByName: async (name) => {
+      events.push(`remove:${name}`);
+    },
+    startContainerByName: async () => {
+      throw new Error("should not start old container");
+    },
+    buildRunArgs: async (_serviceName, containerNameValue, _service, networkName, expectedImage) => {
+      builtArgs = [containerNameValue, networkName, expectedImage];
+      return ["run", "-d", containerNameValue];
+    },
+    runPodmanCommand: async (args) => {
+      events.push(args.join(" "));
+      return { ok: true, stderr: "" };
+    }
+  });
+
+  assert.deepEqual(events, ["remove:demo-app", "run -d demo-app"]);
+  assert.deepEqual(builtArgs, ["demo-app", "demo-net", "docker.io/library/node:20-alpine"]);
+});
+
+test("ensureServiceStarted returns immediately when the container is already running", async () => {
+  let checkedForExistingContainer = false;
+
+  await ensureServiceStartedWithDependencies("demo", "app", service, "demo-net", {
+    isContainerRunningByName: async () => true,
+    containerExistsByName: async () => {
+      checkedForExistingContainer = true;
+      return true;
+    },
+    runPodmanCommand: async () => ({ ok: true, stderr: "" })
+  });
+
+  assert.equal(checkedForExistingContainer, false);
+});
+
+test("ensureServiceStarted reports unavailable images clearly", async () => {
+  await assert.rejects(
+    () =>
+      ensureServiceStartedWithDependencies("demo", "app", service, "demo-net", {
+        isContainerRunningByName: async () => false,
+        containerExistsByName: async () => false,
+        buildRunArgs: async () => ["run", "-d", "demo-app"],
+        runPodmanCommand: async () => ({
+          ok: false,
+          stderr: "manifest unknown: manifest unknown"
+        })
+      }),
+    /image 'node:20-alpine' is not available or could not be pulled/i
+  );
+});
+
+test("ensureServiceStarted reports registry auth failures clearly", async () => {
+  await assert.rejects(
+    () =>
+      ensureServiceStartedWithDependencies("demo", "app", service, "demo-net", {
+        isContainerRunningByName: async () => false,
+        containerExistsByName: async () => false,
+        buildRunArgs: async () => ["run", "-d", "demo-app"],
+        runPodmanCommand: async () => ({
+          ok: false,
+          stderr: "pull access denied for private/node, repository does not exist or may require authorization"
+        })
+      }),
+    /image 'node:20-alpine' requires registry access or authentication:[\s\S]*podman login docker\.io/i
+  );
+});

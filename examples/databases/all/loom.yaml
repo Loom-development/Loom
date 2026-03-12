@@ -8,7 +8,7 @@ runtime:
 services:
   mysql:
     type: mysql
-    image: mysql:8.4
+    image: ${MYSQL_IMAGE:-mysql:8.4}
     env:
       MYSQL_ROOT_PASSWORD: loomroot
       MYSQL_DATABASE: loom
@@ -27,7 +27,7 @@ services:
 
   sqlserver:
     type: sqlserver
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2022-latest}
     env:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: "LoomDev!Passw0rd"
@@ -39,7 +39,7 @@ services:
 
   postgres:
     type: postgres
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     env:
       POSTGRES_USER: loom
       POSTGRES_PASSWORD: loom
@@ -57,7 +57,7 @@ services:
 
   mongodb:
     type: mongodb
-    image: mongo:7
+    image: ${MONGO_IMAGE:-mongo:7}
     env:
       MONGO_INITDB_ROOT_USERNAME: loom
       MONGO_INITDB_ROOT_PASSWORD: loom
@@ -69,7 +69,7 @@ services:
 
   redis:
     type: redis
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:-redis:7-alpine}
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
@@ -84,7 +84,7 @@ services:
 
   elasticsearch:
     type: elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    image: ${ELASTICSEARCH_IMAGE:-docker.elastic.co/elasticsearch/elasticsearch:8.17.0}
     env:
       discovery.type: single-node
       xpack.security.enabled: "false"
@@ -97,7 +97,7 @@ services:
 
   sqlite:
     type: sqlite
-    image: alpine:3.20
+    image: ${SQLITE_IMAGE:-alpine:3.20}
     command: sh -lc "apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null"
     workdir: /data
     volumes:
@@ -105,7 +105,7 @@ services:
 
   mariadb:
     type: mariadb
-    image: mariadb:11
+    image: ${MARIADB_IMAGE:-mariadb:11}
     env:
       MARIADB_ROOT_PASSWORD: loomroot
       MARIADB_DATABASE: loom

@@ -102,3 +102,31 @@ sequenceDiagram
 - Faster onboarding for new projects.
 - Same command flow across many stacks.
 - Cleaner local environments with one stop command.
+
+## Internal module boundaries
+
+The main runtime and orchestration packages are now split into smaller modules so behavior can be tested without changing the public package APIs.
+
+### `@loom/core`
+
+- `src/index.ts` is the public orchestrator facade.
+- `src/runtime.ts` handles runtime readiness checks.
+- `src/service-start.ts` handles per-service startup and readiness.
+- `src/routes.ts` handles route resolution, HTTPS cert selection, proxy startup, and startup summaries.
+- `src/backup.ts` handles backup support checks, path resolution, and backup orchestration.
+- `src/status.ts`, `src/services.ts`, `src/tasks.ts`, `src/startup.ts`, and `src/lifecycle.ts` hold status assembly, validated lookups, formatting, and stop-flow logic.
+
+### `@loom/runtime-podman`
+
+- `src/podman.ts` owns low-level Podman command execution.
+- `src/containers.ts` owns container metadata and run-argument helpers.
+- `src/lifecycle.ts` owns container lifecycle, exec, logs, and Composer support.
+- `src/readiness.ts` owns readiness probing.
+- `src/backup.ts` owns database backup strategy and streaming.
+- `src/machine.ts` owns capability detection and machine startup.
+
+### Why the split matters
+
+- Public imports stay stable for CLI and downstream packages.
+- Side-effecting boundaries are narrower, which makes tests more direct and less brittle.
+- The orchestrator reads as high-level phase sequencing instead of a single large mixed-responsibility file.

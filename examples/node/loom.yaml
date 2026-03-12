@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: node
-    image: node:24-alpine
+    image: ${NODE_IMAGE:-node:24-alpine}
     workdir: /workspace
     command: npm install && npm start
     ports:

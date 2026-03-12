@@ -1,0 +1,119 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { LoomConfig } from "@loom/config";
+import { publishConfiguredRoutes, type RouteBinding } from "./routes.js";
+
+function createConfig(): LoomConfig {
+  return {
+    version: 1,
+    name: "demo",
+    runtime: { engine: "podman", rootless: true },
+    services: {
+      app: { type: "node", image: "node:20-alpine" }
+    }
+  };
+}
+
+test("publishConfiguredRoutes skips proxy setup and output when no routes exist", async () => {
+  let proxyCalls = 0;
+  let certificateCalls = 0;
+  const lines: string[] = [];
+
+  await publishConfiguredRoutes(
+    createConfig(),
+    [],
+    "demo-net",
+    {
+      ensureLocalCertificates: async () => {
+        certificateCalls += 1;
+        return { certPath: "/tmp/cert.pem", keyPath: "/tmp/key.pem" };
+      },
+      ensureRouteProxy: async () => {
+        proxyCalls += 1;
+        return { containerName: "loom-proxy", httpPort: 8080, httpsPort: 8443 };
+      }
+    },
+    {
+      writeOut(message) {
+        lines.push(message);
+      }
+    }
+  );
+
+  assert.equal(proxyCalls, 0);
+  assert.equal(certificateCalls, 0);
+  assert.deepEqual(lines, []);
+});
+
+test("publishConfiguredRoutes configures proxy and writes route and https summaries", async () => {
+  const certificateHosts: string[][] = [];
+  const proxyCalls: Array<{ bindings: RouteBinding[]; networkName: string }> = [];
+  const lines: string[] = [];
+
+  await publishConfiguredRoutes(
+    createConfig(),
+    [
+      {
+        host: "demo.test",
+        service: "app",
+        targetPort: 3000,
+        externalPort: 8080,
+        https: true
+      },
+      {
+        host: "plain.demo.test",
+        service: "app",
+        targetPort: 3000,
+        externalPort: 8081,
+        https: false
+      }
+    ],
+    "demo-net",
+    {
+      ensureLocalCertificates: async (_projectName, hosts) => {
+        certificateHosts.push(hosts);
+        return { certPath: "/tmp/cert.pem", keyPath: "/tmp/key.pem" };
+      },
+      ensureRouteProxy: async (_config, bindings, _certificateInfo, networkName) => {
+        proxyCalls.push({ bindings, networkName });
+        return { containerName: "loom-proxy", httpPort: 8080, httpsPort: 8443 };
+      }
+    },
+    {
+      writeOut(message) {
+        lines.push(message);
+      }
+    }
+  );
+
+  assert.deepEqual(certificateHosts, [["demo.test"]]);
+  assert.deepEqual(proxyCalls, [
+    {
+      bindings: [
+        {
+          host: "demo.test",
+          service: "app",
+          targetPort: 3000,
+          externalPort: 8080,
+          https: true
+        },
+        {
+          host: "plain.demo.test",
+          service: "app",
+          targetPort: 3000,
+          externalPort: 8081,
+          https: false
+        }
+      ],
+      networkName: "demo-net"
+    }
+  ]);
+  assert.deepEqual(lines, [
+    "Route bindings:\n",
+    "- https://demo.test -> app:3000 (host:8080)\n",
+    "- http://plain.demo.test -> app:3000 (host:8081)\n",
+    "Proxy ports: http://localhost:8080 https://localhost:8443\n",
+    "HTTPS cert: /tmp/cert.pem\n",
+    "HTTPS key: /tmp/key.pem\n"
+  ]);
+});

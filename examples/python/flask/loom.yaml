@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: python
-    image: python:3.12-slim
+    image: ${PYTHON_IMAGE:-python:3.12-slim}
     workdir: /workspace
     command: pip install -r requirements.txt && flask --app app run --host 0.0.0.0 --port 8002
     ports:

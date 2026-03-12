@@ -11,11 +11,13 @@
     "build": "pnpm exec tsc -b tsconfig.json",
     "typecheck": "pnpm exec tsc -b tsconfig.json",
     "dev": "pnpm --filter @loom/cli dev",
-    "smoke:stacks": "./scripts/smoke-stacks.sh",
+    "smoke:examples": "./scripts/smoke-examples.sh",
     "test": "pnpm -r test",
     "test:coverage": "c8 --all --include='packages/*/dist/**/*.js' --include='apps/*/dist/**/*.js' --exclude='**/*.test.js' --check-coverage --lines 35 --functions 35 --branches 25 pnpm -r test",
     "test:coverage:report": "c8 --all --include='packages/*/dist/**/*.js' --include='apps/*/dist/**/*.js' --exclude='**/*.test.js' --check-coverage --lines 35 --functions 35 --branches 25 --reporter=text-summary --reporter=lcov --reporter=json-summary pnpm -r test",
-    "lint": "pnpm exec eslint \"apps/*/src/**/*.ts\" \"packages/*/src/**/*.ts\""
+    "lint": "pnpm exec eslint \"apps/*/src/**/*.ts\" \"packages/*/src/**/*.ts\"",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test",
+    "verify:coverage": "pnpm lint && pnpm typecheck && pnpm test:coverage:report"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",

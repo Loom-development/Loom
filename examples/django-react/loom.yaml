@@ -1,0 +1,49 @@
+version: 1
+name: django-react-example
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  backend:
+    type: python
+    image: ${PYTHON_IMAGE:-python:3.12-slim}
+    workdir: /workspace/backend
+    command: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./:/workspace
+    healthcheck:
+      command: python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2)"
+      intervalSeconds: 4
+      timeoutSeconds: 4
+      retries: 120
+      startPeriodSeconds: 4
+  web:
+    type: node
+    image: ${NODE_IMAGE:-node:24-alpine}
+    dependsOn:
+      - backend
+    workdir: /workspace/frontend
+    command: npm install && npm run dev -- --host 0.0.0.0 --port 5176
+    ports:
+      - "5176:5176"
+    volumes:
+      - ./:/workspace
+    healthcheck:
+      command: node -e "fetch('http://127.0.0.1:5176').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      intervalSeconds: 4
+      timeoutSeconds: 4
+      retries: 120
+      startPeriodSeconds: 5
+routes:
+  - host: django-react.loom.local
+    service: web
+    port: 5176
+    https: true
+tasks:
+  test:
+    service: backend
+    command: python manage.py check

@@ -1,5 +1,5 @@
 version: 1
-name: php-symfony-prebuilt-example
+name: php-symfony-example
 runtime:
   engine: podman
   rootless: true
@@ -8,13 +8,13 @@ runtime:
 services:
   app:
     type: php
-    image: dunglas/frankenphp:1-php8.3
-    workdir: /workspace
-    command: php -S 0.0.0.0:8092 -t app/public
+    image: ${PHP_IMAGE:-dunglas/frankenphp:1-php8.3}
+    workdir: /app
+    command: frankenphp php-server --listen :8092 --root /app/public
     ports:
       - "8092:8092"
     volumes:
-      - ./:/workspace
+      - ./:/app
     healthcheck:
       command: php -r "exit((int)!@fsockopen('127.0.0.1', 8092));"
       intervalSeconds: 3
@@ -29,4 +29,4 @@ routes:
 tasks:
   test:
     service: app
-    command: php -r "echo 'symfony example ready';"
+    command: php bin/console about

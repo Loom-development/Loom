@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: mysql
-    image: mysql:8.4
+    image: ${MYSQL_IMAGE:-mysql:8.4}
     env:
       MYSQL_ROOT_PASSWORD: loomroot
       MYSQL_DATABASE: loom
