@@ -5,6 +5,7 @@ import { access, copyFile, cp, mkdir, readFile, writeFile } from "node:fs/promis
 import { randomBytes } from "node:crypto";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import packageJson from "../package.json" with { type: "json" };
 import { loadLoomProject } from "@loom/config";
 import { LoomOrchestrator } from "@loom/core";
 import { runNamedTask } from "@loom/tasks";
@@ -655,6 +656,6 @@ cli
   );
 
 cli.help();
-cli.version("0.1.1");
+cli.version(packageJson.version);
 
 cli.parse();
