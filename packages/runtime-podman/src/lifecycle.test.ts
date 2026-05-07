@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { LoomService } from "@loom/config";
 import { serviceConfigHash } from "./containers.js";
-import { ensureServiceStartedWithDependencies } from "./lifecycle.js";
+import { ensureComposerAvailableWithDependencies, ensureServiceStartedWithDependencies } from "./lifecycle.js";
 
 const service: LoomService = {
   type: "node",
@@ -107,5 +107,49 @@ test("ensureServiceStarted reports registry auth failures clearly", async () => 
         })
       }),
     /image 'node:20-alpine' requires registry access or authentication:[\s\S]*podman login docker\.io/i
+  );
+});
+
+test("ensureComposerAvailable reports stopped containers clearly before exec", async () => {
+  await assert.rejects(
+    () =>
+      ensureComposerAvailableWithDependencies("demo", "app", {
+        inspectContainerByName: async () => ({
+          running: false,
+          state: "exited"
+        }),
+        runPodmanCommand: async () => ({
+          ok: true,
+          stderr: ""
+        })
+      }),
+    /Container 'demo-app' is not running \(state: exited\), so Composer could not be ensured\. Check 'loom logs app --no-follow'/i
+  );
+});
+
+test("ensureComposerAvailable rewrites exec-session errors when the container exits", async () => {
+  let inspectCalls = 0;
+
+  await assert.rejects(
+    () =>
+      ensureComposerAvailableWithDependencies("demo", "app", {
+        inspectContainerByName: async () => {
+          inspectCalls += 1;
+          return inspectCalls === 1
+            ? {
+                running: true,
+                state: "running"
+              }
+            : {
+                running: false,
+                state: "exited"
+              };
+        },
+        runPodmanCommand: async () => ({
+          ok: false,
+          stderr: "Error: can only create exec sessions on running containers: container state improper"
+        })
+      }),
+    /Container 'demo-app' is not running \(state: exited\), so Composer could not be ensured\. Check 'loom logs app --no-follow'/i
   );
 });

@@ -1,5 +1,5 @@
 import type { LoomConfig } from "@loom/config";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { CertificatePaths } from "@loom/https";
 import { ensurePodmanNetwork, runPodman } from "@loom/runtime-podman";
@@ -18,8 +18,61 @@ export interface ProxyRuntime {
   httpsPort: number;
 }
 
+export interface RouteHostManagementResult {
+  managedHosts: string[];
+  skippedHosts: string[];
+}
+
 export function projectNetworkName(projectName: string): string {
   return `loom-${projectName}`;
+}
+
+function windowsHostsFilePath(): string {
+  const systemRoot = process.env.SystemRoot ?? "C:\\Windows";
+  return process.env.LOOM_WINDOWS_HOSTS_FILE ?? resolve(systemRoot, "System32", "drivers", "etc", "hosts");
+}
+
+function managedHostsStartMarker(projectName: string): string {
+  return `# >>> loom:${projectName}`;
+}
+
+function managedHostsEndMarker(projectName: string): string {
+  return `# <<< loom:${projectName}`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function removeManagedHostsBlock(content: string, projectName: string): string {
+  const start = escapeRegExp(managedHostsStartMarker(projectName));
+  const end = escapeRegExp(managedHostsEndMarker(projectName));
+  const blockPattern = new RegExp(`(?:^|\\n)${start}\\n[\\s\\S]*?\\n${end}(?=\\n|$)`, "g");
+  return content.replace(blockPattern, "").replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n");
+}
+
+function renderManagedHostsBlock(projectName: string, hosts: string[]): string {
+  return [
+    managedHostsStartMarker(projectName),
+    ...hosts.map((host) => `127.0.0.1 ${host}`),
+    managedHostsEndMarker(projectName)
+  ].join("\n");
+}
+
+export function applyManagedHostsEntries(content: string, projectName: string, hosts: string[]): string {
+  const withoutExistingBlock = removeManagedHostsBlock(content, projectName).trimEnd();
+  if (hosts.length === 0) {
+    return withoutExistingBlock ? `${withoutExistingBlock}\n` : "";
+  }
+
+  const nextBlock = renderManagedHostsBlock(projectName, hosts);
+  return withoutExistingBlock ? `${withoutExistingBlock}\n\n${nextBlock}\n` : `${nextBlock}\n`;
+}
+
+function uniqueRouteHosts(bindings: RouteBinding[]): RouteHostManagementResult {
+  const managedHosts = [...new Set(bindings.map((binding) => binding.host).filter((host) => !host.startsWith("*.")))].sort();
+  const skippedHosts = [...new Set(bindings.map((binding) => binding.host).filter((host) => host.startsWith("*.")))].sort();
+  return { managedHosts, skippedHosts };
 }
 
 function assertSafeRouteHost(host: string): void {
@@ -170,6 +223,23 @@ export async function ensureRouteProxy(
   };
 }
 
+export async function ensureRouteHosts(projectName: string, bindings: RouteBinding[]): Promise<RouteHostManagementResult> {
+  if (process.platform !== "win32") {
+    return { managedHosts: [], skippedHosts: [] };
+  }
+
+  const result = uniqueRouteHosts(bindings);
+  const hostsPath = windowsHostsFilePath();
+  const currentContent = await readFile(hostsPath, "utf-8");
+  const nextContent = applyManagedHostsEntries(currentContent, projectName, result.managedHosts);
+
+  if (nextContent !== currentContent) {
+    await writeFile(hostsPath, nextContent, "utf-8");
+  }
+
+  return result;
+}
+
 export async function stopRouteProxy(projectName: string): Promise<void> {
   const container = proxyContainerName(projectName);
   const exists = await runPodman(["container", "exists", container]);
@@ -180,5 +250,19 @@ export async function stopRouteProxy(projectName: string): Promise<void> {
   const remove = await runPodman(["rm", "-f", container]);
   if (!remove.ok) {
     throw new Error(`Failed to stop proxy container '${container}': ${remove.stderr || "unknown error"}`);
+  }
+}
+
+export async function stopRouteHosts(projectName: string): Promise<void> {
+  if (process.platform !== "win32") {
+    return;
+  }
+
+  const hostsPath = windowsHostsFilePath();
+  const currentContent = await readFile(hostsPath, "utf-8");
+  const nextContent = removeManagedHostsBlock(currentContent, projectName);
+
+  if (nextContent !== currentContent) {
+    await writeFile(hostsPath, nextContent, "utf-8");
   }
 }

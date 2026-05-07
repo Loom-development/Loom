@@ -125,6 +125,8 @@ The main runtime and orchestration packages are now split into smaller modules s
 - `src/backup.ts` owns database backup strategy and streaming.
 - `src/machine.ts` owns capability detection and machine startup.
 
+Service definitions can now also opt into Podman user mapping through `user` and `userns: keep-id` when a bind-mounted workspace needs host-aligned write ownership.
+
 ### Why the split matters
 
 - Public imports stay stable for CLI and downstream packages.

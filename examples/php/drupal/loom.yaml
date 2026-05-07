@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: mysql
-    image: ${MYSQL_IMAGE:-mysql:8.4}
+    image: ${MYSQL_IMAGE:-docker.io/library/mysql:8.4}
     volumes:
       - ./data/mysql:/var/lib/mysql
     env:
@@ -24,17 +24,47 @@ services:
       timeoutSeconds: 5
       retries: 30
       startPeriodSeconds: 5
+  cache:
+    type: memcached
+    image: ${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}
+    ports:
+      - "11212:11211"
   app:
     type: php
-    image: ${PHP_IMAGE:-dunglas/frankenphp:1-php8.3}
+    image: ${PHP_IMAGE:-docker.io/dunglas/frankenphp:1-php8.3}
+    composer: false
+    user: root
+    userns: keep-id
+    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /app
     command: |
-      frankenphp php-server --listen :80 --root /app/web
+      set -eu
+      target_uid="${HOST_UID:-1000}"
+      target_gid="${HOST_GID:-1000}"
+      home_dir="/tmp/loom-home"
+      if ! php -r "exit(extension_loaded('mysqli') && extension_loaded('pdo_mysql') && extension_loaded('pdo_pgsql') && extension_loaded('pgsql') && extension_loaded('pdo_sqlite') && extension_loaded('intl') && extension_loaded('zip') && extension_loaded('exif') && extension_loaded('imagick') && extension_loaded('memcached') ? 0 : 1);"; then
+        if command -v apt-get >/dev/null 2>&1; then
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends imagemagick libicu-dev libmagickwand-dev libmemcached-dev libsasl2-dev libzip-dev libpq-dev libsqlite3-dev libmariadb-dev pkg-config util-linux zlib1g-dev
+        elif command -v apk >/dev/null 2>&1; then
+          apk add --no-cache cyrus-sasl-dev imagemagick imagemagick-dev icu-dev libmemcached-dev libzip-dev postgresql-dev sqlite-dev mariadb-connector-c-dev pkgconf util-linux zlib-dev
+        fi
+        docker-php-ext-install -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)" mysqli pdo_mysql pdo_pgsql pgsql pdo_sqlite intl zip exif
+        printf '\n' | pecl install imagick
+        printf '\n' | pecl install memcached
+        docker-php-ext-enable imagick
+        docker-php-ext-enable memcached
+      fi
+      mkdir -p "$home_dir"
+      chmod 0777 "$home_dir"
+      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -lc 'frankenphp php-server --listen :80 --root /app/web'
     volumes:
       - ./:/app
       - ./data/files:/app/web/sites/default/files
     dependsOn:
       - db
+      - cache
     env:
       DRUPAL_DATABASE_DRIVER: mysql
       DRUPAL_DATABASE_HOST: db
@@ -42,6 +72,8 @@ services:
       DRUPAL_DATABASE_NAME: drupal
       DRUPAL_DATABASE_USERNAME: drupal
       DRUPAL_DATABASE_PASSWORD: drupal
+      MEMCACHED_HOST: cache
+      MEMCACHED_PORT: "11211"
     ports:
       - "8091:80"
     healthcheck:
@@ -49,7 +81,7 @@ services:
       intervalSeconds: 3
       timeoutSeconds: 3
       retries: 20
-      startPeriodSeconds: 5
+      startPeriodSeconds: 300
 routes:
   - host: drupal.loom.local
     service: app

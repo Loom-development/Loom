@@ -3,6 +3,7 @@ import {
   buildPodmanRunArgs,
   containerExists,
   containerName,
+  inspectContainer,
   inspectContainerImage,
   inspectContainerLabel,
   isContainerRunning,
@@ -74,14 +75,18 @@ function formatContainerRunError(name: string, image: string, detail: string): s
 export function buildExecArgs(
   containerNameValue: string,
   command: string[],
-  interactiveTerminal: boolean
+  interactiveTerminal: boolean,
+  execUser?: string,
+  workdir?: string
 ): string[] {
   if (command.length === 0) {
     throw new Error("Command required for loom exec.");
   }
 
   const ttyArgs = interactiveTerminal ? ["-it"] : [];
-  return ["exec", ...ttyArgs, containerNameValue, ...command];
+  const workdirArgs = workdir ? ["-w", workdir] : [];
+  const userArgs = execUser ? ["--user", execUser] : [];
+  return ["exec", ...ttyArgs, ...workdirArgs, ...userArgs, containerNameValue, ...command];
 }
 
 export async function ensureServiceStarted(
@@ -170,18 +175,60 @@ export async function tailServiceLogs(projectName: string, serviceName: string, 
   }
 }
 
-export async function execServiceCommand(projectName: string, serviceName: string, command: string[]): Promise<void> {
+export async function execServiceCommand(
+  projectName: string,
+  serviceName: string,
+  command: string[],
+  execUser?: string,
+  workdir?: string
+): Promise<void> {
   const name = containerName(projectName, serviceName);
-  const args = buildExecArgs(name, command, isInteractiveTerminal());
+  const args = buildExecArgs(name, command, isInteractiveTerminal(), execUser, workdir);
   const code = await runPodmanInherit(args);
   if (code !== 0) {
     throw new Error(`Failed to exec in '${name}'.`);
   }
 }
 
+interface EnsureComposerAvailableDependencies {
+  inspectContainerByName?: (name: string) => Promise<{ running: boolean; state: string } | null>;
+  runPodmanCommand?: (args: string[]) => Promise<{ ok: boolean; stderr: string }>;
+}
+
+function formatStoppedComposerContainerError(
+  name: string,
+  serviceName: string,
+  state?: string
+): Error {
+  const stateDetail = state ? ` (state: ${state})` : "";
+  return new Error(
+    `Container '${name}' is not running${stateDetail}, so Composer could not be ensured. Check 'loom logs ${serviceName} --no-follow' for the startup failure.`
+  );
+}
+
 export async function ensureComposerAvailable(projectName: string, serviceName: string): Promise<void> {
+  return ensureComposerAvailableWithDependencies(projectName, serviceName);
+}
+
+export async function ensureComposerAvailableWithDependencies(
+  projectName: string,
+  serviceName: string,
+  dependencies: EnsureComposerAvailableDependencies = {}
+): Promise<void> {
   const name = containerName(projectName, serviceName);
-  const result = await runPodman([
+  const inspectContainerByName = dependencies.inspectContainerByName ?? inspectContainer;
+  const runPodmanCommand = dependencies.runPodmanCommand ?? runPodman;
+  const info = await inspectContainerByName(name);
+
+  if (!info) {
+    throw new Error(`Container '${name}' not found while ensuring Composer.`);
+  }
+
+  if (!info.running) {
+    throw formatStoppedComposerContainerError(name, serviceName, info.state);
+  }
+
+  const result = await runPodmanCommand([
     "exec",
     name,
     "sh",
@@ -190,6 +237,13 @@ export async function ensureComposerAvailable(projectName: string, serviceName: 
   ]);
 
   if (!result.ok) {
+    if (/can only create exec sessions on running containers|container state improper/i.test(result.stderr)) {
+      const latestInfo = await inspectContainerByName(name);
+      if (!latestInfo?.running) {
+        throw formatStoppedComposerContainerError(name, serviceName, latestInfo?.state);
+      }
+    }
+
     throw new Error(`Failed to ensure Composer in '${name}': ${result.stderr || "unknown error"}`);
   }
 }

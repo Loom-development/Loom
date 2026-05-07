@@ -69,9 +69,9 @@ test("chooseInitImageOverrides accepts numeric runtime selections", async () => 
 
   input.end("1\n");
 
-  const selected = await chooseInitImageOverrides("node", { NODE_IMAGE: "node:24-alpine" }, input, output);
+  const selected = await chooseInitImageOverrides("node", { NODE_IMAGE: "docker.io/library/node:24-alpine" }, [], input, output);
 
-  assert.deepEqual(selected, { NODE_IMAGE: "node:22-alpine" });
+  assert.deepEqual(selected, { NODE_IMAGE: "docker.io/library/node:22-alpine" });
   assert.match(captured, /Choose Node runtime for 'node'/);
 });
 
@@ -81,9 +81,26 @@ test("chooseInitImageOverrides accepts enter for current default", async () => {
 
   input.end("\n");
 
-  const selected = await chooseInitImageOverrides("php-wordpress", { PHP_IMAGE: "php:8.3-apache" }, input, output);
+  const selected = await chooseInitImageOverrides("php-wordpress", { PHP_IMAGE: "docker.io/library/php:8.3-apache" }, [], input, output);
 
-  assert.deepEqual(selected, { PHP_IMAGE: "php:8.3-apache" });
+  assert.deepEqual(selected, { PHP_IMAGE: "docker.io/library/php:8.3-apache" });
+});
+
+test("chooseInitImageOverrides skips locked env keys", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+
+  input.end("this should not be read\n");
+
+  const selected = await chooseInitImageOverrides(
+    "php",
+    { PHP_IMAGE: "docker.io/dunglas/frankenphp:1-php8.3" },
+    ["PHP_IMAGE"],
+    input,
+    output
+  );
+
+  assert.deepEqual(selected, {});
 });
 
 test("chooseInitImageOverrides rejects invalid runtime selections", async () => {
@@ -93,7 +110,7 @@ test("chooseInitImageOverrides rejects invalid runtime selections", async () => 
   input.end("unknown\n");
 
   await assert.rejects(
-    () => chooseInitImageOverrides("node", { NODE_IMAGE: "node:24-alpine" }, input, output),
+    () => chooseInitImageOverrides("node", { NODE_IMAGE: "docker.io/library/node:24-alpine" }, [], input, output),
     /Unknown Node runtime selection/
   );
 });

@@ -10,13 +10,13 @@ This template gives you a small full-stack project with:
 ## Services
 
 - `backend`
-  - Runtime: `${PYTHON_IMAGE:-python:3.12-slim}`
+  - Runtime: `${PYTHON_IMAGE:-docker.io/library/python:3.12-slim}`
   - Working directory: `/workspace/backend`
   - Port: `8001`
   - Starts Django with `python manage.py runserver 0.0.0.0:8001`
 
 - `web`
-  - Runtime: `${NODE_IMAGE:-node:24-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24-alpine}`
   - Working directory: `/workspace/frontend`
   - Port: `5176`
   - Starts Vite with `npm run dev -- --host 0.0.0.0 --port 5176`
@@ -43,20 +43,22 @@ loom start
 loom status
 ```
 
+The backend and frontend both run directly as the host-aligned UID:GID under `userns: keep-id`. This template avoids privileged bootstrap work, so startup stays lighter while still keeping `pip`, migrations, `npm install`, and `loom exec` aligned with the host user on Linux rootless Podman.
+
 ## Image overrides
 
 `loom init` copies `.env.example` to `.env`, so you can switch runtime versions without editing `loom.yaml`.
 
 ```bash
 # Python runtime
-PYTHON_IMAGE=python:3.12-slim
+PYTHON_IMAGE=docker.io/library/python:3.12-slim
 
 # Node runtime
-NODE_IMAGE=node:24-alpine
+NODE_IMAGE=docker.io/library/node:24-alpine
 ```
 
 You can also choose these during init interactively or pass them directly:
 
 ```bash
-loom init django-react --image PYTHON_IMAGE=python:3.13-slim --image NODE_IMAGE=node:22-alpine
+loom init django-react --image PYTHON_IMAGE=docker.io/library/python:3.13-slim --image NODE_IMAGE=docker.io/library/node:22-alpine
 ```

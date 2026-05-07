@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${MONGO_IMAGE:-mongo:7}`
+  - Runtime: `${MONGO_IMAGE:-docker.io/library/mongo:7}`
   - Port: `27017`
 
 ## Route
@@ -24,3 +24,10 @@ loom status
 ## Image overrides
 
 - `MONGO_IMAGE`
+
+## Backup and restore
+
+```bash
+loom backup db
+loom restore db ./backup.archive.gz
+```

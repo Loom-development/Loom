@@ -23,11 +23,11 @@ loom status
 ## Services
 
 - `api`
-  - Runtime: `${NODE_IMAGE:-node:22-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:22-alpine}`
   - Port: `3007`
 - Purpose: local FaaS-style runtime for backend functions
 - `web`
-  - Runtime: `${NODE_IMAGE:-node:22-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:22-alpine}`
   - Port: `3008`
   - Purpose: static SPA server with `/api/*` proxying to the backend functions
 
@@ -54,6 +54,6 @@ loom status
 
 - `NODE_IMAGE`
 
-Use `node:22-alpine` by default here. The backend is modeled after AWS-style Node `nodejs22.x` functions, and Node 22 keeps local behavior aligned with that target.
+Use `docker.io/library/node:22-alpine` by default here. The backend is modeled after AWS-style Node `nodejs22.x` functions, and Node 22 keeps local behavior aligned with that target.
 
 The frontend is intentionally static-first. It demonstrates the common pattern where a SPA calls backend functions over HTTP while deployment stays serverless in production.

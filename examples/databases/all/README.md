@@ -36,3 +36,16 @@ loom status
 - `MSSQL_IMAGE`
 - `MARIADB_IMAGE`
 - `ELASTICSEARCH_IMAGE`
+
+## Backup and restore
+
+Use the service name you want to target:
+
+```bash
+loom backup postgres
+loom backup redis
+loom restore postgres ./backup.sql
+loom restore redis ./dump.rdb
+```
+
+Supported restore services in this stack are `mysql`, `postgres`, `mongodb`, `redis`, `sqlite`, and `mariadb`. `sqlserver` backup is supported, but restore is not yet available.

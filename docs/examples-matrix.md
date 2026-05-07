@@ -10,16 +10,16 @@ Quick examples:
 
 ```bash
 # Node templates
-NODE_IMAGE=node:22-alpine
+NODE_IMAGE=docker.io/library/node:22-alpine
 
 # .NET template
 DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
 
 # Rails template
-RUBY_IMAGE=ruby:3.3
+RUBY_IMAGE=docker.io/library/ruby:3.3
 
 # PHP templates
-PHP_IMAGE=dunglas/frankenphp:1-php8.3
+PHP_IMAGE=docker.io/dunglas/frankenphp:1-php8.3
 ```
 
 ## One command pattern for all templates
@@ -150,7 +150,10 @@ loom init db-postgres --dir pg-demo
 cd pg-demo
 loom start
 loom backup db
+loom restore db ./backup.sql
 ```
+
+`loom restore` currently supports PostgreSQL, MySQL, MariaDB, MongoDB, Redis, and SQLite. Redis restore replaces `dump.rdb` and restarts the service automatically. SQL Server restore is not yet supported.
 
 ## Common beginner commands
 
@@ -158,6 +161,8 @@ loom backup db
 - `loom ps` — containers for current project
 - `loom logs <service> --no-follow` — short log snapshot
 - `loom exec <service> -- sh` — run shell in container
+- `loom backup <service>` — create a database backup file
+- `loom restore <service> <input>` — restore a supported database backup file
 - `loom stop` — clean shutdown
 
 ## Troubleshooting

@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${PYTHON_IMAGE:-python:3.12-slim}`
+  - Runtime: `${PYTHON_IMAGE:-docker.io/library/python:3.12-slim}`
   - Port: `8002`
   - Purpose: Flask development server
 

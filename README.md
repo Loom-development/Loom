@@ -58,12 +58,12 @@ Examples:
 
 ```bash
 # Node templates
-NODE_IMAGE=node:22-alpine
+NODE_IMAGE=docker.io/library/node:22-alpine
 # or
-NODE_IMAGE=node:24-alpine
+NODE_IMAGE=docker.io/library/node:24-alpine
 
 # during init
-loom init node --image NODE_IMAGE=node:22-alpine
+loom init node --image NODE_IMAGE=docker.io/library/node:22-alpine
 
 # .NET template
 DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
@@ -71,7 +71,7 @@ DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
 DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
 
 # Rails template base image
-RUBY_IMAGE=ruby:3.3
+RUBY_IMAGE=docker.io/library/ruby:3.3
 ```
 
 ## Daily commands you'll actually use
@@ -87,6 +87,7 @@ RUBY_IMAGE=ruby:3.3
 - `loom exec <service> -- <command>` — run commands inside a service container
 - `loom backup <service>` — backup supported database service
 - `loom backup --all` — backup all supported database services
+- `loom restore <service> <input>` — restore a supported database service from a local backup file
 
 Tip: run `loom <command> --help` for options.
 
@@ -123,9 +124,71 @@ If existing project containers drift from the current config or you want a clean
 
 This means fewer "it started but not really" moments.
 
+## Service user mapping
+
+When a service needs to write into a bind-mounted project directory with host-aligned ownership, Loom now supports per-service `user` and `userns` settings in `loom.yaml`.
+
+Example:
+
+```yaml
+services:
+	app:
+		type: node
+		image: ${NODE_IMAGE:-docker.io/library/node:24-alpine}
+		userns: keep-id
+		user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+		volumes:
+			- ./:/workspace
+```
+
+Use `userns: keep-id` for rootless Podman when you want the container process to map cleanly to the host user. Add `user` when the service should run as a specific UID:GID inside the container.
+
+`userns: keep-id` gives the strongest host-aligned ownership behavior on Linux with rootless Podman. On macOS and Windows, Loom still runs through Podman machine and `execUser` still applies to `loom exec` and task runs, but filesystem ownership and performance can differ from native Linux because the project directory is accessed through the Podman VM.
+
+For root-bootstrap templates that must start as `root` and then drop privileges inside the container, Loom also supports `execUser` for `loom exec` and task runs:
+
+```yaml
+services:
+	app:
+		type: node
+		image: ${NODE_IMAGE:-docker.io/library/node:24-alpine}
+		user: root
+		userns: keep-id
+		execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
+```
+
+That keeps startup flexible while making `loom exec app -- sh` and configured tasks enter the container as the same host-aligned user your long-running app process uses.
+
 ## Supported DB backup types
 
 `mysql`, `mariadb`, `postgres`, `mongodb`, `redis`, `sqlite`, `sqlserver`
+
+## Supported DB restore types
+
+`mysql`, `mariadb`, `postgres`, `mongodb`, `redis`, `sqlite`
+
+Redis restore stops the service, replaces `dump.rdb`, and starts the service again.
+
+SQL Server restore is not yet supported by `loom restore`; the current backup format is a live `.bak` of `master`, which needs a different restore path than the running-container workflow Loom uses today.
+
+## Database backup and restore
+
+Typical workflow:
+
+```bash
+loom start
+loom backup db
+loom restore db ./.loom/backups/my-project-db-2026-03-15T12-00-00.000Z.sql
+```
+
+Notes:
+
+- Use the service name from `loom.yaml`, such as `db`, `postgres`, `mysql`, or `redis`.
+- `loom backup --all` creates backups for every backup-supported database service in the current project.
+- MySQL, MariaDB, and PostgreSQL restore accept plain SQL dumps and gzip-compressed SQL dumps.
+- Redis restore replaces `dump.rdb` and restarts the Redis service automatically.
+- SQLite restore replaces the mounted database file directly.
+- SQL Server backup is supported, but restore is not yet implemented.
 
 ## Repository structure
 

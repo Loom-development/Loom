@@ -72,35 +72,35 @@ export interface InitImageChoice {
 }
 
 export const initImageChoicesByTemplate: Record<string, InitImageChoice[]> = {
-  node: [{ envKey: "NODE_IMAGE", label: "Node runtime", options: ["node:22-alpine", "node:24-alpine"] }],
+  node: [{ envKey: "NODE_IMAGE", label: "Node runtime", options: ["docker.io/library/node:22-alpine", "docker.io/library/node:24-alpine"] }],
   "node-mean": [
-    { envKey: "NODE_IMAGE", label: "Node runtime", options: ["node:22-alpine", "node:24-alpine"] }
+    { envKey: "NODE_IMAGE", label: "Node runtime", options: ["docker.io/library/node:22-alpine", "docker.io/library/node:24-alpine"] }
   ],
   "node-mern": [
-    { envKey: "NODE_IMAGE", label: "Node runtime", options: ["node:22-alpine", "node:24-alpine"] }
+    { envKey: "NODE_IMAGE", label: "Node runtime", options: ["docker.io/library/node:22-alpine", "docker.io/library/node:24-alpine"] }
   ],
-  "node-t3": [{ envKey: "NODE_IMAGE", label: "Node runtime", options: ["node:22-alpine", "node:24-alpine"] }],
-  jamstack: [{ envKey: "NODE_IMAGE", label: "Node runtime", options: ["node:22-alpine", "node:24-alpine"] }],
-  serverless: [{ envKey: "NODE_IMAGE", label: "Node runtime", options: ["node:22-alpine", "node:24-alpine"] }],
+  "node-t3": [{ envKey: "NODE_IMAGE", label: "Node runtime", options: ["docker.io/library/node:22-alpine", "docker.io/library/node:24-alpine"] }],
+  jamstack: [{ envKey: "NODE_IMAGE", label: "Node runtime", options: ["docker.io/library/node:22-alpine", "docker.io/library/node:24-alpine"] }],
+  serverless: [{ envKey: "NODE_IMAGE", label: "Node runtime", options: ["docker.io/library/node:22-alpine", "docker.io/library/node:24-alpine"] }],
   "spring-react": [
-    { envKey: "JAVA_IMAGE", label: "Java runtime", options: ["maven:3.9-eclipse-temurin-17", "maven:3.9-eclipse-temurin-21"] },
-    { envKey: "NODE_IMAGE", label: "Node runtime", options: ["node:22-alpine", "node:24-alpine"] }
+    { envKey: "JAVA_IMAGE", label: "Java runtime", options: ["docker.io/library/maven:3.9-eclipse-temurin-17", "docker.io/library/maven:3.9-eclipse-temurin-21"] },
+    { envKey: "NODE_IMAGE", label: "Node runtime", options: ["docker.io/library/node:22-alpine", "docker.io/library/node:24-alpine"] }
   ],
   "django-react": [
-    { envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["python:3.12-slim", "python:3.13-slim"] },
-    { envKey: "NODE_IMAGE", label: "Node runtime", options: ["node:22-alpine", "node:24-alpine"] }
+    { envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["docker.io/library/python:3.12-slim", "docker.io/library/python:3.13-slim"] },
+    { envKey: "NODE_IMAGE", label: "Node runtime", options: ["docker.io/library/node:22-alpine", "docker.io/library/node:24-alpine"] }
   ],
   "node-bun": [{ envKey: "BUN_IMAGE", label: "Bun runtime", options: ["docker.io/oven/bun:1.1", "docker.io/oven/bun:1.2"] }],
-  python: [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["python:3.12-slim", "python:3.13-slim"] }],
-  "python-django": [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["python:3.12-slim", "python:3.13-slim"] }],
-  "python-flask": [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["python:3.12-slim", "python:3.13-slim"] }],
-  "python-fastapi": [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["python:3.12-slim", "python:3.13-slim"] }],
-  php: [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["dunglas/frankenphp:1-php8.3", "dunglas/frankenphp:1-php8.4"] }],
-  "php-drupal": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["dunglas/frankenphp:1-php8.3", "dunglas/frankenphp:1-php8.4"] }],
-  "php-symfony": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["dunglas/frankenphp:1-php8.3", "dunglas/frankenphp:1-php8.4"] }],
-  "php-wordpress": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["php:8.3-apache", "php:8.4-apache"] }],
-  rails7: [{ envKey: "RUBY_IMAGE", label: "Ruby base image", options: ["ruby:3.3", "ruby:3.4"] }],
-  "rails7-hotwire": [{ envKey: "RUBY_IMAGE", label: "Ruby base image", options: ["ruby:3.3", "ruby:3.4"] }],
+  python: [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["docker.io/library/python:3.12-slim", "docker.io/library/python:3.13-slim"] }],
+  "python-django": [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["docker.io/library/python:3.12-slim", "docker.io/library/python:3.13-slim"] }],
+  "python-flask": [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["docker.io/library/python:3.12-slim", "docker.io/library/python:3.13-slim"] }],
+  "python-fastapi": [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["docker.io/library/python:3.12-slim", "docker.io/library/python:3.13-slim"] }],
+  php: [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/dunglas/frankenphp:1-php8.3", "docker.io/dunglas/frankenphp:1-php8.4"] }],
+  "php-drupal": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/dunglas/frankenphp:1-php8.3", "docker.io/dunglas/frankenphp:1-php8.4"] }],
+  "php-symfony": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/dunglas/frankenphp:1-php8.3", "docker.io/dunglas/frankenphp:1-php8.4"] }],
+  "php-wordpress": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/library/php:8.3-apache", "docker.io/library/php:8.4-apache"] }],
+  rails7: [{ envKey: "RUBY_IMAGE", label: "Ruby base image", options: ["docker.io/library/ruby:3.3", "docker.io/library/ruby:3.4"] }],
+  "rails7-hotwire": [{ envKey: "RUBY_IMAGE", label: "Ruby base image", options: ["docker.io/library/ruby:3.3", "docker.io/library/ruby:3.4"] }],
   dotnet: [{ envKey: "DOTNET_IMAGE", label: ".NET runtime", options: ["mcr.microsoft.com/dotnet/sdk:8.0", "mcr.microsoft.com/dotnet/sdk:10.0"] }]
 };
 
@@ -155,10 +155,11 @@ export function describeInitTemplate(template: string): string {
 export async function chooseInitImageOverrides(
   template: string,
   currentValues: Record<string, string>,
+  lockedEnvKeys: string[] = [],
   input: Readable = process.stdin,
   output: Writable = process.stdout
 ): Promise<Record<string, string>> {
-  const imageChoices = initImageChoicesByTemplate[template] ?? [];
+  const imageChoices = (initImageChoicesByTemplate[template] ?? []).filter((choice) => !lockedEnvKeys.includes(choice.envKey));
   if (imageChoices.length === 0) {
     return {};
   }

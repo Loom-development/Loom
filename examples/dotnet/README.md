@@ -25,3 +25,7 @@ loom status
 ## Image overrides
 
 - `DOTNET_IMAGE`
+
+## File permissions
+
+This template keeps the simpler `userns: keep-id` startup model because `dotnet restore` and `dotnet run` do not require privileged package installation during startup, but `loom exec` and task runs now use a host-aligned UID:GID by default through `execUser`.

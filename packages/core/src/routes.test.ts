@@ -28,6 +28,7 @@ test("publishConfiguredRoutes skips proxy setup and output when no routes exist"
         certificateCalls += 1;
         return { certPath: "/tmp/cert.pem", keyPath: "/tmp/key.pem" };
       },
+      ensureRouteHosts: async () => ({ managedHosts: [], skippedHosts: [] }),
       ensureRouteProxy: async () => {
         proxyCalls += 1;
         return { containerName: "loom-proxy", httpPort: 8080, httpsPort: 8443 };
@@ -36,6 +37,9 @@ test("publishConfiguredRoutes skips proxy setup and output when no routes exist"
     {
       writeOut(message) {
         lines.push(message);
+      },
+      writeErr() {
+        // no-op
       }
     }
   );
@@ -74,6 +78,7 @@ test("publishConfiguredRoutes configures proxy and writes route and https summar
         certificateHosts.push(hosts);
         return { certPath: "/tmp/cert.pem", keyPath: "/tmp/key.pem" };
       },
+      ensureRouteHosts: async () => ({ managedHosts: [], skippedHosts: [] }),
       ensureRouteProxy: async (_config, bindings, _certificateInfo, networkName) => {
         proxyCalls.push({ bindings, networkName });
         return { containerName: "loom-proxy", httpPort: 8080, httpsPort: 8443 };
@@ -82,6 +87,9 @@ test("publishConfiguredRoutes configures proxy and writes route and https summar
     {
       writeOut(message) {
         lines.push(message);
+      },
+      writeErr() {
+        // no-op
       }
     }
   );
@@ -110,9 +118,9 @@ test("publishConfiguredRoutes configures proxy and writes route and https summar
   ]);
   assert.deepEqual(lines, [
     "Route bindings:\n",
-    "- https://demo.test -> app:3000 (host:8080)\n",
-    "- http://plain.demo.test -> app:3000 (host:8081)\n",
-    "Proxy ports: http://localhost:8080 https://localhost:8443\n",
+    "- https://demo.test -> app:3000 (direct: http://localhost:8080/)\n",
+    "- http://plain.demo.test -> app:3000 (direct: http://localhost:8081/)\n",
+    "Route proxy listener ports: http://localhost:8080 https://localhost:8443 (use with configured route hostnames)\n",
     "HTTPS cert: /tmp/cert.pem\n",
     "HTTPS key: /tmp/key.pem\n"
   ]);

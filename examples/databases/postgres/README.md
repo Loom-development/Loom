@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${POSTGRES_IMAGE:-postgres:16-alpine}`
+  - Runtime: `${POSTGRES_IMAGE:-docker.io/library/postgres:16-alpine}`
   - Port: `5432`
 
 ## Route
@@ -24,3 +24,10 @@ loom status
 ## Image overrides
 
 - `POSTGRES_IMAGE`
+
+## Backup and restore
+
+```bash
+loom backup db
+loom restore db ./backup.sql
+```

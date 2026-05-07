@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { cac } from "cac";
+import { existsSync } from "node:fs";
 import { access, copyFile, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { basename, resolve } from "node:path";
@@ -18,7 +19,22 @@ import { prepareInitTarget } from "./init-template.js";
 
 const cli = cac("loom");
 
-const templatesRoot = resolve(fileURLToPath(new URL("../../../examples", import.meta.url)));
+function resolveTemplatesRoot(): string {
+  const candidates = [
+    resolve(fileURLToPath(new URL("./examples", import.meta.url))),
+    resolve(fileURLToPath(new URL("../../../examples", import.meta.url)))
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return candidates[0];
+}
+
+const templatesRoot = resolveTemplatesRoot();
 
 const templateMap: Record<string, string> = {
   node: "node",
@@ -268,11 +284,32 @@ function normalizeDocrootPath(raw: string): string {
 function buildPhpBaseCommand(containerDocroot: string): string {
   return [
     "command: |",
-    `      mkdir -p ${containerDocroot}`,
-    `      if [ ! -f ${containerDocroot}/index.php ]; then`,
-    `        printf '%s\\n' '<?php echo "Loom PHP example is running.";' > ${containerDocroot}/index.php`,
-    "      fi",
-    `      frankenphp php-server --listen :80 --root ${containerDocroot}`,
+    "      set -eu",
+    '      target_uid="${HOST_UID:-1000}"',
+    '      target_gid="${HOST_GID:-1000}"',
+    '      home_dir="/tmp/loom-home"',
+    '      if ! php -r "exit(extension_loaded(\'mysqli\') && extension_loaded(\'pdo_mysql\') && extension_loaded(\'pdo_pgsql\') && extension_loaded(\'pgsql\') && extension_loaded(\'pdo_sqlite\') && extension_loaded(\'intl\') && extension_loaded(\'zip\') && extension_loaded(\'exif\') && extension_loaded(\'imagick\') && extension_loaded(\'memcached\') ? 0 : 1);"; then',
+    '        if command -v apt-get >/dev/null 2>&1; then',
+    '          export DEBIAN_FRONTEND=noninteractive',
+    '          apt-get update',
+    '          apt-get install -y --no-install-recommends imagemagick libicu-dev libmagickwand-dev libmemcached-dev libsasl2-dev libzip-dev libpq-dev libsqlite3-dev libmariadb-dev pkg-config util-linux zlib1g-dev',
+    '        elif command -v apk >/dev/null 2>&1; then',
+    '          apk add --no-cache cyrus-sasl-dev imagemagick imagemagick-dev icu-dev libmemcached-dev libzip-dev postgresql-dev sqlite-dev mariadb-connector-c-dev pkgconf util-linux zlib-dev',
+    '        fi',
+    '        docker-php-ext-install -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)" mysqli pdo_mysql pdo_pgsql pgsql pdo_sqlite intl zip exif',
+    "        printf '\\n' | pecl install imagick",
+    "        printf '\\n' | pecl install memcached",
+    '        docker-php-ext-enable imagick',
+    '        docker-php-ext-enable memcached',
+    '      fi',
+    '      mkdir -p "$home_dir"',
+    '      chmod 0777 "$home_dir"',
+    `      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -lc 'if [ ! -f ${containerDocroot}/index.php ]; then printf "%s\\n" "<?php echo \\"Loom PHP example is running.\\";" > ${containerDocroot}/index.php; fi; frankenphp php-server --listen :80 --root ${containerDocroot}'`,
+    "    dependsOn:",
+    "      - cache",
+    "    env:",
+    "      MEMCACHED_HOST: cache",
+    '      MEMCACHED_PORT: "11211"',
     "    ports:"
   ].join("\n");
 }
@@ -411,7 +448,11 @@ async function applyRuntimeImageSelections(
 
   const hasInteractiveChoices = (initImageChoicesByTemplate[template] ?? []).length > 0;
   if (hasInteractiveChoices && process.stdin.isTTY) {
-    const prompted = await chooseInitImageOverrides(template, { ...currentValues, ...chosenImages });
+    const prompted = await chooseInitImageOverrides(
+      template,
+      { ...currentValues, ...chosenImages },
+      Object.keys(chosenImages)
+    );
     Object.assign(chosenImages, prompted);
   }
 
@@ -602,7 +643,18 @@ cli
     })
   );
 
+cli
+  .command("restore <service> <input>", "Restore a backup file into a supported database service")
+  .option("--config <path>", "Path to loom config", { default: "loom.yaml" })
+  .action(
+    withErrorHandling(async (service: string, input: string, options: { config?: string }) => {
+      const orchestrator = await bootstrapProject(options.config);
+      const restoredFrom = await orchestrator.restore(service, input);
+      process.stdout.write(`Restore completed [${service}]: ${restoredFrom}\n`);
+    })
+  );
+
 cli.help();
-cli.version("0.1.0");
+cli.version("0.1.1");
 
 cli.parse();

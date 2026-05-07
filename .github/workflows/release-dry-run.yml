@@ -17,12 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: pnpm
 
       - name: Enable Corepack
         run: corepack enable
@@ -34,7 +35,7 @@ jobs:
         run: pnpm verify:coverage
 
       - name: Upload coverage report artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: loom-coverage-${{ github.sha }}
           path: |
@@ -52,7 +53,7 @@ jobs:
         run: pnpm --dir apps/cli pack --pack-destination ../../dist/release
 
       - name: Upload release assets artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: loom-release-assets-${{ github.sha }}
           path: |

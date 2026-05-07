@@ -121,6 +121,62 @@ test("loadLoomProject interpolates image strings from .env with defaults", async
   assert.equal(loaded.config.services.cache.image, "redis:7-alpine");
 });
 
+test("loadLoomProject interpolates service user fields from .env", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-config-user-env-"));
+  const configPath = join(root, "loom.yaml");
+  const envPath = join(root, ".env");
+
+  await writeFile(envPath, ["HOST_UID=1001", "HOST_GID=1002"].join("\n"), "utf8");
+  await writeFile(
+    configPath,
+    [
+      "version: 1",
+      "name: test-project",
+      "runtime:",
+      "  engine: podman",
+      "  rootless: true",
+      "services:",
+      "  app:",
+      "    type: node",
+      "    image: node:20-alpine",
+      "    user: ${HOST_UID:-1000}:${HOST_GID:-1000}",
+      "    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}",
+      "    userns: keep-id"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const loaded = await loadLoomProject(configPath);
+  assert.equal(loaded.config.services.app.user, "1001:1002");
+  assert.equal(loaded.config.services.app.execUser, "1001:1002");
+  assert.equal(loaded.config.services.app.userns, "keep-id");
+});
+
+test("loadLoomProject reads optional php composer startup toggle", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-config-composer-"));
+  const configPath = join(root, "loom.yaml");
+
+  await writeFile(
+    configPath,
+    [
+      "version: 1",
+      "name: test-project",
+      "runtime:",
+      "  engine: podman",
+      "  rootless: true",
+      "services:",
+      "  app:",
+      "    type: php",
+      "    image: php:8.3-apache",
+      "    composer: false"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const loaded = await loadLoomProject(configPath);
+  assert.equal(loaded.config.services.app.composer, false);
+});
+
 test("loadLoomProject throws when an interpolated variable is missing and has no default", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-config-missing-env-"));
   const configPath = join(root, "loom.yaml");

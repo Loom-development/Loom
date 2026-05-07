@@ -7,6 +7,7 @@ import {
   backupAllConfiguredServices,
   backupConfiguredService
 } from "./backup.js";
+import { restoreConfiguredService } from "./restore.js";
 import {
   defaultOrchestratorOutput,
   type OrchestratorOutput
@@ -72,6 +73,7 @@ export class LoomOrchestrator {
     this.output.writeOut(`Stopping ${order.length} service(s) for ${this.config.name}...\n`);
     await stopProjectResources(this.config.name, order, {
       stopServiceByName: this.dependencies.stopService,
+      stopRouteHostsByProject: this.dependencies.stopRouteHosts,
       stopRouteProxyByProject: this.dependencies.stopRouteProxy,
       writeOut: this.output.writeOut,
       writeErr: this.output.writeErr
@@ -93,9 +95,14 @@ export class LoomOrchestrator {
 
   async runTask(taskName: string): Promise<void> {
     const task = requireConfiguredTask(this.config, taskName);
+    const service = await requireConfiguredService(
+      this.config,
+      task.service,
+      this.dependencies.listProjectContainers
+    );
 
     this.output.writeOut(`Running task '${taskName}' in service '${task.service}': ${task.command}\n`);
-    await this.dependencies.execServiceCommand(this.config.name, task.service, ["sh", "-lc", task.command]);
+    await this.dependencies.execServiceCommand(this.config.name, task.service, ["sh", "-lc", task.command], service.execUser, service.workdir);
   }
 
   async logs(serviceName: string, follow = true): Promise<void> {
@@ -109,13 +116,13 @@ export class LoomOrchestrator {
   }
 
   async exec(serviceName: string, command: string[]): Promise<void> {
-    await requireConfiguredService(
+    const service = await requireConfiguredService(
       this.config,
       serviceName,
       this.dependencies.listProjectContainers
     );
 
-    await this.dependencies.execServiceCommand(this.config.name, serviceName, command);
+    await this.dependencies.execServiceCommand(this.config.name, serviceName, command, service.execUser, service.workdir);
   }
 
   async backup(serviceName: string, outputPath?: string): Promise<string> {
@@ -130,5 +137,15 @@ export class LoomOrchestrator {
 
   async backupAll(): Promise<Array<{ service: string; path: string }>> {
     return backupAllConfiguredServices(this.config, this.projectRoot, this.dependencies);
+  }
+
+  async restore(serviceName: string, inputPath: string): Promise<string> {
+    return restoreConfiguredService(
+      this.config,
+      this.projectRoot,
+      serviceName,
+      inputPath,
+      this.dependencies
+    );
   }
 }

@@ -5,6 +5,9 @@ dist/
 coverage/
 *.tsbuildinfo
 
+docs/
+**/docs/
+
 *.log
 npm-debug.log*
 pnpm-debug.log*

@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${SQLITE_IMAGE:-alpine:3.20}`
+  - Runtime: `${SQLITE_IMAGE:-docker.io/library/alpine:3.20}`
   - Port: none
   - Purpose: create and expose the SQLite database file under the project data directory
 
@@ -25,3 +25,12 @@ loom status
 ## Image overrides
 
 - `SQLITE_IMAGE`
+
+## Backup and restore
+
+```bash
+loom backup db
+loom restore db ./loom.db
+```
+
+SQLite restore replaces the mounted database file directly.

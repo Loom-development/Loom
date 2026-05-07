@@ -10,16 +10,16 @@ Common overrides:
 
 ```bash
 # Node-based templates: node, node-mean, node-mern, node-t3, jamstack, serverless, spring-react frontend
-NODE_IMAGE=node:22-alpine
+NODE_IMAGE=docker.io/library/node:22-alpine
 
 # PHP templates
-PHP_IMAGE=dunglas/frankenphp:1-php8.3
+PHP_IMAGE=docker.io/dunglas/frankenphp:1-php8.3
 
 # WordPress app image
-PHP_IMAGE=php:8.3-apache
+PHP_IMAGE=docker.io/library/php:8.3-apache
 
 # Rails
-RUBY_IMAGE=ruby:3.3
+RUBY_IMAGE=docker.io/library/ruby:3.3
 
 # .NET
 DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
@@ -28,10 +28,25 @@ DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
 Example:
 
 ```bash
-loom init jamstack --dir my-jamstack --image NODE_IMAGE=node:22-alpine
+loom init jamstack --dir my-jamstack --image NODE_IMAGE=docker.io/library/node:22-alpine
 ```
 
 Templates with extra services expose extra image variables too, such as `POSTGRES_IMAGE`, `MYSQL_IMAGE`, `MONGO_IMAGE`, `REDIS_IMAGE`, `JAVA_IMAGE`, or `BUN_IMAGE`.
+
+## Database workflows
+
+Database templates and app templates with database services can use the built-in backup and restore commands.
+
+```bash
+loom backup db
+loom restore db ./path/to/backup.sql
+```
+
+Current restore support:
+
+- `postgres`, `mysql`, `mariadb`, `mongodb`, `redis`, `sqlite`
+- Redis restore replaces `dump.rdb` and restarts the service automatically.
+- SQL Server backup is supported, but restore is not yet available.
 
 ## App templates
 

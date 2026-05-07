@@ -65,3 +65,10 @@ test("exec reports unknown service with suggestion", async () => {
   assert.match(result.stderr || result.stdout, /Service 'ap' is not defined/i);
   assert.match(result.stderr || result.stdout, /Did you mean 'app'\?/i);
 });
+
+test("help includes the restore command", () => {
+  const result = runCli(["--help"]);
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /restore <service> <input>/i);
+});

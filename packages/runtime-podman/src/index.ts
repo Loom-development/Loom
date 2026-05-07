@@ -1,5 +1,12 @@
 export type { CommandResult, ContainerSummary, PodmanCapabilities } from "./types.js";
-export { SUPPORTED_BACKUP_SERVICE_TYPES, backupExtensionForServiceType, backupServiceToFile } from "./backup.js";
+export {
+  SUPPORTED_BACKUP_SERVICE_TYPES,
+  SUPPORTED_RESTORE_SERVICE_TYPES,
+  backupExtensionForServiceType,
+  backupServiceToFile,
+  restoreServiceFromFile,
+  restoreSupportedForServiceType
+} from "./backup.js";
 export {
   containerName,
   ensurePodmanNetwork,

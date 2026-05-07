@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { LoomConfig } from "@loom/config";
-import { projectNetworkName, resolveRouteBindings } from "./index.js";
+import { applyManagedHostsEntries, projectNetworkName, resolveRouteBindings } from "./index.js";
 
 test("network exports are available", () => {
   assert.equal(projectNetworkName("loom-app"), "loom-loom-app");
@@ -75,4 +75,33 @@ test("resolveRouteBindings supports host/ip/protocol port mappings", () => {
 
   const [binding] = resolveRouteBindings(config);
   assert.equal(binding.externalPort, 3005);
+});
+
+test("applyManagedHostsEntries appends and replaces project-scoped hosts blocks", () => {
+  const initial = "127.0.0.1 localhost\n";
+
+  const withManagedHosts = applyManagedHostsEntries(initial, "demo", ["demo.test", "api.demo.test"]);
+  assert.match(withManagedHosts, /# >>> loom:demo/);
+  assert.match(withManagedHosts, /127\.0\.0\.1 demo\.test/);
+  assert.match(withManagedHosts, /127\.0\.0\.1 api\.demo\.test/);
+
+  const replacedHosts = applyManagedHostsEntries(withManagedHosts, "demo", ["demo.test"]);
+  assert.equal((replacedHosts.match(/# >>> loom:demo/g) ?? []).length, 1);
+  assert.match(replacedHosts, /127\.0\.0\.1 demo\.test/);
+  assert.doesNotMatch(replacedHosts, /api\.demo\.test/);
+});
+
+test("applyManagedHostsEntries removes project block when given no hosts", () => {
+  const content = [
+    "127.0.0.1 localhost",
+    "",
+    "# >>> loom:demo",
+    "127.0.0.1 demo.test",
+    "# <<< loom:demo",
+    ""
+  ].join("\n");
+
+  const cleaned = applyManagedHostsEntries(content, "demo", []);
+  assert.doesNotMatch(cleaned, /loom:demo/);
+  assert.equal(cleaned, "127.0.0.1 localhost\n");
 });

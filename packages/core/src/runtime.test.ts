@@ -41,6 +41,9 @@ test("ensureRuntimeReady starts the managed machine before checking capabilities
 test("ensureRuntimeReady rejects when Podman is unavailable", async () => {
   await assert.rejects(
     ensureRuntimeReady(createConfig(), {
+      platform: "linux",
+      runtimeDir: "/tmp/runtime-ready",
+      runtimeDirExists: () => true,
       ensureMachineRunning: async () => undefined,
       detectPodmanCapabilities: async () => ({
         available: false,
@@ -59,6 +62,9 @@ test("ensureRuntimeReady rejects when Podman is unavailable", async () => {
 test("ensureRuntimeReady rejects when rootless Podman is required but unavailable", async () => {
   await assert.rejects(
     ensureRuntimeReady(createConfig(), {
+      platform: "linux",
+      runtimeDir: "/tmp/runtime-ready",
+      runtimeDirExists: () => true,
       ensureMachineRunning: async () => undefined,
       detectPodmanCapabilities: async () => ({
         available: true,
@@ -71,5 +77,27 @@ test("ensureRuntimeReady rejects when rootless Podman is required but unavailabl
       })
     }),
     /requires rootless Podman/
+  );
+});
+
+test("ensureRuntimeReady rejects early when the linux rootless runtime directory is missing", async () => {
+  await assert.rejects(
+    ensureRuntimeReady(createConfig(), {
+      platform: "linux",
+      uid: 1000,
+      runtimeDir: "/run/user/1000",
+      runtimeDirExists: () => false,
+      ensureMachineRunning: async () => undefined,
+      detectPodmanCapabilities: async () => ({
+        available: true,
+        version: "5.4.0",
+        rootless: true,
+        machine: {
+          supported: false,
+          running: true
+        }
+      })
+    }),
+    /Rootless Podman requires a writable user runtime directory[\s\S]*loginctl enable-linger 1000/i
   );
 });

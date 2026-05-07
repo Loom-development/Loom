@@ -38,23 +38,34 @@ if ($Version -eq "latest") {
   $url = "https://github.com/$Repo/releases/download/$Version/$asset"
 }
 
-$tmp = Join-Path $env:TEMP "loom-install"
-if (Test-Path $tmp) { Remove-Item -Path $tmp -Recurse -Force }
-New-Item -ItemType Directory -Path $tmp | Out-Null
-New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("loom-install-" + [guid]::NewGuid().ToString("N"))
 
-$zip = Join-Path $tmp "loom.zip"
-Write-Host "Downloading $url"
-Invoke-WebRequest -Uri $url -OutFile $zip
-Expand-Archive -Path $zip -DestinationPath $tmp -Force
-Copy-Item -Path (Join-Path $tmp "loom.cmd") -Destination (Join-Path $InstallDir "loom.cmd") -Force
-Copy-Item -Path (Join-Path $tmp "loom.mjs") -Destination (Join-Path $InstallDir "loom.mjs") -Force
+try {
+  New-Item -ItemType Directory -Path $tmp | Out-Null
+  New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 
-$pathUser = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($pathUser -notlike "*$InstallDir*") {
-  [Environment]::SetEnvironmentVariable("Path", "$pathUser;$InstallDir", "User")
-  Write-Host "Added $InstallDir to user PATH"
+  $zip = Join-Path $tmp "loom.zip"
+  Write-Host "Downloading $url"
+  Invoke-WebRequest -Uri $url -OutFile $zip
+  Expand-Archive -Path $zip -DestinationPath $tmp -Force
+  Copy-Item -Path (Join-Path $tmp "loom.cmd") -Destination (Join-Path $InstallDir "loom.cmd") -Force
+  Copy-Item -Path (Join-Path $tmp "loom.mjs") -Destination (Join-Path $InstallDir "loom.mjs") -Force
+  $examplesDir = Join-Path $tmp "examples"
+  if (Test-Path $examplesDir) {
+    Copy-Item -Path $examplesDir -Destination (Join-Path $InstallDir "examples") -Recurse -Force
+  }
+
+  $pathUser = [Environment]::GetEnvironmentVariable("Path", "User")
+  if ($pathUser -notlike "*$InstallDir*") {
+    [Environment]::SetEnvironmentVariable("Path", "$pathUser;$InstallDir", "User")
+    Write-Host "Added $InstallDir to user PATH"
+  }
+
+  Write-Host "Installed loom to $InstallDir\\loom.cmd"
+  Write-Host "Open a new terminal and run: loom --help"
 }
-
-Write-Host "Installed loom to $InstallDir\\loom.cmd"
-Write-Host "Open a new terminal and run: loom --help"
+finally {
+  if (Test-Path $tmp) {
+    Remove-Item -Path $tmp -Recurse -Force -ErrorAction SilentlyContinue
+  }
+}

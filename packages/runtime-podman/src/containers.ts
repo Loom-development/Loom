@@ -141,6 +141,8 @@ export function serviceConfigHash(service: LoomService): string {
   const signature = {
     type: service.type,
     image: normalizeImage(service.image),
+    user: service.user ?? null,
+    userns: service.userns ?? null,
     entrypoint: service.entrypoint ?? null,
     command: service.command ?? null,
     workdir: service.workdir ?? null,
@@ -209,6 +211,14 @@ export async function buildPodmanRunArgs(
 
   if (service.workdir) {
     args.push("-w", service.workdir);
+  }
+
+  if (service.userns) {
+    args.push(`--userns=${service.userns}`);
+  }
+
+  if (service.user) {
+    args.push("--user", service.user);
   }
 
   if (service.entrypoint !== undefined) {

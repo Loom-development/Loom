@@ -15,6 +15,7 @@ require_command() {
 require_command node
 require_command podman
 require_command tar
+require_command install
 
 node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
 if [ -z "$node_major" ] || [ "$node_major" -lt 20 ]; then
@@ -73,6 +74,10 @@ fi
 tar -xzf "$tmp_dir/loom.tar.gz" -C "$tmp_dir"
 install -m 0755 "$tmp_dir/loom" "$INSTALL_DIR/loom"
 install -m 0644 "$tmp_dir/loom.mjs" "$INSTALL_DIR/loom.mjs"
+rm -rf "$INSTALL_DIR/examples"
+if [ -d "$tmp_dir/examples" ]; then
+  cp -R "$tmp_dir/examples" "$INSTALL_DIR/examples"
+fi
 
 echo "Installed loom to $INSTALL_DIR/loom"
 case ":$PATH:" in

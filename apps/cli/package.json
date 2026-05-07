@@ -1,6 +1,6 @@
 {
   "name": "@loom/cli",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Command-line interface for Loom local development workflows.",
   "keywords": [
     "loom",
@@ -33,24 +33,29 @@
     }
   },
   "files": [
-    "dist",
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/index.d.ts",
+    "dist/examples",
     "package.json",
     "README.md"
   ],
   "scripts": {
-    "build": "pnpm exec tsc -b tsconfig.json",
+    "build": "pnpm exec tsc -b tsconfig.json && node ../../scripts/build-cli-package-assets.mjs",
     "typecheck": "pnpm exec tsc -b tsconfig.json",
     "test": "node --test dist/**/*.test.js",
     "dev": "tsx src/index.ts",
     "lint": "echo 'No lint rules configured'"
   },
   "dependencies": {
+    "cac": "^6.7.14"
+  },
+  "devDependencies": {
     "@loom/config": "workspace:*",
     "@loom/core": "workspace:*",
     "@loom/https": "workspace:*",
     "@loom/network": "workspace:*",
     "@loom/runtime-podman": "workspace:*",
-    "@loom/tasks": "workspace:*",
-    "cac": "^6.7.14"
+    "@loom/tasks": "workspace:*"
   }
 }

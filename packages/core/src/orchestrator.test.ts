@@ -10,7 +10,9 @@ function createTestDependencies(overrides: Partial<OrchestratorDependencies> = {
     ...defaultOrchestratorDependencies,
     backupExtensionForServiceType: () => null,
     backupServiceToFile: async () => undefined,
+    restoreServiceFromFile: async () => undefined,
     supportedBackupServiceTypes: defaultOrchestratorDependencies.supportedBackupServiceTypes,
+    supportedRestoreServiceTypes: defaultOrchestratorDependencies.supportedRestoreServiceTypes,
     containerName: (projectName, serviceName) => `${projectName}-${serviceName}`,
     detectPodmanCapabilities: async () => ({
       available: true,
@@ -24,6 +26,7 @@ function createTestDependencies(overrides: Partial<OrchestratorDependencies> = {
     ensureComposerAvailable: async () => undefined,
     ensureLocalCertificates: async () => ({ certPath: "/tmp/cert.pem", keyPath: "/tmp/key.pem" }),
     ensureMachineRunning: async () => undefined,
+    ensureRouteHosts: async () => ({ managedHosts: [], skippedHosts: [] }),
     ensureRouteProxy: async () => ({ containerName: "loom-proxy", httpPort: 8080, httpsPort: 8443 }),
     ensureServiceNetwork: async () => "demo-net",
     ensureServiceStarted: async () => undefined,
@@ -32,6 +35,7 @@ function createTestDependencies(overrides: Partial<OrchestratorDependencies> = {
     isContainerRunning: async () => false,
     listProjectContainers: async () => [],
     resolveRouteBindings: () => [],
+    stopRouteHosts: async () => undefined,
     stopRouteProxy: async () => undefined,
     stopService: async () => undefined,
     tailServiceLogs: async () => undefined,
@@ -223,10 +227,84 @@ test("start writes formatted route and https summaries through the output adapte
     "Starting 1 service(s) for demo on network demo-net...\n",
     "- started app\n",
     "Route bindings:\n",
-    "- https://demo.test -> app:3000 (host:8080)\n",
-    "Proxy ports: http://localhost:8080 https://localhost:8443\n",
+    "- https://demo.test -> app:3000 (direct: http://localhost:8080/)\n",
+    "Route proxy listener ports: http://localhost:8080 https://localhost:8443 (use with configured route hostnames)\n",
     "HTTPS cert: /tmp/cert.pem\n",
     "HTTPS key: /tmp/key.pem\n"
+  ]);
+});
+
+test("start reports managed Windows hosts entries when route host setup succeeds", async () => {
+  const { output, lines } = createOutputCapture();
+  const config: LoomConfig = {
+    version: 1,
+    name: "demo",
+    runtime: { engine: "podman", rootless: true },
+    services: {
+      app: { type: "node", image: "node:20-alpine" }
+    }
+  };
+
+  const orchestrator = new LoomOrchestrator(
+    config,
+    process.cwd(),
+    createTestDependencies({
+      resolveRouteBindings: () => [
+        {
+          host: "demo.test",
+          service: "app",
+          targetPort: 3000,
+          externalPort: 8080,
+          https: true
+        }
+      ],
+      ensureRouteHosts: async () => ({ managedHosts: ["demo.test"], skippedHosts: [] })
+    }),
+    output
+  );
+
+  await orchestrator.start();
+
+  assert.ok(lines.includes("Windows hosts entries: demo.test -> 127.0.0.1\n"));
+});
+
+test("stop cleans route hosts through injected dependencies", async () => {
+  const events: string[] = [];
+  const { output, lines } = createOutputCapture();
+  const config: LoomConfig = {
+    version: 1,
+    name: "demo",
+    runtime: { engine: "podman", rootless: true },
+    services: {
+      app: { type: "node", image: "node:20-alpine" }
+    }
+  };
+
+  const orchestrator = new LoomOrchestrator(
+    config,
+    process.cwd(),
+    createTestDependencies({
+      stopService: async (_projectName, serviceName) => {
+        events.push(`service:${serviceName}`);
+      },
+      stopRouteProxy: async () => {
+        events.push("proxy");
+      },
+      stopRouteHosts: async () => {
+        events.push("hosts");
+      }
+    }),
+    output
+  );
+
+  await orchestrator.stop();
+
+  assert.deepEqual(events, ["service:app", "proxy", "hosts"]);
+  assert.deepEqual(lines, [
+    "Stopping 1 service(s) for demo...\n",
+    "- stopped app\n",
+    "- stopped route proxy\n",
+    "- cleaned route hosts\n"
   ]);
 });
 
@@ -311,6 +389,73 @@ test("backup uses extracted backup helpers to resolve the output path", async ()
   assert.deepEqual(savedPaths, ["/workspace/tmp/backup.sql"]);
 });
 
+test("restore uses extracted restore helpers to resolve the input path", async () => {
+  const restoredPaths: string[] = [];
+  const config: LoomConfig = {
+    version: 1,
+    name: "demo",
+    runtime: { engine: "podman", rootless: true },
+    services: {
+      db: { type: "postgres", image: "postgres:16" }
+    }
+  };
+
+  const orchestrator = new LoomOrchestrator(
+    config,
+    "/workspace",
+    createTestDependencies({
+      restoreServiceFromFile: async (_projectName, _serviceName, _service, inputPath) => {
+        restoredPaths.push(inputPath);
+      }
+    })
+  );
+
+  const resolvedPath = await orchestrator.restore("db", "tmp/backup.sql");
+
+  assert.equal(resolvedPath, "/workspace/tmp/backup.sql");
+  assert.deepEqual(restoredPaths, ["/workspace/tmp/backup.sql"]);
+});
+
+test("restore restarts redis through the orchestrator dependencies", async () => {
+  const events: string[] = [];
+  const config: LoomConfig = {
+    version: 1,
+    name: "demo",
+    runtime: { engine: "podman", rootless: true },
+    services: {
+      db: { type: "redis", image: "redis:7" }
+    }
+  };
+
+  const orchestrator = new LoomOrchestrator(
+    config,
+    "/workspace",
+    createTestDependencies({
+      stopService: async () => {
+        events.push("stop");
+      },
+      restoreServiceFromFile: async (_projectName, _serviceName, _service, inputPath) => {
+        events.push(`restore:${inputPath}`);
+      },
+      ensureServiceNetwork: async () => {
+        events.push("network");
+        return "demo-net";
+      },
+      ensureServiceStarted: async () => {
+        events.push("start");
+      },
+      waitForServiceReady: async () => {
+        events.push("ready");
+      }
+    })
+  );
+
+  const resolvedPath = await orchestrator.restore("db", "tmp/dump.rdb");
+
+  assert.equal(resolvedPath, "/workspace/tmp/dump.rdb");
+  assert.deepEqual(events, ["stop", "restore:/workspace/tmp/dump.rdb", "network", "start", "ready"]);
+});
+
 test("runTask reports command execution through the output adapter", async () => {
   const { output, lines } = createOutputCapture();
   const executed: string[][] = [];
@@ -344,6 +489,42 @@ test("runTask reports command execution through the output adapter", async () =>
 
   assert.deepEqual(lines, ["Running task 'seed' in service 'app': npm run seed\n"]);
   assert.deepEqual(executed, [["sh", "-lc", "npm run seed"]]);
+});
+
+test("runTask and exec pass execUser through to runtime exec", async () => {
+  const calls: Array<{ service: string; command: string[]; execUser?: string; workdir?: string }> = [];
+  const config: LoomConfig = {
+    version: 1,
+    name: "demo",
+    runtime: { engine: "podman", rootless: true },
+    services: {
+      app: { type: "node", image: "node:20-alpine", execUser: "1000:1000", workdir: "/workspace" }
+    },
+    tasks: {
+      seed: {
+        service: "app",
+        command: "npm run seed"
+      }
+    }
+  };
+
+  const orchestrator = new LoomOrchestrator(
+    config,
+    process.cwd(),
+    createTestDependencies({
+      execServiceCommand: async (_projectName, serviceName, command, execUser, workdir) => {
+        calls.push({ service: serviceName, command, execUser, workdir });
+      }
+    })
+  );
+
+  await orchestrator.runTask("seed");
+  await orchestrator.exec("app", ["id"]);
+
+  assert.deepEqual(calls, [
+    { service: "app", command: ["sh", "-lc", "npm run seed"], execUser: "1000:1000", workdir: "/workspace" },
+    { service: "app", command: ["id"], execUser: "1000:1000", workdir: "/workspace" }
+  ]);
 });
 
 test("runTask rejects when the requested task is not defined", async () => {
@@ -392,6 +573,7 @@ test("stop routes progress and failures through the output adapter", async () =>
     "Stopping 2 service(s) for demo...\n",
     "- stopped app\n",
     "- stopped route proxy\n"
+    ,"- cleaned route hosts\n"
   ]);
   assert.deepEqual(errors, ["- failed stopping db: stop failed\n"]);
 });

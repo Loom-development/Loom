@@ -9,6 +9,8 @@ services:
   app:
     type: dotnet
     image: ${DOTNET_IMAGE:-mcr.microsoft.com/dotnet/sdk:8.0}
+    userns: keep-id
+    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /workspace/src
     command: dotnet restore && dotnet run --urls http://0.0.0.0:5000
     ports:

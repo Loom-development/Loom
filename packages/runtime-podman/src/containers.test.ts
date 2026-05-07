@@ -42,15 +42,27 @@ test("serviceConfigHash is stable across env key ordering and changes on config 
       B: "2"
     }
   };
+  const changedUser: LoomService = {
+    type: "node",
+    image: "node:20-alpine",
+    user: "1000:1000",
+    env: {
+      A: "1",
+      B: "2"
+    }
+  };
 
   assert.equal(serviceConfigHash(left), serviceConfigHash(right));
   assert.notEqual(serviceConfigHash(left), serviceConfigHash(changed));
+  assert.notEqual(serviceConfigHash(left), serviceConfigHash(changedUser));
 });
 
 test("buildPodmanRunArgs includes labels, env, ports, and shell command", async () => {
   const service: LoomService = {
     type: "node",
     image: "node:20-alpine",
+    user: "1000:1000",
+    userns: "keep-id",
     command: "node server.js",
     workdir: "/workspace",
     entrypoint: "node",
@@ -80,6 +92,9 @@ test("buildPodmanRunArgs includes labels, env, ports, and shell command", async 
     "app",
     "-w",
     "/workspace",
+    "--userns=keep-id",
+    "--user",
+    "1000:1000",
     "--entrypoint",
     "node",
     "-p",

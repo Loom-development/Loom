@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${MYSQL_IMAGE:-mysql:8.4}`
+  - Runtime: `${MYSQL_IMAGE:-docker.io/library/mysql:8.4}`
   - Port: `3306`
 
 ## Route
@@ -24,3 +24,10 @@ loom status
 ## Image overrides
 
 - `MYSQL_IMAGE`
+
+## Backup and restore
+
+```bash
+loom backup db
+loom restore db ./backup.sql
+```

@@ -8,7 +8,7 @@ runtime:
 services:
   mysql:
     type: mysql
-    image: ${MYSQL_IMAGE:-mysql:8.4}
+    image: ${MYSQL_IMAGE:-docker.io/library/mysql:8.4}
     env:
       MYSQL_ROOT_PASSWORD: loomroot
       MYSQL_DATABASE: loom
@@ -39,7 +39,7 @@ services:
 
   postgres:
     type: postgres
-    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    image: ${POSTGRES_IMAGE:-docker.io/library/postgres:16-alpine}
     env:
       POSTGRES_USER: loom
       POSTGRES_PASSWORD: loom
@@ -57,7 +57,7 @@ services:
 
   mongodb:
     type: mongodb
-    image: ${MONGO_IMAGE:-mongo:7}
+    image: ${MONGO_IMAGE:-docker.io/library/mongo:7}
     env:
       MONGO_INITDB_ROOT_USERNAME: loom
       MONGO_INITDB_ROOT_PASSWORD: loom
@@ -69,7 +69,7 @@ services:
 
   redis:
     type: redis
-    image: ${REDIS_IMAGE:-redis:7-alpine}
+    image: ${REDIS_IMAGE:-docker.io/library/redis:7-alpine}
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
@@ -97,7 +97,7 @@ services:
 
   sqlite:
     type: sqlite
-    image: ${SQLITE_IMAGE:-alpine:3.20}
+    image: ${SQLITE_IMAGE:-docker.io/library/alpine:3.20}
     command: sh -lc "apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null"
     workdir: /data
     volumes:
@@ -105,7 +105,7 @@ services:
 
   mariadb:
     type: mariadb
-    image: ${MARIADB_IMAGE:-mariadb:11}
+    image: ${MARIADB_IMAGE:-docker.io/library/mariadb:11}
     env:
       MARIADB_ROOT_PASSWORD: loomroot
       MARIADB_DATABASE: loom

@@ -24,3 +24,11 @@ loom status
 ## Image overrides
 
 - `MSSQL_IMAGE`
+
+## Backup and restore
+
+```bash
+loom backup db
+```
+
+SQL Server backup is supported. `loom restore` is not yet available for SQL Server because the current backup format is a live `.bak` of `master`, which needs a different restore flow.

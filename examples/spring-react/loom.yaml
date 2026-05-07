@@ -8,7 +8,9 @@ runtime:
 services:
   backend:
     type: java
-    image: ${JAVA_IMAGE:-maven:3.9-eclipse-temurin-21}
+    image: ${JAVA_IMAGE:-docker.io/library/maven:3.9-eclipse-temurin-21}
+    userns: keep-id
+    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /workspace/backend
     command: mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.address=0.0.0.0 -Dserver.port=8080"
     ports:
@@ -17,7 +19,9 @@ services:
       - ./:/workspace
   web:
     type: node
-    image: ${NODE_IMAGE:-node:22-alpine}
+    image: ${NODE_IMAGE:-docker.io/library/node:22-alpine}
+    userns: keep-id
+    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /workspace/frontend
     command: sh -lc "npm install && npm run build && exec npm run serve"
     ports:

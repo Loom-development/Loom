@@ -9,6 +9,7 @@ services:
   app:
     type: node
     image: ${BUN_IMAGE:-docker.io/oven/bun:1.2}
+    userns: keep-id
     workdir: /workspace
     command: bun run dev
     ports:

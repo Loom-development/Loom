@@ -14,11 +14,11 @@ loom status
 ## Services
 
 - `api`
-  - Runtime: `${NODE_IMAGE:-node:24-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24-alpine}`
   - Port: `3006`
   - Purpose: JSON API for frontend content
 - `web`
-  - Runtime: `${NODE_IMAGE:-node:24-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24-alpine}`
   - Port: `5174`
   - Purpose: static-first frontend served by Vite
 
@@ -31,4 +31,4 @@ loom status
 
 - `NODE_IMAGE`
 
-After init, edit `.env` or pass `--image NODE_IMAGE=node:22-alpine` during `loom init`.
+After init, edit `.env` or pass `--image NODE_IMAGE=docker.io/library/node:22-alpine` during `loom init`.

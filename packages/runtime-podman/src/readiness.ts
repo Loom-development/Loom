@@ -9,6 +9,8 @@ export interface ServiceReadinessOptions {
   timeoutSeconds?: number;
   retries?: number;
   startPeriodSeconds?: number;
+  progressIntervalSeconds?: number;
+  onProgress?: (progress: { elapsedSeconds: number; detail: string }) => void;
 }
 
 interface WaitForServiceReadyDependencies {
@@ -75,13 +77,12 @@ export async function waitForServiceReadyWithDependencies(
   const name = containerName(projectName, serviceName);
   const startPeriodMs = (options?.startPeriodSeconds ?? 0) * 1000;
 
-  if (startPeriodMs > 0) {
-    await delay(startPeriodMs);
-  }
-
   const intervalMs = (options?.intervalSeconds ?? 2) * 1000;
+  const progressIntervalMs = Math.max((options?.progressIntervalSeconds ?? 15) * 1000, intervalMs);
   const retries = options?.retries ?? 30;
-  const timeoutMs = Math.max(retries * intervalMs, 60_000);
+  const graceAttempts = Math.ceil(startPeriodMs / intervalMs);
+  const maxAttempts = Math.max(retries + graceAttempts, 1);
+  const timeoutMs = Math.max(startPeriodMs + retries * intervalMs, 60_000);
   const probeTimeoutMs = (options?.timeoutSeconds ?? 2) * 1000;
   const hostPorts = parseHostPorts(options?.ports);
   const hasExplicitReadinessProbe = Boolean(options?.command) || hostPorts.length > 0;
@@ -90,8 +91,9 @@ export async function waitForServiceReadyWithDependencies(
 
   let attempts = 0;
   const startedAt = now();
+  let lastProgressAt = startedAt - progressIntervalMs;
 
-  while (attempts < retries && now() - startedAt <= timeoutMs) {
+  while (attempts < maxAttempts && now() - startedAt <= timeoutMs) {
     attempts += 1;
     const info = await inspectContainerByName(name);
     if (!info) {
@@ -99,10 +101,16 @@ export async function waitForServiceReadyWithDependencies(
     }
 
     if (!info.running) {
-      throw new Error(`Container '${name}' exited before becoming ready.`);
+      throw new Error(
+        `Container '${name}' exited before becoming ready. Check 'loom logs ${serviceName} --no-follow' for the startup failure.`
+      );
     }
 
     stableRunningChecks += 1;
+
+    const elapsedMs = now() - startedAt;
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    const withinStartPeriod = elapsedMs < startPeriodMs;
 
     if (info.health) {
       if (info.health.toLowerCase() === "healthy") {
@@ -110,7 +118,28 @@ export async function waitForServiceReadyWithDependencies(
       }
 
       if (info.health.toLowerCase() === "unhealthy") {
+        if (withinStartPeriod) {
+          if (now() - lastProgressAt >= progressIntervalMs) {
+            options?.onProgress?.({
+              elapsedSeconds,
+              detail: "healthcheck is still settling during startup grace period"
+            });
+            lastProgressAt = now();
+          }
+
+          await delay(intervalMs);
+          continue;
+        }
+
         throw new Error(`Container '${name}' reported unhealthy status.`);
+      }
+
+      if (now() - lastProgressAt >= progressIntervalMs) {
+        options?.onProgress?.({
+          elapsedSeconds,
+          detail: `health: ${info.health.toLowerCase()}`
+        });
+        lastProgressAt = now();
       }
 
       await delay(intervalMs);
@@ -123,12 +152,28 @@ export async function waitForServiceReadyWithDependencies(
         return;
       }
 
+      if (now() - lastProgressAt >= progressIntervalMs) {
+        options?.onProgress?.({
+          elapsedSeconds,
+          detail: `waiting for ports ${hostPorts.join(", ")} to accept connections`
+        });
+        lastProgressAt = now();
+      }
+
       await delay(intervalMs);
       continue;
     }
 
     if (stableRunningChecks >= stableRunningChecksRequired) {
       return;
+    }
+
+    if (now() - lastProgressAt >= progressIntervalMs) {
+      options?.onProgress?.({
+        elapsedSeconds,
+        detail: `container running; waiting for stability check ${stableRunningChecks}/${stableRunningChecksRequired}`
+      });
+      lastProgressAt = now();
     }
 
     await delay(intervalMs);

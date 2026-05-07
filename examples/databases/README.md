@@ -28,3 +28,18 @@ Credential handling:
 - `loom init db-*` also generates unique per-project DB credentials (user/password/db name) and matching connection URLs in `.env`, and updates `loom.yaml` to match.
 - Database data is persisted under project-local `./data/*` directories (for `db-all`: `./data/mysql`, `./data/postgres`, `./data/mongodb`, etc.).
 - `.env` is git-ignored by default; commit only `.env.example`.
+
+## Backups and restores
+
+Use the service name from `loom.yaml`.
+
+```bash
+loom backup db
+loom restore db ./path/to/backup.sql
+```
+
+Supported restore types:
+
+- `postgres`, `mysql`, `mariadb`, `mongodb`, `redis`, `sqlite`
+- Redis restore replaces `dump.rdb` and restarts the Redis service automatically.
+- SQL Server backup is supported, but restore is not yet implemented.

@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${MARIADB_IMAGE:-mariadb:11}`
+  - Runtime: `${MARIADB_IMAGE:-docker.io/library/mariadb:11}`
   - Port: `3307`
 
 ## Route
@@ -24,3 +24,10 @@ loom status
 ## Image overrides
 
 - `MARIADB_IMAGE`
+
+## Backup and restore
+
+```bash
+loom backup db
+loom restore db ./backup.sql
+```

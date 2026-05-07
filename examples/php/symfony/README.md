@@ -15,8 +15,11 @@ loom status
 
 ## Services
 
+- `cache`
+  - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}`
+  - Port: `11213`
 - `app`
-  - Runtime: `${PHP_IMAGE:-dunglas/frankenphp:1-php8.3}`
+  - Runtime: `${PHP_IMAGE:-docker.io/dunglas/frankenphp:1-php8.3}`
   - Port: `8092`
   - Purpose: Symfony app server
 
@@ -27,3 +30,8 @@ loom status
 ## Image overrides
 
 - `PHP_IMAGE`
+- `MEMCACHED_IMAGE`
+
+## Cache
+
+The app container exposes `MEMCACHED_HOST=cache` and `MEMCACHED_PORT=11211`, and it installs the PHP `memcached` extension so Symfony apps can opt into the bundled Memcached service.

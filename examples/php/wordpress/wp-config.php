@@ -26,6 +26,7 @@ define('NONCE_SALT', loomWordPressEnv('WORDPRESS_NONCE_SALT', 'loom-nonce-salt')
 $tablePrefix = loomWordPressEnv('WORDPRESS_TABLE_PREFIX', 'wp_');
 
 define('WP_DEBUG', loomWordPressEnv('WORDPRESS_DEBUG', '') !== '');
+define('FS_METHOD', loomWordPressEnv('WORDPRESS_FS_METHOD', 'direct'));
 
 if (!defined('ABSPATH')) {
     define('ABSPATH', __DIR__ . '/');

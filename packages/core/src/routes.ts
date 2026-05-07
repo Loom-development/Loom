@@ -7,10 +7,10 @@ import { formatHttpsInfo, formatProxyPorts, formatRouteBindings } from "./startu
 
 type RouteStartupDependencies = Pick<
   OrchestratorDependencies,
-  "ensureLocalCertificates" | "ensureRouteProxy"
+  "ensureLocalCertificates" | "ensureRouteHosts" | "ensureRouteProxy"
 >;
 
-type RouteStartupOutput = Pick<OrchestratorOutput, "writeOut">;
+type RouteStartupOutput = Pick<OrchestratorOutput, "writeOut" | "writeErr">;
 
 export async function publishConfiguredRoutes(
   config: LoomConfig,
@@ -44,6 +44,19 @@ export async function publishConfiguredRoutes(
     }
 
     output.writeOut(formatProxyPorts(proxy.httpPort, proxy.httpsPort));
+
+    try {
+      const routeHosts = await dependencies.ensureRouteHosts(config.name, routeBindings);
+      if (routeHosts.managedHosts.length > 0) {
+        output.writeOut(`Windows hosts entries: ${routeHosts.managedHosts.join(", ")} -> 127.0.0.1\n`);
+      }
+      if (routeHosts.skippedHosts.length > 0) {
+        output.writeErr(`Skipped wildcard hosts for Windows hosts file: ${routeHosts.skippedHosts.join(", ")}\n`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      output.writeErr(`Warning: failed to manage Windows hosts entries automatically: ${message}\n`);
+    }
   }
 
   for (const line of formatHttpsInfo(httpsInfo)) {

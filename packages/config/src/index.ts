@@ -17,6 +17,10 @@ export interface LoadedLoomProject {
 const serviceSchema = z.object({
   type: z.string().min(1),
   image: z.string().min(1),
+  composer: z.boolean().optional(),
+  user: z.string().min(1).optional(),
+  userns: z.enum(["keep-id"]).optional(),
+  execUser: z.string().min(1).optional(),
   entrypoint: z.string().optional(),
   command: z.string().optional(),
   workdir: z.string().optional(),

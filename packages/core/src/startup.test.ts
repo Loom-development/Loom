@@ -33,14 +33,17 @@ test("formatRouteBindings renders protocol-specific route lines", () => {
     ]),
     [
       "Route bindings:\n",
-      "- https://demo.test -> app:3000 (host:8080)\n",
-      "- http://api.demo.test -> api:4000 (host:8081)\n"
+      "- https://demo.test -> app:3000 (direct: http://localhost:8080/)\n",
+      "- http://api.demo.test -> api:4000 (direct: http://localhost:8081/)\n"
     ]
   );
 });
 
 test("formatProxyPorts and formatHttpsInfo render summary lines", () => {
-  assert.equal(formatProxyPorts(8080, 8443), "Proxy ports: http://localhost:8080 https://localhost:8443\n");
+  assert.equal(
+    formatProxyPorts(8080, 8443),
+    "Route proxy listener ports: http://localhost:8080 https://localhost:8443 (use with configured route hostnames)\n"
+  );
   assert.deepEqual(formatHttpsInfo({ certPath: "/tmp/cert.pem", keyPath: "/tmp/key.pem" }), [
     "HTTPS cert: /tmp/cert.pem\n",
     "HTTPS key: /tmp/key.pem\n"

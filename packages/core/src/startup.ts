@@ -19,6 +19,10 @@ export function formatStartedService(serviceName: string): string {
   return `- started ${serviceName}\n`;
 }
 
+export function formatWaitingService(serviceName: string, detail: string, elapsedSeconds: number): string {
+  return `- waiting for ${serviceName} readiness (${detail}, ${elapsedSeconds}s elapsed)\n`;
+}
+
 export function formatRouteBindings(routeBindings: RouteBindingLike[]): string[] {
   if (routeBindings.length === 0) {
     return [];
@@ -28,13 +32,14 @@ export function formatRouteBindings(routeBindings: RouteBindingLike[]): string[]
     "Route bindings:\n",
     ...routeBindings.map((binding) => {
       const protocol = binding.https ? "https" : "http";
-      return `- ${protocol}://${binding.host} -> ${binding.service}:${binding.targetPort} (host:${binding.externalPort})\n`;
+      const directProtocol = binding.targetPort === 443 ? "https" : "http";
+      return `- ${protocol}://${binding.host} -> ${binding.service}:${binding.targetPort} (direct: ${directProtocol}://localhost:${binding.externalPort}/)\n`;
     })
   ];
 }
 
 export function formatProxyPorts(httpPort: number, httpsPort: number): string {
-  return `Proxy ports: http://localhost:${httpPort} https://localhost:${httpsPort}\n`;
+  return `Route proxy listener ports: http://localhost:${httpPort} https://localhost:${httpsPort} (use with configured route hostnames)\n`;
 }
 
 export function formatHttpsInfo(httpsInfo?: HttpsInfoLike): string[] {

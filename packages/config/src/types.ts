@@ -3,6 +3,10 @@ export type LoomServiceType = "node" | "php" | "python" | "postgres" | "redis" |
 export interface LoomService {
   type: LoomServiceType;
   image: string;
+  composer?: boolean;
+  user?: string;
+  userns?: "keep-id";
+  execUser?: string;
   entrypoint?: string;
   command?: string;
   workdir?: string;
