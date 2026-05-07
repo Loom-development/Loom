@@ -94,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          package_tarball="$(ls -1 dist/release/loom-cli-*.tgz | tail -n1)"
+          package_tarball="$(ls -1 dist/release/loomdev-cli-*.tgz | tail -n1)"
           if [ -z "$package_tarball" ]; then
             echo "No packed npm CLI tarball found in dist/release" >&2
             exit 1

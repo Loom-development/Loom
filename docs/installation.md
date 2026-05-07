@@ -117,12 +117,12 @@ cd /home/bode/sites/loom.dev
 pnpm install --frozen-lockfile
 pnpm --dir apps/cli build
 pnpm --dir apps/cli pack --pack-destination ../../dist/release
-npm install -g "$(ls -1 dist/release/loom-cli-*.tgz | tail -n1)"
+npm install -g "$(ls -1 dist/release/loomdev-cli-*.tgz | tail -n1)"
 ```
 
 That builds the CLI package, packs it as a tarball, and installs the most recent local tarball globally so the `loom` command is available in your shell.
 
-If you later rebuild the CLI, run the same `npm install -g "$(ls -1 dist/release/loom-cli-*.tgz | tail -n1)"` command again to refresh the global install.
+If you later rebuild the CLI, run the same `npm install -g "$(ls -1 dist/release/loomdev-cli-*.tgz | tail -n1)"` command again to refresh the global install.
 
 ## Step 3: Verify Loom works
 

@@ -68,5 +68,5 @@ jobs:
             dist/release/loom-darwin-arm64.tar.gz
             dist/release/loom-windows-x64.zip
             dist/release/loom-windows-arm64.zip
-            dist/release/loom-cli-*.tgz
+            dist/release/loomdev-cli-*.tgz
           if-no-files-found: error
