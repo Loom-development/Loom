@@ -5,7 +5,7 @@ This guide is for people who just want to install Loom and start coding quickly.
 ## What you need first
 
 - Podman
-- Node.js 20+
+- Node.js 24+
 
 Check both in your terminal:
 

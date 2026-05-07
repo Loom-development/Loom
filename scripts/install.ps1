@@ -5,7 +5,7 @@ param(
 )
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-  throw "Node.js 20+ is required. Install Node.js and retry."
+  throw "Node.js 24+ is required. Install Node.js and retry."
 }
 
 if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
@@ -15,7 +15,7 @@ if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
 $nodeVersionRaw = & node -p "process.versions.node"
 $nodeMajor = [int]($nodeVersionRaw.Split('.')[0])
 if ($nodeMajor -lt 20) {
-  throw "Node.js 20+ is required. Current version: $nodeVersionRaw"
+  throw "Node.js 24+ is required. Current version: $nodeVersionRaw"
 }
 
 try {

@@ -18,8 +18,8 @@ require_command tar
 require_command install
 
 node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || true)"
-if [ -z "$node_major" ] || [ "$node_major" -lt 20 ]; then
-  echo "Node.js 20+ is required. Current version: $(node -v 2>/dev/null || echo unknown)"
+if [ -z "$node_major" ] || [ "$node_major" -lt 24 ]; then
+  echo "Node.js 24+ is required. Current version: $(node -v 2>/dev/null || echo unknown)"
   exit 1
 fi
 

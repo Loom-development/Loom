@@ -134,6 +134,6 @@ Run the install command again. Loom will download the newest release package.
 
 ## Notes
 
-- Node.js 20+ is required on your machine.
+- Node.js 24+ is required on your machine.
 - Podman must be installed and reachable.
 - Default release source is `Loom-development/Loom`.
