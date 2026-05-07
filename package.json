@@ -1,6 +1,6 @@
 {
   "name": "@loomdev/cli",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "Loom - Podman-based local development platform",
   "packageManager": "pnpm@10.6.5",

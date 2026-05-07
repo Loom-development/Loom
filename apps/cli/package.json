@@ -1,6 +1,6 @@
 {
   "name": "@loomdev/cli",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Command-line interface for Loom local development workflows.",
   "keywords": [
     "loom",
@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/Loom-development/Loom#readme",
   "type": "module",
+  "preferGlobal": true,
   "publishConfig": {
     "access": "public"
   },

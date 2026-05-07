@@ -102,11 +102,13 @@ Windows PowerShell:
 irm https://raw.githubusercontent.com/Loom-development/Loom/main/scripts/install.ps1 | iex
 ```
 
-### Alternative: install from npm
+### Alternative: install globally from npm
 
 ```bash
 npm install -g @loomdev/cli
 ```
+
+If installed without -g, run the CLI with npx loom.
 
 ### Install the CLI from a local checkout
 

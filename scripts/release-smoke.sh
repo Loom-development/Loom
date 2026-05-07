@@ -3,6 +3,8 @@ set -eu
 
 LOOM_BIN="${LOOM_BIN:-loom}"
 KEEP_WORK_ROOT="${LOOM_RELEASE_SMOKE_KEEP:-0}"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -11,7 +13,46 @@ require_command() {
   fi
 }
 
-require_command "$LOOM_BIN"
+run_loom() {
+  if [ -n "${LOOM_BIN_PATH:-}" ]; then
+    "$LOOM_BIN_PATH" "$@"
+    return
+  fi
+
+  if [ -n "${LOOM_BIN_NODE_ENTRY:-}" ]; then
+    node "$LOOM_BIN_NODE_ENTRY" "$@"
+    return
+  fi
+
+  echo "Unable to resolve Loom CLI executable." >&2
+  exit 1
+}
+
+resolve_loom_bin() {
+  if command -v "$LOOM_BIN" >/dev/null 2>&1; then
+    LOOM_BIN_PATH="$(command -v "$LOOM_BIN")"
+    return
+  fi
+
+  if [ "$LOOM_BIN" != "loom" ]; then
+    echo "Missing required command: $LOOM_BIN" >&2
+    exit 1
+  fi
+
+  local_cli_entry="$REPO_ROOT/apps/cli/dist/index.js"
+  if [ -f "$local_cli_entry" ]; then
+    require_command node
+    LOOM_BIN_NODE_ENTRY="$local_cli_entry"
+    echo "Using local Loom CLI build at $LOOM_BIN_NODE_ENTRY"
+    return
+  fi
+
+  echo "Missing required command: loom" >&2
+  echo "Build the local CLI first with: pnpm --dir apps/cli build" >&2
+  exit 1
+}
+
+resolve_loom_bin
 require_command podman
 require_command perl
 require_command stat
@@ -56,7 +97,7 @@ stop_project() {
   if [ -d "$project_dir" ]; then
     (
       cd "$project_dir"
-      "$LOOM_BIN" stop >/dev/null 2>&1 || true
+      run_loom stop >/dev/null 2>&1 || true
     )
   fi
 }
@@ -97,7 +138,7 @@ smoke_stack() {
 
   echo "===== RELEASE SMOKE: $label ====="
 
-  if ! "$LOOM_BIN" init "$template" --dir "$project_dir" --image "$image_override"; then
+  if ! run_loom init "$template" --dir "$project_dir" --image "$image_override"; then
     echo "init failed for $label" >&2
     fail=$((fail + 1))
     KEEP_WORK_ROOT=1
@@ -108,29 +149,29 @@ smoke_stack() {
   if (
     cd "$project_dir"
     configure_host_ids .env
-    "$LOOM_BIN" start --recreate || exit 1
+    run_loom start --recreate || exit 1
 
     case "$label" in
       node)
-        "$LOOM_BIN" exec app -- sh -c 'id && pwd && printf "node-write\n" > owned-by-host.txt && ls -ld node_modules' || exit 1
+        run_loom exec app -- sh -c 'id && pwd && printf "node-write\n" > owned-by-host.txt && ls -ld node_modules' || exit 1
         assert_owner owned-by-host.txt "$uid:$gid" || exit 1
         assert_owner node_modules "$uid:$gid" || exit 1
         ;;
       python)
-        "$LOOM_BIN" exec app -- sh -c 'id && pwd && printf "python-write\n" > owned-by-host.txt && ls -l index.html' || exit 1
+        run_loom exec app -- sh -c 'id && pwd && printf "python-write\n" > owned-by-host.txt && ls -l index.html' || exit 1
         assert_owner owned-by-host.txt "$uid:$gid" || exit 1
         assert_owner index.html "$uid:$gid" || exit 1
         ;;
       rails7)
-        "$LOOM_BIN" exec app -- sh -c 'id && pwd && mkdir -p tmp && printf "rails-write\n" > tmp/owned-by-host.txt && ls -ld tmp tmp/owned-by-host.txt' || exit 1
+        run_loom exec app -- sh -c 'id && pwd && mkdir -p tmp && printf "rails-write\n" > tmp/owned-by-host.txt && ls -ld tmp tmp/owned-by-host.txt' || exit 1
         assert_owner tmp/owned-by-host.txt "$uid:$gid" || exit 1
         ;;
       wordpress)
-        "$LOOM_BIN" exec app -- sh -c 'id && pwd && mkdir -p wp-content/uploads && printf "wordpress-write\n" > wp-content/uploads/owned-by-host.txt && ls -ld wp-content/uploads wp-content/uploads/owned-by-host.txt' || exit 1
+        run_loom exec app -- sh -c 'id && pwd && mkdir -p wp-content/uploads && printf "wordpress-write\n" > wp-content/uploads/owned-by-host.txt && ls -ld wp-content/uploads wp-content/uploads/owned-by-host.txt' || exit 1
         assert_owner wp-content/uploads/owned-by-host.txt "$uid:$gid" || exit 1
         ;;
       django-react)
-        "$LOOM_BIN" exec backend -- sh -c 'id && pwd && printf "django-react-write\n" > owned-by-host.txt && ls -l db.sqlite3' || exit 1
+        run_loom exec backend -- sh -c 'id && pwd && printf "django-react-write\n" > owned-by-host.txt && ls -l db.sqlite3' || exit 1
         assert_owner backend/owned-by-host.txt "$uid:$gid" || exit 1
         assert_owner backend/db.sqlite3 "$uid:$gid" || exit 1
         assert_owner frontend/node_modules "$uid:$gid" || exit 1
