@@ -1,5 +1,5 @@
 {
-  "name": "@loom/cli",
+  "name": "@loomdev/cli",
   "version": "0.1.2",
   "description": "Command-line interface for Loom local development workflows.",
   "keywords": [

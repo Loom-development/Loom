@@ -1,5 +1,5 @@
 {
-  "name": "loom-dev",
+  "name": "@loomdev/cli",
   "version": "0.1.2",
   "private": true,
   "description": "Loom - Podman-based local development platform",
@@ -10,7 +10,7 @@
   "scripts": {
     "build": "pnpm exec tsc -b tsconfig.json && node scripts/build-cli-package-assets.mjs",
     "typecheck": "pnpm exec tsc -b tsconfig.json",
-    "dev": "pnpm --filter @loom/cli dev",
+    "dev": "pnpm --filter @loomdev/cli dev",
     "smoke:examples": "./scripts/smoke-examples.sh",
     "smoke:release": "./scripts/release-smoke.sh",
     "test": "pnpm -r test",

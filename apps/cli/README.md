@@ -1,4 +1,4 @@
-# @loom/cli
+# @loomdev/cli
 
 Command-line interface for Loom.
 

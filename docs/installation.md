@@ -105,7 +105,7 @@ irm https://raw.githubusercontent.com/Loom-development/Loom/main/scripts/install
 ### Alternative: install from npm
 
 ```bash
-npm install -g @loom/cli
+npm install -g @loomdev/cli
 ```
 
 ### Install the CLI from a local checkout
