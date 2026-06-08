@@ -426,28 +426,102 @@ test("init db template defaults to ./db and creates .env", async () => {
   }
 });
 
-test("init rejects non-empty target directory without --force", async () => {
+test("init in non-empty directory without --blank-template only writes loom config files", async () => {
   const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
   const targetDir = join(tempRoot, "non-empty");
   await mkdir(targetDir, { recursive: true });
   await writeFile(join(targetDir, "keep.txt"), "existing", "utf8");
+  await writeFile(join(targetDir, "index.php"), "<?php echo 'my app';", "utf8");
 
   const result = runCli(["init", "php", "--dir", targetDir]);
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr || result.stdout, /not empty/i);
-});
-
-test("init allows non-empty target directory with --force", async () => {
-  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
-  const targetDir = join(tempRoot, "forced");
-  await mkdir(targetDir, { recursive: true });
-  await writeFile(join(targetDir, "keep.txt"), "existing", "utf8");
-
-  const result = runCli(["init", "php", "--dir", targetDir, "--force"]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
-  assert.match(generatedConfig, /name:\s*loom-forced/i);
+  assert.match(generatedConfig, /name:\s*loom-non_empty/i);
+
+  const keepContent = await readFile(join(targetDir, "keep.txt"), "utf8");
+  assert.equal(keepContent, "existing");
+
+  const indexContent = await readFile(join(targetDir, "index.php"), "utf8");
+  assert.equal(indexContent, "<?php echo 'my app';");
+});
+
+test("init with --blank-template deletes existing files and copies the full template", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "blank-template");
+  await mkdir(targetDir, { recursive: true });
+  await writeFile(join(targetDir, "existing.txt"), "will be removed", "utf8");
+  await writeFile(join(targetDir, "index.php"), "<?php echo 'old app';", "utf8");
+
+  const result = runCli(["init", "php", "--dir", targetDir, "--blank-template"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  assert.match(generatedConfig, /name:\s*loom-blank_template/i);
+
+  await assert.rejects(
+    () => readFile(join(targetDir, "existing.txt"), "utf8"),
+    /ENOENT/
+  );
+});
+
+test("init --db postgres adds postgres service to loom.yaml and .env", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "node-with-postgres");
+
+  const result = runCli(["init", "node", "--dir", targetDir, "--db", "postgres"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  assert.match(loomYaml, /type:\s*postgres/);
+  assert.match(loomYaml, /POSTGRES_USER:\s*app/);
+  assert.match(loomYaml, /5432:5432/);
+  assert.match(loomYaml, /dependsOn:/);
+  assert.match(loomYaml, /- db/);
+
+  const env = await readFile(join(targetDir, ".env"), "utf8");
+  assert.match(env, /POSTGRES_IMAGE=/);
+  assert.match(env, /DATABASE_URL=postgresql:\/\//);
+});
+
+test("init --db mysql adds mysql service to loom.yaml", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "node-with-mysql");
+
+  const result = runCli(["init", "node", "--dir", targetDir, "--db", "mysql"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  assert.match(loomYaml, /type:\s*mysql/);
+  assert.match(loomYaml, /3306:3306/);
+  assert.match(loomYaml, /dependsOn:/);
+});
+
+test("init --db rejects unknown db type", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "bad-db");
+
+  const result = runCli(["init", "node", "--dir", targetDir, "--db", "oracle"]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr || result.stdout, /unknown database type/i);
+});
+
+test("init --db skips adding db service when one already exists", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "already-has-db");
+
+  // First init with db
+  let result = runCli(["init", "node", "--dir", targetDir, "--db", "postgres"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  // Second init with different db on existing project
+  result = runCli(["init", "node", "--dir", targetDir, "--db", "mysql"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  // Should still only have postgres (first one wins)
+  const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  assert.match(loomYaml, /type:\s*postgres/);
+  assert.doesNotMatch(loomYaml, /type:\s*mysql/);
 });
 
 test("init without template prompts for a selection", async () => {
@@ -681,6 +755,7 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
   assert.match(generatedConfig, /WORDPRESS_DB_HOST:\s*db:3306/);
   assert.match(generatedIndex, /WordPress stub/);
   assert.match(generatedWpConfig, /DB_NAME/);
+  assert.match(generatedWpConfig, /\$table_prefix\s*=\s*loomWordPressEnv\('WORDPRESS_TABLE_PREFIX', 'wp_'\);/);
   assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.3-apache/);
   assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6-alpine/);
   assert.match(generatedEnv, /MYSQL_IMAGE=docker\.io\/library\/mysql:8\.4/);
@@ -746,6 +821,7 @@ test("init php-wordpress adopts an existing WordPress project and adds wp-config
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
   assert.match(generatedWpConfig, /DB_NAME/);
+  assert.match(generatedWpConfig, /\$table_prefix\s*=\s*loomWordPressEnv\('WORDPRESS_TABLE_PREFIX', 'wp_'\);/);
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);

@@ -63,6 +63,32 @@ test("ensureServiceStarted recreates a container when config drift is detected",
   assert.deepEqual(builtArgs, ["demo-app", "demo-net", "docker.io/library/node:20-alpine"]);
 });
 
+test("ensureServiceStarted recreates a matching container when its bind mount source is missing", async () => {
+  const events: string[] = [];
+
+  await ensureServiceStartedWithDependencies("demo", "app", service, "demo-net", {
+    isContainerRunningByName: async () => false,
+    containerExistsByName: async () => true,
+    inspectContainerImageByName: async () => "docker.io/library/node:20-alpine",
+    inspectContainerLabelByName: async () => serviceConfigHash(service),
+    startContainerByName: async () => {
+      throw new Error(
+        "Failed to start existing container 'demo-app': Error: unable to start container 'abc': crun: cannot stat `/tmp/loom-release-smoke/demo/data/mysql`: No such file or directory: OCI runtime attempted to invoke a command that was not found"
+      );
+    },
+    removeContainerByName: async (name) => {
+      events.push(`remove:${name}`);
+    },
+    buildRunArgs: async () => ["run", "-d", "demo-app"],
+    runPodmanCommand: async (args) => {
+      events.push(args.join(" "));
+      return { ok: true, stderr: "" };
+    }
+  });
+
+  assert.deepEqual(events, ["remove:demo-app", "run -d demo-app"]);
+});
+
 test("ensureServiceStarted returns immediately when the container is already running", async () => {
   let checkedForExistingContainer = false;
 

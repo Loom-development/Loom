@@ -9,20 +9,27 @@ import {
   runWordPressCreateProjectWithDependencies
 } from "./init-template.js";
 
-test("prepareInitTarget rejects non-empty generic targets unless forced", async () => {
-  await assert.rejects(
-    () =>
-      prepareInitTarget("php", "/workspace/app", false, {
-        directoryHasFiles: async () => true
-      }),
-    /not empty/i
+test("prepareInitTarget returns config-only result for non-empty generic targets without --blank-template", async () => {
+  assert.deepEqual(
+    await prepareInitTarget("php", "/workspace/app", false, {
+      directoryHasFiles: async () => true
+    }),
+    {
+      overwriteTemplateFiles: false,
+      templateEntriesToUpdate: ["loom.yaml"],
+      templateEntriesToCreateIfMissing: [".env.example"]
+    }
   );
 });
 
-test("prepareInitTarget allows non-empty generic targets when forced", async () => {
-  assert.deepEqual(await prepareInitTarget("php", "/workspace/app", true, {
-    directoryHasFiles: async () => true
-  }), { overwriteTemplateFiles: false });
+test("prepareInitTarget clears directory and returns full template result with --blank-template", async () => {
+  const cleared: string[] = [];
+  const result = await prepareInitTarget("php", "/workspace/app", true, {
+    directoryHasFiles: async () => true,
+    clearDirectory: async (path) => { cleared.push(path); }
+  });
+  assert.deepEqual(cleared, ["/workspace/app"]);
+  assert.deepEqual(result, { overwriteTemplateFiles: false });
 });
 
 test("prepareInitTarget bootstraps Drupal projects in empty targets", async () => {

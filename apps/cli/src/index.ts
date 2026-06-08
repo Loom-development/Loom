@@ -469,14 +469,209 @@ async function applyRuntimeImageSelections(
   process.stdout.write(`Configured runtime image selections in ${envPath}\n`);
 }
 
+const supportedDbTypes = ["postgres", "mysql", "mariadb", "mongodb", "redis"] as const;
+type DbType = (typeof supportedDbTypes)[number];
+
+function isValidDbType(value: string): value is DbType {
+  return (supportedDbTypes as readonly string[]).includes(value);
+}
+
+function buildDbServiceBlock(db: DbType): { serviceYaml: string; envVars: Record<string, string> } {
+  switch (db) {
+    case "postgres":
+      return {
+        serviceYaml: [
+          "  db:",
+          "    type: postgres",
+          "    image: ${POSTGRES_IMAGE:-docker.io/library/postgres:16-alpine}",
+          "    env:",
+          "      POSTGRES_USER: app",
+          "      POSTGRES_PASSWORD: app",
+          "      POSTGRES_DB: app",
+          "    ports:",
+          '      - "5432:5432"',
+          "    volumes:",
+          "      - ./data/postgres:/var/lib/postgresql/data",
+          "    healthcheck:",
+          "      command: pg_isready -U app",
+          "      intervalSeconds: 3",
+          "      timeoutSeconds: 3",
+          "      retries: 30",
+          "      startPeriodSeconds: 5"
+        ].join("\n"),
+        envVars: {
+          POSTGRES_IMAGE: "docker.io/library/postgres:16-alpine",
+          DATABASE_URL: "postgresql://app:app@localhost:5432/app"
+        }
+      };
+    case "mysql":
+      return {
+        serviceYaml: [
+          "  db:",
+          "    type: mysql",
+          "    image: ${MYSQL_IMAGE:-docker.io/library/mysql:8.4}",
+          "    env:",
+          "      MYSQL_ROOT_PASSWORD: root",
+          "      MYSQL_DATABASE: app",
+          "      MYSQL_USER: app",
+          "      MYSQL_PASSWORD: app",
+          "    ports:",
+          '      - "3306:3306"',
+          "    volumes:",
+          "      - ./data/mysql:/var/lib/mysql",
+          "    healthcheck:",
+          "      command: mysqladmin ping -h 127.0.0.1 -proot",
+          "      intervalSeconds: 3",
+          "      timeoutSeconds: 3",
+          "      retries: 30",
+          "      startPeriodSeconds: 10"
+        ].join("\n"),
+        envVars: {
+          MYSQL_IMAGE: "docker.io/library/mysql:8.4",
+          DATABASE_URL: "mysql://app:app@localhost:3306/app"
+        }
+      };
+    case "mariadb":
+      return {
+        serviceYaml: [
+          "  db:",
+          "    type: mariadb",
+          "    image: ${MARIADB_IMAGE:-docker.io/library/mariadb:11}",
+          "    env:",
+          "      MARIADB_ROOT_PASSWORD: root",
+          "      MARIADB_DATABASE: app",
+          "      MARIADB_USER: app",
+          "      MARIADB_PASSWORD: app",
+          "    ports:",
+          '      - "3307:3306"',
+          "    volumes:",
+          "      - ./data/mariadb:/var/lib/mysql",
+          "    healthcheck:",
+          "      command: mariadb-admin ping -h 127.0.0.1 -uroot -proot",
+          "      intervalSeconds: 3",
+          "      timeoutSeconds: 3",
+          "      retries: 30",
+          "      startPeriodSeconds: 10"
+        ].join("\n"),
+        envVars: {
+          MARIADB_IMAGE: "docker.io/library/mariadb:11",
+          DATABASE_URL: "mysql://app:app@localhost:3307/app"
+        }
+      };
+    case "mongodb":
+      return {
+        serviceYaml: [
+          "  db:",
+          "    type: mongodb",
+          "    image: ${MONGO_IMAGE:-docker.io/library/mongo:7}",
+          "    env:",
+          "      MONGO_INITDB_ROOT_USERNAME: app",
+          "      MONGO_INITDB_ROOT_PASSWORD: app",
+          "      MONGO_INITDB_DATABASE: app",
+          "    ports:",
+          '      - "27017:27017"',
+          "    volumes:",
+          "      - ./data/mongodb:/data/db"
+        ].join("\n"),
+        envVars: {
+          MONGO_IMAGE: "docker.io/library/mongo:7",
+          DATABASE_URL: "mongodb://app:app@localhost:27017/app?authSource=admin"
+        }
+      };
+    case "redis":
+      return {
+        serviceYaml: [
+          "  db:",
+          "    type: redis",
+          "    image: ${REDIS_IMAGE:-docker.io/library/redis:7-alpine}",
+          "    command: redis-server --appendonly yes",
+          "    ports:",
+          '      - "6379:6379"',
+          "    volumes:",
+          "      - ./data/redis:/data",
+          "    healthcheck:",
+          "      command: redis-cli ping | grep PONG",
+          "      intervalSeconds: 3",
+          "      timeoutSeconds: 3",
+          "      retries: 30",
+          "      startPeriodSeconds: 2"
+        ].join("\n"),
+        envVars: {
+          REDIS_IMAGE: "docker.io/library/redis:7-alpine",
+          REDIS_URL: "redis://localhost:6379"
+        }
+      };
+  }
+}
+
+async function applyDatabaseService(targetDir: string, db: DbType): Promise<void> {
+  const loomPath = resolve(targetDir, "loom.yaml");
+  let loomYaml: string;
+  try {
+    loomYaml = await readFile(loomPath, "utf8");
+  } catch {
+    throw new Error(`No loom.yaml found in '${targetDir}'. Run 'loom init' first.`);
+  }
+
+  if (/^\s+db:/m.test(loomYaml)) {
+    process.stdout.write(`Service 'db' already exists in loom.yaml — skipping database addition.\n`);
+    return;
+  }
+
+  const { serviceYaml, envVars } = buildDbServiceBlock(db);
+
+  // Inject db service block at the end of the services section (before routes/tasks/end)
+  const servicesInsertPattern = /^(routes:|tasks:)/m;
+  if (servicesInsertPattern.test(loomYaml)) {
+    loomYaml = loomYaml.replace(servicesInsertPattern, `${serviceYaml}\n$1`);
+  } else {
+    loomYaml = loomYaml.trimEnd() + `\n${serviceYaml}\n`;
+  }
+
+  // Add `- db` to an existing dependsOn list, or insert a new dependsOn before the first `    ports:`
+  if (/^    dependsOn:/m.test(loomYaml)) {
+    // Append to the first existing dependsOn block
+    loomYaml = loomYaml.replace(/^(    dependsOn:(?:\n      - [^\n]+)*)(?!\n      - db)/m, `$1\n      - db`);
+  } else {
+    // No dependsOn anywhere — insert one before the first top-level `    ports:` found in the file
+    const portsIdx = loomYaml.indexOf('\n    ports:');
+    if (portsIdx !== -1) {
+      loomYaml = loomYaml.slice(0, portsIdx) + '\n    dependsOn:\n      - db' + loomYaml.slice(portsIdx);
+    }
+  }
+
+  await writeFile(loomPath, loomYaml, "utf8");
+  process.stdout.write(`Added '${db}' database service to ${loomPath}\n`);
+
+  // Append env vars to .env if present
+  const envPath = resolve(targetDir, ".env");
+  try {
+    let envContent = await readFile(envPath, "utf8");
+    let changed = false;
+    for (const [key, value] of Object.entries(envVars)) {
+      if (!hasEnvVariable(envContent, key)) {
+        envContent = envContent.trimEnd() + `\n${key}=${value}\n`;
+        changed = true;
+      }
+    }
+    if (changed) {
+      await writeFile(envPath, envContent, "utf8");
+      process.stdout.write(`Added database connection variables to ${envPath}\n`);
+    }
+  } catch {
+    // no .env yet — skip
+  }
+}
+
 cli
   .command("init [template]", "Initialize a sample project in a target directory")
   .option("--dir <path>", "Target directory", { default: "." })
-  .option("--force", "Allow writing into non-empty target directory", { default: false })
+  .option("--blank-template", "Delete existing files and initialize a clean template copy", { default: false })
   .option("--php-docroot <path>", "PHP docroot path inside project (php/php-symfony templates)")
   .option("--image <key=value>", "Override a template image variable during init (repeatable)")
+  .option("--db <type>", `Add a database service (${supportedDbTypes.join(", ")})`)
   .action(
-    withErrorHandling(async (template: string | undefined, options: { dir?: string; force?: boolean; phpDocroot?: string; image?: string | string[] }) => {
+    withErrorHandling(async (template: string | undefined, options: { dir?: string; blankTemplate?: boolean; phpDocroot?: string; image?: string | string[]; db?: string }) => {
       const selectedTemplate = template ?? (await chooseInitTemplate(
         await detectInitTemplateSuggestion(process.cwd())
       ));
@@ -496,17 +691,17 @@ cli
 
       await mkdir(targetDir, { recursive: true });
 
-      const initPreparation = await prepareInitTarget(selectedTemplate, targetDir, options.force ?? false);
+      const initPreparation = await prepareInitTarget(selectedTemplate, targetDir, options.blankTemplate ?? false);
 
       if (initPreparation.templateEntriesToUpdate) {
         await copyTemplateEntries(
           sourceDir,
           targetDir,
           initPreparation.templateEntriesToUpdate,
-          (options.force ?? false) || initPreparation.overwriteTemplateFiles
+          (options.blankTemplate ?? false) || initPreparation.overwriteTemplateFiles
         );
       } else {
-        await copyTemplate(sourceDir, targetDir, (options.force ?? false) || initPreparation.overwriteTemplateFiles);
+        await copyTemplate(sourceDir, targetDir, (options.blankTemplate ?? false) || initPreparation.overwriteTemplateFiles);
       }
 
       if (initPreparation.templateEntriesToCreateIfMissing) {
@@ -524,6 +719,12 @@ cli
       await applyRuntimeImageSelections(targetDir, selectedTemplate, parseEnvAssignments(options.image));
       if (selectedTemplate.startsWith("db-")) {
         await customizeDbTemplateCredentials(targetDir);
+      }
+      if (options.db) {
+        if (!isValidDbType(options.db)) {
+          throw new Error(`Unknown database type '${options.db}'. Supported: ${supportedDbTypes.join(", ")}`);
+        }
+        await applyDatabaseService(targetDir, options.db);
       }
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);

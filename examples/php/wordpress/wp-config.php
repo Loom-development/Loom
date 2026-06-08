@@ -23,7 +23,7 @@ define('SECURE_AUTH_SALT', loomWordPressEnv('WORDPRESS_SECURE_AUTH_SALT', 'loom-
 define('LOGGED_IN_SALT', loomWordPressEnv('WORDPRESS_LOGGED_IN_SALT', 'loom-logged-in-salt'));
 define('NONCE_SALT', loomWordPressEnv('WORDPRESS_NONCE_SALT', 'loom-nonce-salt'));
 
-$tablePrefix = loomWordPressEnv('WORDPRESS_TABLE_PREFIX', 'wp_');
+$table_prefix = loomWordPressEnv('WORDPRESS_TABLE_PREFIX', 'wp_');
 
 define('WP_DEBUG', loomWordPressEnv('WORDPRESS_DEBUG', '') !== '');
 define('FS_METHOD', loomWordPressEnv('WORDPRESS_FS_METHOD', 'direct'));

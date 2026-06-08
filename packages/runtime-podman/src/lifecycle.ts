@@ -59,6 +59,12 @@ function isImageUnavailableError(detail: string): boolean {
   );
 }
 
+function isMissingBindMountSourceError(detail: string): boolean {
+  return /(cannot stat .* no such file or directory|no such file or directory: oci runtime attempted to invoke a command that was not found)/i.test(
+    detail
+  );
+}
+
 function formatContainerRunError(name: string, image: string, detail: string): string {
   const normalizedDetail = detail.trim() || "unknown error";
   if (isRegistryAuthError(normalizedDetail)) {
@@ -133,8 +139,17 @@ export async function ensureServiceStartedWithDependencies(
     ) {
       await removeContainerByName(name);
     } else {
-      await startContainerByName(name);
-      return;
+      try {
+        await startContainerByName(name);
+        return;
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        if (!isMissingBindMountSourceError(detail)) {
+          throw error;
+        }
+
+        await removeContainerByName(name);
+      }
     }
   }
 

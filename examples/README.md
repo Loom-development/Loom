@@ -6,6 +6,26 @@ Most templates include a `.env.example` file with `*_IMAGE` defaults. After `loo
 
 If `loom init` is running in an interactive terminal, supported templates prompt for the primary runtime image during init. In scripts or CI, use `--image KEY=VALUE`.
 
+## Init behaviour with existing projects
+
+`loom init` adapts based on what is already in the target directory:
+
+- **Empty directory** — copies the full template, including the default `index.php` or equivalent starter file.
+- **Non-empty directory** — only writes `loom.yaml` and creates `.env.example` if it is missing. Your existing source files are left untouched. This is the safe default for adopting an existing project.
+- **`--blank-template`** — prints a warning, deletes all existing files in the target directory, then copies the full template. Use this when you want a completely clean slate.
+
+Examples:
+
+```bash
+# Adopt an existing project (only adds Loom config files)
+loom init php --dir my-existing-php-app
+
+# Start a clean new project, removing everything first
+loom init php --dir my-existing-php-app --blank-template
+```
+
+Templates that bootstrap their own project scaffolding (`php-wordpress`, `php-drupal`, `php-symfony`, `rails7`, `rails7-hotwire`) have their own adopt logic and do not use `--blank-template`.
+
 Common overrides:
 
 ```bash

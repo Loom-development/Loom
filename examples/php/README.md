@@ -34,6 +34,8 @@ All PHP templates now include a local Memcached service at `cache:11211` and ins
 - The generic PHP template installs any missing PHP extension dependencies as `root`, then drops to a host-aligned user before serving the bind-mounted project tree.
 - The template includes a Memcached service at `cache:11211` and exposes `MEMCACHED_HOST` and `MEMCACHED_PORT` to the app container.
 - Run: `loom init php --dir my-php && cd my-php && loom start`
+- **Adopting an existing project**: run `loom init php --dir <existing-dir>` in a non-empty directory and Loom will only write `loom.yaml` and `.env.example`. Your existing source files are not touched.
+- **Switching from another template** (e.g. `php-wordpress` to `php`): run `loom init php --dir <dir>` — Loom adds the plain PHP config without removing your WordPress files. Use `--blank-template` only if you want to wipe the directory and start fresh.
 
 ## Symfony
 

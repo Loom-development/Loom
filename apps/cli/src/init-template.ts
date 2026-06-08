@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readFile, readdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 
 interface InitPreparationDependencies {
@@ -11,6 +11,7 @@ interface InitPreparationDependencies {
   runRailsCreateProject?: (targetDir: string) => Promise<void>;
   runRailsHotwireCreateProject?: (targetDir: string) => Promise<void>;
   runSymfonyCreateProject?: (targetDir: string) => Promise<void>;
+  clearDirectory?: (path: string) => Promise<void>;
 }
 
 interface InitPreparationResult {
@@ -44,6 +45,11 @@ async function directoryHasFiles(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function clearDirectoryContents(path: string): Promise<void> {
+  const entries = await readdir(path);
+  await Promise.all(entries.map((entry) => rm(resolve(path, entry), { recursive: true, force: true })));
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -399,7 +405,7 @@ async function looksLikeSymfonyProject(
 export async function prepareInitTarget(
   template: string,
   targetDir: string,
-  force: boolean,
+  blankTemplate: boolean,
   dependencies: InitPreparationDependencies = {}
 ): Promise<InitPreparationResult> {
   const hasFiles = dependencies.directoryHasFiles ?? directoryHasFiles;
@@ -509,8 +515,21 @@ export async function prepareInitTarget(
     };
   }
 
-  if (!force && nonEmpty) {
-    throw new Error(`Target directory '${targetDir}' is not empty. Use --force to continue.`);
+  if (nonEmpty && blankTemplate) {
+    process.stderr.write(
+      `Warning: '--blank-template' will delete all existing files in '${targetDir}'. Starting fresh template copy...\n`
+    );
+    const clear = dependencies.clearDirectory ?? clearDirectoryContents;
+    await clear(targetDir);
+    return { overwriteTemplateFiles: false };
+  }
+
+  if (nonEmpty) {
+    return {
+      overwriteTemplateFiles: false,
+      templateEntriesToUpdate: ["loom.yaml"],
+      templateEntriesToCreateIfMissing: [".env.example"]
+    };
   }
 
   return { overwriteTemplateFiles: false };
