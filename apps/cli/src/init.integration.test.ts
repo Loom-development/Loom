@@ -473,11 +473,12 @@ test("init --db postgres adds postgres service to loom.yaml and .env", async () 
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
   const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  assert.match(loomYaml, /^ {2}postgres:/m);
   assert.match(loomYaml, /type:\s*postgres/);
   assert.match(loomYaml, /POSTGRES_USER:\s*app/);
   assert.match(loomYaml, /5432:5432/);
   assert.match(loomYaml, /dependsOn:/);
-  assert.match(loomYaml, /- db/);
+  assert.match(loomYaml, /- postgres/);
 
   const env = await readFile(join(targetDir, ".env"), "utf8");
   assert.match(env, /POSTGRES_IMAGE=/);
@@ -492,9 +493,28 @@ test("init --db mysql adds mysql service to loom.yaml", async () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
   const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  assert.match(loomYaml, /^ {2}mysql:/m);
   assert.match(loomYaml, /type:\s*mysql/);
   assert.match(loomYaml, /3306:3306/);
   assert.match(loomYaml, /dependsOn:/);
+});
+
+test("init --db with multiple types adds both services", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "node-multi-db");
+
+  const result = runCli(["init", "node", "--dir", targetDir, "--db", "postgres", "--db", "redis"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  assert.match(loomYaml, /^ {2}postgres:/m);
+  assert.match(loomYaml, /^ {2}redis:/m);
+  assert.match(loomYaml, /- postgres/);
+  assert.match(loomYaml, /- redis/);
+
+  const env = await readFile(join(targetDir, ".env"), "utf8");
+  assert.match(env, /POSTGRES_IMAGE=/);
+  assert.match(env, /REDIS_IMAGE=/);
 });
 
 test("init --db rejects unknown db type", async () => {
@@ -506,7 +526,7 @@ test("init --db rejects unknown db type", async () => {
   assert.match(result.stderr || result.stdout, /unknown database type/i);
 });
 
-test("init --db skips adding db service when one already exists", async () => {
+test("init --db skips adding a service when it already exists", async () => {
   const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
   const targetDir = join(tempRoot, "already-has-db");
 
@@ -514,14 +534,14 @@ test("init --db skips adding db service when one already exists", async () => {
   let result = runCli(["init", "node", "--dir", targetDir, "--db", "postgres"]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  // Second init with different db on existing project
-  result = runCli(["init", "node", "--dir", targetDir, "--db", "mysql"]);
+  // Second init adding same db type to existing project
+  result = runCli(["init", "node", "--dir", targetDir, "--db", "postgres"]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /already exists/);
 
-  // Should still only have postgres (first one wins)
+  // Should still only have one postgres block
   const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
-  assert.match(loomYaml, /type:\s*postgres/);
-  assert.doesNotMatch(loomYaml, /type:\s*mysql/);
+  assert.equal((loomYaml.match(/^ {2}postgres:/gm) ?? []).length, 1);
 });
 
 test("init without template prompts for a selection", async () => {

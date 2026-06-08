@@ -48,6 +48,41 @@ When you are done:
 loom stop
 ```
 
+## Start a project with a database
+
+Pass `--db` to `loom init` to add a database alongside your app in one step.
+
+```bash
+# Node app + PostgreSQL
+loom init node --dir my-app --db postgres
+cd my-app
+loom start
+
+# PHP app + MySQL
+loom init php --dir my-php --db mysql
+cd my-php
+loom start
+
+# Python app + MongoDB
+loom init python --dir my-python --db mongodb
+cd my-python
+loom start
+```
+
+Supported database types: `postgres`, `mysql`, `mariadb`, `mongodb`, `redis`
+
+Loom adds the database service to `loom.yaml`, wires `dependsOn` so the app waits for the database to be ready, and adds the connection variables (`DATABASE_URL`, `REDIS_URL`, etc.) to `.env`.
+
+**Adding a database to an existing project:**
+
+```bash
+cd my-existing-app
+loom init node --db postgres   # or whichever template matches
+loom start --recreate
+```
+
+This only writes the database service into `loom.yaml` — your source files are not touched.
+
 If you run `loom init` without a template, Loom now prompts you to choose one interactively and suggests a default when it recognizes common root files such as `package.json`, `composer.json`, `pyproject.toml`, or `Gemfile`.
 
 Initialized templates now copy `.env.example` to `.env` when present. For templates that expose image tags, you can switch to a different LTS or runtime version by editing the `*_IMAGE` values in `.env` instead of changing `loom.yaml` directly.

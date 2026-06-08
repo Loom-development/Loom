@@ -97,6 +97,14 @@ Release workflow requirements:
 
 ## Create a release
 
+
+Change the number
+
+```
+cd apps/cli && npm version 0.2.3 --no-git-tag-version
+
+```
+
 The release workflow in `.github/workflows/release.yml` runs on tags that match `v*`.
 
 Typical release flow:

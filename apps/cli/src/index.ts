@@ -476,12 +476,13 @@ function isValidDbType(value: string): value is DbType {
   return (supportedDbTypes as readonly string[]).includes(value);
 }
 
-function buildDbServiceBlock(db: DbType): { serviceYaml: string; envVars: Record<string, string> } {
+function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: string; envVars: Record<string, string> } {
   switch (db) {
     case "postgres":
       return {
+        serviceName: "postgres",
         serviceYaml: [
-          "  db:",
+          "  postgres:",
           "    type: postgres",
           "    image: ${POSTGRES_IMAGE:-docker.io/library/postgres:16-alpine}",
           "    env:",
@@ -506,8 +507,9 @@ function buildDbServiceBlock(db: DbType): { serviceYaml: string; envVars: Record
       };
     case "mysql":
       return {
+        serviceName: "mysql",
         serviceYaml: [
-          "  db:",
+          "  mysql:",
           "    type: mysql",
           "    image: ${MYSQL_IMAGE:-docker.io/library/mysql:8.4}",
           "    env:",
@@ -528,13 +530,14 @@ function buildDbServiceBlock(db: DbType): { serviceYaml: string; envVars: Record
         ].join("\n"),
         envVars: {
           MYSQL_IMAGE: "docker.io/library/mysql:8.4",
-          DATABASE_URL: "mysql://app:app@localhost:3306/app"
+          MYSQL_URL: "mysql://app:app@localhost:3306/app"
         }
       };
     case "mariadb":
       return {
+        serviceName: "mariadb",
         serviceYaml: [
-          "  db:",
+          "  mariadb:",
           "    type: mariadb",
           "    image: ${MARIADB_IMAGE:-docker.io/library/mariadb:11}",
           "    env:",
@@ -555,13 +558,14 @@ function buildDbServiceBlock(db: DbType): { serviceYaml: string; envVars: Record
         ].join("\n"),
         envVars: {
           MARIADB_IMAGE: "docker.io/library/mariadb:11",
-          DATABASE_URL: "mysql://app:app@localhost:3307/app"
+          MARIADB_URL: "mysql://app:app@localhost:3307/app"
         }
       };
     case "mongodb":
       return {
+        serviceName: "mongodb",
         serviceYaml: [
-          "  db:",
+          "  mongodb:",
           "    type: mongodb",
           "    image: ${MONGO_IMAGE:-docker.io/library/mongo:7}",
           "    env:",
@@ -575,13 +579,14 @@ function buildDbServiceBlock(db: DbType): { serviceYaml: string; envVars: Record
         ].join("\n"),
         envVars: {
           MONGO_IMAGE: "docker.io/library/mongo:7",
-          DATABASE_URL: "mongodb://app:app@localhost:27017/app?authSource=admin"
+          MONGODB_URL: "mongodb://app:app@localhost:27017/app?authSource=admin"
         }
       };
     case "redis":
       return {
+        serviceName: "redis",
         serviceYaml: [
-          "  db:",
+          "  redis:",
           "    type: redis",
           "    image: ${REDIS_IMAGE:-docker.io/library/redis:7-alpine}",
           "    command: redis-server --appendonly yes",
@@ -613,12 +618,13 @@ async function applyDatabaseService(targetDir: string, db: DbType): Promise<void
     throw new Error(`No loom.yaml found in '${targetDir}'. Run 'loom init' first.`);
   }
 
-  if (/^\s+db:/m.test(loomYaml)) {
-    process.stdout.write(`Service 'db' already exists in loom.yaml — skipping database addition.\n`);
+  const { serviceName, serviceYaml, envVars } = buildDbServiceBlock(db);
+
+  const serviceAlreadyExists = new RegExp(`^ {2}${serviceName}:`, "m").test(loomYaml);
+  if (serviceAlreadyExists) {
+    process.stdout.write(`Service '${serviceName}' already exists in loom.yaml — skipping.\n`);
     return;
   }
-
-  const { serviceYaml, envVars } = buildDbServiceBlock(db);
 
   // Inject db service block at the end of the services section (before routes/tasks/end)
   const servicesInsertPattern = /^(routes:|tasks:)/m;
@@ -628,20 +634,18 @@ async function applyDatabaseService(targetDir: string, db: DbType): Promise<void
     loomYaml = loomYaml.trimEnd() + `\n${serviceYaml}\n`;
   }
 
-  // Add `- db` to an existing dependsOn list, or insert a new dependsOn before the first `    ports:`
+  // Add serviceName to dependsOn, extending an existing block or inserting a new one
   if (/^ {4}dependsOn:/m.test(loomYaml)) {
-    // Append to the first existing dependsOn block
-    loomYaml = loomYaml.replace(/^( {4}dependsOn:(?:\n {6}- [^\n]+)*)(?!\n {6}- db)/m, `$1\n      - db`);
+    loomYaml = loomYaml.replace(/^( {4}dependsOn:(?:\n {6}- [^\n]+)*)(?!\n {6}- ${serviceName})/m, `$1\n      - ${serviceName}`);
   } else {
-    // No dependsOn anywhere — insert one before the first top-level `    ports:` found in the file
     const portsIdx = loomYaml.indexOf('\n    ports:');
     if (portsIdx !== -1) {
-      loomYaml = loomYaml.slice(0, portsIdx) + '\n    dependsOn:\n      - db' + loomYaml.slice(portsIdx);
+      loomYaml = loomYaml.slice(0, portsIdx) + `\n    dependsOn:\n      - ${serviceName}` + loomYaml.slice(portsIdx);
     }
   }
 
   await writeFile(loomPath, loomYaml, "utf8");
-  process.stdout.write(`Added '${db}' database service to ${loomPath}\n`);
+  process.stdout.write(`Added '${serviceName}' database service to ${loomPath}\n`);
 
   // Append env vars to .env if present
   const envPath = resolve(targetDir, ".env");
@@ -669,9 +673,9 @@ cli
   .option("--blank-template", "Delete existing files and initialize a clean template copy", { default: false })
   .option("--php-docroot <path>", "PHP docroot path inside project (php/php-symfony templates)")
   .option("--image <key=value>", "Override a template image variable during init (repeatable)")
-  .option("--db <type>", `Add a database service (${supportedDbTypes.join(", ")})`)
+  .option("--db <type>", `Add a database service, repeatable (${supportedDbTypes.join(", ")})`)
   .action(
-    withErrorHandling(async (template: string | undefined, options: { dir?: string; blankTemplate?: boolean; phpDocroot?: string; image?: string | string[]; db?: string }) => {
+    withErrorHandling(async (template: string | undefined, options: { dir?: string; blankTemplate?: boolean; phpDocroot?: string; image?: string | string[]; db?: string | string[] }) => {
       const selectedTemplate = template ?? (await chooseInitTemplate(
         await detectInitTemplateSuggestion(process.cwd())
       ));
@@ -721,10 +725,13 @@ cli
         await customizeDbTemplateCredentials(targetDir);
       }
       if (options.db) {
-        if (!isValidDbType(options.db)) {
-          throw new Error(`Unknown database type '${options.db}'. Supported: ${supportedDbTypes.join(", ")}`);
+        const dbList = Array.isArray(options.db) ? options.db : [options.db];
+        for (const dbType of dbList) {
+          if (!isValidDbType(dbType)) {
+            throw new Error(`Unknown database type '${dbType}'. Supported: ${supportedDbTypes.join(", ")}`);
+          }
+          await applyDatabaseService(targetDir, dbType);
         }
-        await applyDatabaseService(targetDir, options.db);
       }
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);
