@@ -629,9 +629,9 @@ async function applyDatabaseService(targetDir: string, db: DbType): Promise<void
   }
 
   // Add `- db` to an existing dependsOn list, or insert a new dependsOn before the first `    ports:`
-  if (/^    dependsOn:/m.test(loomYaml)) {
+  if (/^ {4}dependsOn:/m.test(loomYaml)) {
     // Append to the first existing dependsOn block
-    loomYaml = loomYaml.replace(/^(    dependsOn:(?:\n      - [^\n]+)*)(?!\n      - db)/m, `$1\n      - db`);
+    loomYaml = loomYaml.replace(/^( {4}dependsOn:(?:\n {6}- [^\n]+)*)(?!\n {6}- db)/m, `$1\n      - db`);
   } else {
     // No dependsOn anywhere — insert one before the first top-level `    ports:` found in the file
     const portsIdx = loomYaml.indexOf('\n    ports:');
