@@ -205,7 +205,7 @@ test("restoreServiceFromFile uses mariadb binary mode and password env vars", as
 
   assert.deepEqual(commands, [
     ["cp", "/tmp/backup.sql", "demo-db:/tmp/loom-restore.sql"],
-    ["exec", "demo-db", "sh", "-lc", 'MARIADB_PWD="$MARIADB_ROOT_PASSWORD" mariadb --binary-mode=1 -h 127.0.0.1 -uroot "${MARIADB_DATABASE:-loom}" < /tmp/loom-restore.sql']
+    ["exec", "demo-db", "sh", "-lc", 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb --binary-mode=1 -h 127.0.0.1 -uroot "${MARIADB_DATABASE:-loom}" < /tmp/loom-restore.sql']
   ]);
 });
 

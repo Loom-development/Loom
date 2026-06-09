@@ -264,7 +264,7 @@ export function databaseRestoreStrategy(serviceType: string): RestoreStrategy | 
       command: [
         "sh",
         "-lc",
-        "MARIADB_PWD=\"$MARIADB_ROOT_PASSWORD\" mariadb --binary-mode=1 -h 127.0.0.1 -uroot \"${MARIADB_DATABASE:-loom}\" < /tmp/loom-restore.sql"
+        "MYSQL_PWD=\"$MARIADB_ROOT_PASSWORD\" mariadb --binary-mode=1 -h 127.0.0.1 -uroot \"${MARIADB_DATABASE:-loom}\" < /tmp/loom-restore.sql"
       ]
     };
   }

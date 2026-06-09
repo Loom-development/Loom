@@ -98,7 +98,7 @@ export const initImageChoicesByTemplate: Record<string, InitImageChoice[]> = {
   php: [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/dunglas/frankenphp:1-php8.3", "docker.io/dunglas/frankenphp:1-php8.4"] }],
   "php-drupal": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/dunglas/frankenphp:1-php8.3", "docker.io/dunglas/frankenphp:1-php8.4"] }],
   "php-symfony": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/dunglas/frankenphp:1-php8.3", "docker.io/dunglas/frankenphp:1-php8.4"] }],
-  "php-wordpress": [{ envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/library/php:8.3-apache", "docker.io/library/php:8.4-apache"] }],
+  "php-wordpress": [{ envKey: "WORDPRESS_IMAGE", label: "WordPress image", options: ["docker.io/library/wordpress:6-php8.3-apache", "docker.io/library/wordpress:6-php8.4-apache"] }],
   rails7: [{ envKey: "RUBY_IMAGE", label: "Ruby base image", options: ["docker.io/library/ruby:3.3", "docker.io/library/ruby:3.4"] }],
   "rails7-hotwire": [{ envKey: "RUBY_IMAGE", label: "Ruby base image", options: ["docker.io/library/ruby:3.3", "docker.io/library/ruby:3.4"] }],
   dotnet: [{ envKey: "DOTNET_IMAGE", label: ".NET runtime", options: ["mcr.microsoft.com/dotnet/sdk:8.0", "mcr.microsoft.com/dotnet/sdk:10.0"] }]

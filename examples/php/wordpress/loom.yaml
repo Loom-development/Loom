@@ -31,25 +31,22 @@ services:
       - "11214:11211"
   app:
     type: php
-    image: ${PHP_IMAGE:-docker.io/library/php:8.3-apache}
+    image: ${WORDPRESS_IMAGE:-docker.io/library/wordpress:6-php8.3-apache}
     composer: false
     user: root
     userns: keep-id
     execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /var/www/html
+    entrypoint: ""
     command: |
       set -eu
       target_uid="${HOST_UID:-1000}"
       target_gid="${HOST_GID:-1000}"
-      if ! php -r "exit(extension_loaded('mysqli') && extension_loaded('pdo_mysql') && extension_loaded('gd') && extension_loaded('zip') && extension_loaded('intl') && extension_loaded('exif') && extension_loaded('imagick') && extension_loaded('memcached') ? 0 : 1);"; then
+      if ! php -r "exit(extension_loaded('memcached') ? 0 : 1);"; then
         export DEBIAN_FRONTEND=noninteractive
         apt-get update
-        apt-get install -y --no-install-recommends imagemagick libfreetype6-dev libicu-dev libjpeg62-turbo-dev libmagickwand-dev libmemcached-dev libpng-dev libsasl2-dev libwebp-dev libzip-dev zlib1g-dev
-        docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
-        docker-php-ext-install -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)" mysqli pdo_mysql gd intl zip exif
-        printf '\n' | pecl install imagick
+        apt-get install -y --no-install-recommends libmemcached-dev libsasl2-dev
         printf '\n' | pecl install memcached
-        docker-php-ext-enable imagick
         docker-php-ext-enable memcached
       fi
       current_gid="$(getent group www-data | cut -d: -f3)"
@@ -69,23 +66,9 @@ services:
         fi
         usermod -o -u "$target_uid" www-data
       fi
-      a2enmod rewrite >/dev/null 2>&1
-      if ! grep -Eq '^Listen 8090$' /etc/apache2/ports.conf; then
-        printf '\nListen 8090\n' >>/etc/apache2/ports.conf
-      fi
-      if ! grep -Eq '<VirtualHost \*:80 \*:8090>' /etc/apache2/sites-enabled/000-default.conf; then
-        perl -0pi -e 's/<VirtualHost \*:80>/<VirtualHost *:80 *:8090>/' /etc/apache2/sites-enabled/000-default.conf
-      fi
-      cat >/etc/apache2/conf-enabled/loom-wordpress.conf <<'EOF'
-      ServerName localhost
-      <Directory /var/www/html>
-        AllowOverride All
-        Require all granted
-      </Directory>
-      EOF
-      apache2-foreground
+      exec docker-entrypoint.sh apache2-foreground
     volumes:
-      - ./:/var/www/html
+      - ./wp-content:/var/www/html/wp-content
     dependsOn:
       - db
       - cache

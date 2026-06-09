@@ -352,6 +352,22 @@ function replaceYamlEnvVariable(content: string, key: string, value: string): st
   return pattern.test(content) ? content.replace(pattern, `$1${value}`) : content;
 }
 
+function serviceNameForDbType(loomYaml: string, dbType: string): string {
+  const lines = loomYaml.split("\n");
+  let currentService: string | null = null;
+  for (const line of lines) {
+    const serviceMatch = /^  ([\w-]+):/.exec(line);
+    if (serviceMatch) {
+      currentService = serviceMatch[1];
+    }
+    const typeMatch = /^    type:\s*(\S+)/.exec(line);
+    if (typeMatch && typeMatch[1].toLowerCase() === dbType.toLowerCase() && currentService) {
+      return currentService;
+    }
+  }
+  return dbType;
+}
+
 async function customizeDbTemplateCredentials(targetDir: string): Promise<void> {
   const envPath = resolve(targetDir, ".env");
   const loomConfigPath = resolve(targetDir, "loom.yaml");
@@ -399,11 +415,17 @@ async function customizeDbTemplateCredentials(targetDir: string): Promise<void> 
     loomYamlContent = replaceYamlEnvVariable(loomYamlContent, key, value);
   }
 
-  const mysqlUrl = `mysql://${appUser}:${appPassword}@localhost:3306/${appDb}`;
-  const mariadbUrl = `mysql://${appUser}:${appPassword}@localhost:3307/${appDb}`;
-  const postgresUrl = `postgresql://${appUser}:${appPassword}@localhost:5432/${appDb}`;
-  const mongoUrl = `mongodb://${appUser}:${appPassword}@localhost:27017/${appDb}?authSource=admin`;
-  const mssqlUrl = `sqlserver://sa:${mssqlPassword}@localhost:1433;encrypt=false`;
+  const mysqlHost = serviceNameForDbType(loomYamlContent, "mysql");
+  const mariadbHost = serviceNameForDbType(loomYamlContent, "mariadb");
+  const postgresHost = serviceNameForDbType(loomYamlContent, "postgres");
+  const mongoHost = serviceNameForDbType(loomYamlContent, "mongodb");
+  const mssqlHost = serviceNameForDbType(loomYamlContent, "sqlserver");
+
+  const mysqlUrl = `mysql://${appUser}:${appPassword}@${mysqlHost}:3306/${appDb}`;
+  const mariadbUrl = `mysql://${appUser}:${appPassword}@${mariadbHost}:3306/${appDb}`;
+  const postgresUrl = `postgresql://${appUser}:${appPassword}@${postgresHost}:5432/${appDb}`;
+  const mongoUrl = `mongodb://${appUser}:${appPassword}@${mongoHost}:27017/${appDb}?authSource=admin`;
+  const mssqlUrl = `sqlserver://sa:${mssqlPassword}@${mssqlHost}:1433;encrypt=false`;
 
   if (hasEnvVariable(envContent, "DATABASE_URL")) {
     if (hasEnvVariable(envContent, "POSTGRES_USER")) {
@@ -505,7 +527,7 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
           POSTGRES_USER: "app",
           POSTGRES_PASSWORD: "app",
           POSTGRES_DB: "app",
-          DATABASE_URL: "postgresql://app:app@localhost:5432/app"
+          DATABASE_URL: "postgresql://app:app@postgres:5432/app"
         }
       };
     case "mysql":
@@ -537,7 +559,7 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
           MYSQL_DATABASE: "app",
           MYSQL_USER: "app",
           MYSQL_PASSWORD: "app",
-          MYSQL_URL: "mysql://app:app@localhost:3306/app"
+          MYSQL_URL: "mysql://app:app@mysql:3306/app"
         }
       };
     case "mariadb":
@@ -569,7 +591,7 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
           MARIADB_DATABASE: "app",
           MARIADB_USER: "app",
           MARIADB_PASSWORD: "app",
-          MARIADB_URL: "mysql://app:app@localhost:3307/app"
+          MARIADB_URL: "mysql://app:app@mariadb:3306/app"
         }
       };
     case "mongodb":
@@ -593,7 +615,7 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
           MONGO_INITDB_ROOT_USERNAME: "app",
           MONGO_INITDB_ROOT_PASSWORD: "app",
           MONGO_INITDB_DATABASE: "app",
-          MONGODB_URL: "mongodb://app:app@localhost:27017/app?authSource=admin"
+          MONGODB_URL: "mongodb://app:app@mongodb:27017/app?authSource=admin"
         }
       };
     case "redis":
@@ -617,7 +639,7 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
         ].join("\n"),
         envVars: {
           REDIS_IMAGE: "docker.io/library/redis:7-alpine",
-          REDIS_URL: "redis://localhost:6379"
+          REDIS_URL: "redis://redis:6379"
         }
       };
   }
