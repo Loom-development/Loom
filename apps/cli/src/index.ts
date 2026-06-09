@@ -356,11 +356,11 @@ function serviceNameForDbType(loomYaml: string, dbType: string): string {
   const lines = loomYaml.split("\n");
   let currentService: string | null = null;
   for (const line of lines) {
-    const serviceMatch = /^  ([\w-]+):/.exec(line);
+    const serviceMatch = /^ {2}([\w-]+):/.exec(line);
     if (serviceMatch) {
       currentService = serviceMatch[1];
     }
-    const typeMatch = /^    type:\s*(\S+)/.exec(line);
+    const typeMatch = /^ {4}type:\s*(\S+)/.exec(line);
     if (typeMatch && typeMatch[1].toLowerCase() === dbType.toLowerCase() && currentService) {
       return currentService;
     }
