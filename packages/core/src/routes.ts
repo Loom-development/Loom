@@ -39,7 +39,7 @@ export async function publishConfiguredRoutes(
       networkName
     );
 
-    for (const line of formatRouteBindings(routeBindings)) {
+    for (const line of formatRouteBindings(routeBindings, { http: proxy.httpPort, https: proxy.httpsPort })) {
       output.writeOut(line);
     }
 
@@ -48,10 +48,13 @@ export async function publishConfiguredRoutes(
     try {
       const routeHosts = await dependencies.ensureRouteHosts(config.name, routeBindings);
       if (routeHosts.managedHosts.length > 0) {
-        output.writeOut(`Windows hosts entries: ${routeHosts.managedHosts.join(", ")} -> 127.0.0.1\n`);
+        output.writeOut(`Hosts entries added: ${routeHosts.managedHosts.join(", ")} -> 127.0.0.1\n`);
       }
       if (routeHosts.skippedHosts.length > 0) {
-        output.writeErr(`Skipped wildcard hosts for Windows hosts file: ${routeHosts.skippedHosts.join(", ")}\n`);
+        output.writeErr(`Skipped wildcard hosts: ${routeHosts.skippedHosts.join(", ")}\n`);
+      }
+      if (routeHosts.pendingHosts && routeHosts.pendingHosts.length > 0) {
+        output.writeOut(`To enable route hostnames, add to /etc/hosts:\n${routeHosts.pendingHosts.map((h) => `  127.0.0.1 ${h}`).join("\n")}\n`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

@@ -6,6 +6,11 @@ interface RouteBindingLike {
   https: boolean;
 }
 
+interface ProxyPortsLike {
+  http: number;
+  https: number;
+}
+
 interface HttpsInfoLike {
   certPath: string;
   keyPath: string;
@@ -23,7 +28,7 @@ export function formatWaitingService(serviceName: string, detail: string, elapse
   return `- waiting for ${serviceName} readiness (${detail}, ${elapsedSeconds}s elapsed)\n`;
 }
 
-export function formatRouteBindings(routeBindings: RouteBindingLike[]): string[] {
+export function formatRouteBindings(routeBindings: RouteBindingLike[], proxyPorts?: ProxyPortsLike): string[] {
   if (routeBindings.length === 0) {
     return [];
   }
@@ -32,8 +37,10 @@ export function formatRouteBindings(routeBindings: RouteBindingLike[]): string[]
     "Route bindings:\n",
     ...routeBindings.map((binding) => {
       const protocol = binding.https ? "https" : "http";
+      const proxyPort = proxyPorts ? (binding.https ? proxyPorts.https : proxyPorts.http) : undefined;
+      const hostUrl = proxyPort ? `${protocol}://${binding.host}:${proxyPort}` : `${protocol}://${binding.host}`;
       const directProtocol = binding.targetPort === 443 ? "https" : "http";
-      return `- ${protocol}://${binding.host} -> ${binding.service}:${binding.targetPort} (direct: ${directProtocol}://localhost:${binding.externalPort}/)\n`;
+      return `- ${hostUrl} -> ${binding.service}:${binding.targetPort} (direct: ${directProtocol}://localhost:${binding.externalPort}/)\n`;
     })
   ];
 }

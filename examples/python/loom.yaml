@@ -41,11 +41,6 @@ services:
       timeoutSeconds: 4
       retries: 90
       startPeriodSeconds: 6
-  cache:
-    type: redis
-    image: ${REDIS_IMAGE:-docker.io/library/redis:7-alpine}
-    volumes:
-      - ./data/redis:/data
 routes:
   - host: python.loom.local
     service: app

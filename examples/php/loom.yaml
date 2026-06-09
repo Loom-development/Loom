@@ -50,15 +50,12 @@ services:
       - "8085:80"
     volumes:
       - ./:/app
-  db:
-    type: postgres
-    image: ${POSTGRES_IMAGE:-docker.io/library/postgres:16-alpine}
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-    env:
-      POSTGRES_USER: loom
-      POSTGRES_PASSWORD: loom
-      POSTGRES_DB: app
+    healthcheck:
+      command: php -r "exit((int)!@fsockopen('127.0.0.1', 80));"
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 240
+      startPeriodSeconds: 300
 routes:
   - host: php.loom.local
     service: app

@@ -227,7 +227,7 @@ test("start writes formatted route and https summaries through the output adapte
     "Starting 1 service(s) for demo on network demo-net...\n",
     "- started app\n",
     "Route bindings:\n",
-    "- https://demo.test -> app:3000 (direct: http://localhost:8080/)\n",
+    "- https://demo.test:8443 -> app:3000 (direct: http://localhost:8080/)\n",
     "Route proxy listener ports: http://localhost:8080 https://localhost:8443 (use with configured route hostnames)\n",
     "HTTPS cert: /tmp/cert.pem\n",
     "HTTPS key: /tmp/key.pem\n"
@@ -265,7 +265,7 @@ test("start reports managed Windows hosts entries when route host setup succeeds
 
   await orchestrator.start();
 
-  assert.ok(lines.includes("Windows hosts entries: demo.test -> 127.0.0.1\n"));
+  assert.ok(lines.includes("Hosts entries added: demo.test -> 127.0.0.1\n"));
 });
 
 test("stop cleans route hosts through injected dependencies", async () => {

@@ -118,10 +118,33 @@ test("publishConfiguredRoutes configures proxy and writes route and https summar
   ]);
   assert.deepEqual(lines, [
     "Route bindings:\n",
-    "- https://demo.test -> app:3000 (direct: http://localhost:8080/)\n",
-    "- http://plain.demo.test -> app:3000 (direct: http://localhost:8081/)\n",
+    "- https://demo.test:8443 -> app:3000 (direct: http://localhost:8080/)\n",
+    "- http://plain.demo.test:8080 -> app:3000 (direct: http://localhost:8081/)\n",
     "Route proxy listener ports: http://localhost:8080 https://localhost:8443 (use with configured route hostnames)\n",
     "HTTPS cert: /tmp/cert.pem\n",
     "HTTPS key: /tmp/key.pem\n"
   ]);
+});
+
+test("publishConfiguredRoutes prints /etc/hosts instructions when hosts could not be written", async () => {
+  const lines: string[] = [];
+  const errors: string[] = [];
+
+  await publishConfiguredRoutes(
+    createConfig(),
+    [{ host: "demo.test", service: "app", targetPort: 3000, externalPort: 8080, https: true }],
+    "demo-net",
+    {
+      ensureLocalCertificates: async () => ({ certPath: "/tmp/cert.pem", keyPath: "/tmp/key.pem" }),
+      ensureRouteHosts: async () => ({ managedHosts: [], skippedHosts: [], pendingHosts: ["demo.test"] }),
+      ensureRouteProxy: async () => ({ containerName: "loom-proxy", httpPort: 8080, httpsPort: 8443 })
+    },
+    {
+      writeOut(message) { lines.push(message); },
+      writeErr(message) { errors.push(message); }
+    }
+  );
+
+  assert.ok(lines.some((l) => l.includes("127.0.0.1 demo.test")));
+  assert.ok(lines.some((l) => l.includes("/etc/hosts")));
 });

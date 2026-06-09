@@ -17,6 +17,12 @@ services:
       - "5000:5000"
     volumes:
       - ./:/workspace
+    healthcheck:
+      command: wget -qO /dev/null http://127.0.0.1:5000/ 2>/dev/null
+      intervalSeconds: 5
+      timeoutSeconds: 5
+      retries: 60
+      startPeriodSeconds: 30
 routes:
   - host: dotnet.loom.local
     service: app

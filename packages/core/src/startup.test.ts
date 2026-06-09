@@ -15,6 +15,35 @@ test("formatStartHeader and formatStartedService create startup progress lines",
 
 test("formatRouteBindings renders protocol-specific route lines", () => {
   assert.deepEqual(
+    formatRouteBindings(
+      [
+        {
+          host: "demo.test",
+          service: "app",
+          targetPort: 3000,
+          externalPort: 8080,
+          https: true
+        },
+        {
+          host: "api.demo.test",
+          service: "api",
+          targetPort: 4000,
+          externalPort: 8081,
+          https: false
+        }
+      ],
+      { http: 8080, https: 8443 }
+    ),
+    [
+      "Route bindings:\n",
+      "- https://demo.test:8443 -> app:3000 (direct: http://localhost:8080/)\n",
+      "- http://api.demo.test:8080 -> api:4000 (direct: http://localhost:8081/)\n"
+    ]
+  );
+});
+
+test("formatRouteBindings omits port when no proxy ports provided", () => {
+  assert.deepEqual(
     formatRouteBindings([
       {
         host: "demo.test",
@@ -22,19 +51,11 @@ test("formatRouteBindings renders protocol-specific route lines", () => {
         targetPort: 3000,
         externalPort: 8080,
         https: true
-      },
-      {
-        host: "api.demo.test",
-        service: "api",
-        targetPort: 4000,
-        externalPort: 8081,
-        https: false
       }
     ]),
     [
       "Route bindings:\n",
-      "- https://demo.test -> app:3000 (direct: http://localhost:8080/)\n",
-      "- http://api.demo.test -> api:4000 (direct: http://localhost:8081/)\n"
+      "- https://demo.test -> app:3000 (direct: http://localhost:8080/)\n"
     ]
   );
 });

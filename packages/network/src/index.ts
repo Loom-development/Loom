@@ -21,6 +21,7 @@ export interface ProxyRuntime {
 export interface RouteHostManagementResult {
   managedHosts: string[];
   skippedHosts: string[];
+  pendingHosts?: string[];
 }
 
 export function projectNetworkName(projectName: string): string {
@@ -224,20 +225,20 @@ export async function ensureRouteProxy(
 }
 
 export async function ensureRouteHosts(projectName: string, bindings: RouteBinding[]): Promise<RouteHostManagementResult> {
-  if (process.platform !== "win32") {
-    return { managedHosts: [], skippedHosts: [] };
-  }
-
   const result = uniqueRouteHosts(bindings);
-  const hostsPath = windowsHostsFilePath();
-  const currentContent = await readFile(hostsPath, "utf-8");
-  const nextContent = applyManagedHostsEntries(currentContent, projectName, result.managedHosts);
+  const hostsPath = process.platform === "win32" ? windowsHostsFilePath() : "/etc/hosts";
 
-  if (nextContent !== currentContent) {
-    await writeFile(hostsPath, nextContent, "utf-8");
+  try {
+    const currentContent = await readFile(hostsPath, "utf-8");
+    const nextContent = applyManagedHostsEntries(currentContent, projectName, result.managedHosts);
+    if (nextContent !== currentContent) {
+      await writeFile(hostsPath, nextContent, "utf-8");
+    }
+    return result;
+  } catch {
+    // Cannot write hosts file (e.g. permission denied on Linux) — return hosts as pending
+    return { managedHosts: [], skippedHosts: result.skippedHosts, pendingHosts: result.managedHosts };
   }
-
-  return result;
 }
 
 export async function stopRouteProxy(projectName: string): Promise<void> {
@@ -254,15 +255,15 @@ export async function stopRouteProxy(projectName: string): Promise<void> {
 }
 
 export async function stopRouteHosts(projectName: string): Promise<void> {
-  if (process.platform !== "win32") {
-    return;
-  }
+  const hostsPath = process.platform === "win32" ? windowsHostsFilePath() : "/etc/hosts";
 
-  const hostsPath = windowsHostsFilePath();
-  const currentContent = await readFile(hostsPath, "utf-8");
-  const nextContent = removeManagedHostsBlock(currentContent, projectName);
-
-  if (nextContent !== currentContent) {
-    await writeFile(hostsPath, nextContent, "utf-8");
+  try {
+    const currentContent = await readFile(hostsPath, "utf-8");
+    const nextContent = removeManagedHostsBlock(currentContent, projectName);
+    if (nextContent !== currentContent) {
+      await writeFile(hostsPath, nextContent, "utf-8");
+    }
+  } catch {
+    // Cannot access hosts file — skip silently
   }
 }

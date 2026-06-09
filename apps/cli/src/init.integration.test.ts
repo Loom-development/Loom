@@ -42,6 +42,42 @@ test("init php defaults docroot to '.' when not provided", async () => {
   assert.match(generatedConfig, /MEMCACHED_HOST:\s*cache/);
   assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/dunglas\/frankenphp:1-php8\.3/);
   assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6-alpine/);
+  assert.match(generatedConfig, /healthcheck:/);
+  assert.match(generatedConfig, /fsockopen.*127\.0\.0\.1.*80/);
+  assert.doesNotMatch(generatedConfig, /type:\s*postgres/);
+  assert.doesNotMatch(generatedConfig, /type:\s*mysql/);
+  assert.doesNotMatch(generatedConfig, /type:\s*mariadb/);
+  assert.doesNotMatch(generatedEnv, /POSTGRES_IMAGE=/);
+});
+
+test("init php with --db adds database service", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "php-with-db");
+
+  const result = runCli(["init", "php", "--dir", targetDir, "--db", "mariadb"]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
+  assert.match(generatedConfig, /type:\s*mariadb/);
+  assert.match(generatedConfig, /- mariadb/);
+  assert.match(generatedEnv, /MARIADB_IMAGE=/);
+  assert.match(generatedEnv, /MARIADB_URL=/);
+});
+
+test("init python does not include a database service by default", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "python-default");
+
+  const result = runCli(["init", "python", "--dir", targetDir]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
+  assert.doesNotMatch(generatedConfig, /type:\s*redis/);
+  assert.doesNotMatch(generatedConfig, /type:\s*postgres/);
+  assert.doesNotMatch(generatedConfig, /type:\s*mysql/);
+  assert.doesNotMatch(generatedEnv, /REDIS_IMAGE=/);
 });
 
 test("init php-wordpress accepts php-docroot and reports ignore warning", async () => {
