@@ -3,6 +3,7 @@
   "version": "0.2.3",
   "private": true,
   "description": "Loom - Podman-based local development platform",
+  "license": "Elastic-2.0",
   "packageManager": "pnpm@10.6.5",
   "engines": {
     "node": ">=24.0.0"

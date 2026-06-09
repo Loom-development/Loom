@@ -502,6 +502,9 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
         ].join("\n"),
         envVars: {
           POSTGRES_IMAGE: "docker.io/library/postgres:16-alpine",
+          POSTGRES_USER: "app",
+          POSTGRES_PASSWORD: "app",
+          POSTGRES_DB: "app",
           DATABASE_URL: "postgresql://app:app@localhost:5432/app"
         }
       };
@@ -530,6 +533,10 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
         ].join("\n"),
         envVars: {
           MYSQL_IMAGE: "docker.io/library/mysql:8.4",
+          MYSQL_ROOT_PASSWORD: "root",
+          MYSQL_DATABASE: "app",
+          MYSQL_USER: "app",
+          MYSQL_PASSWORD: "app",
           MYSQL_URL: "mysql://app:app@localhost:3306/app"
         }
       };
@@ -558,6 +565,10 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
         ].join("\n"),
         envVars: {
           MARIADB_IMAGE: "docker.io/library/mariadb:11",
+          MARIADB_ROOT_PASSWORD: "root",
+          MARIADB_DATABASE: "app",
+          MARIADB_USER: "app",
+          MARIADB_PASSWORD: "app",
           MARIADB_URL: "mysql://app:app@localhost:3307/app"
         }
       };
@@ -579,6 +590,9 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
         ].join("\n"),
         envVars: {
           MONGO_IMAGE: "docker.io/library/mongo:7",
+          MONGO_INITDB_ROOT_USERNAME: "app",
+          MONGO_INITDB_ROOT_PASSWORD: "app",
+          MONGO_INITDB_DATABASE: "app",
           MONGODB_URL: "mongodb://app:app@localhost:27017/app?authSource=admin"
         }
       };
@@ -732,6 +746,7 @@ cli
           }
           await applyDatabaseService(targetDir, dbType);
         }
+        await customizeDbTemplateCredentials(targetDir);
       }
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);

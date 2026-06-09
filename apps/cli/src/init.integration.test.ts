@@ -511,7 +511,7 @@ test("init --db postgres adds postgres service to loom.yaml and .env", async () 
   const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
   assert.match(loomYaml, /^ {2}postgres:/m);
   assert.match(loomYaml, /type:\s*postgres/);
-  assert.match(loomYaml, /POSTGRES_USER:\s*app/);
+  assert.match(loomYaml, /POSTGRES_USER:/);
   assert.match(loomYaml, /5432:5432/);
   assert.match(loomYaml, /dependsOn:/);
   assert.match(loomYaml, /- postgres/);
