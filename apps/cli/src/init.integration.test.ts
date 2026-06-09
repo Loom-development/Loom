@@ -793,26 +793,21 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
   const generatedWpConfig = await readFile(join(targetDir, "wp-config.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.3-apache\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{WORDPRESS_IMAGE:-docker\.io\/library\/wordpress:6-php8\.3-apache\}/i);
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /workdir:\s*\/var\/www\/html/);
-  assert.match(generatedConfig, /\.\/:\/var\/www\/html/);
-  assert.match(generatedConfig, /a2enmod rewrite/);
-  assert.match(generatedConfig, /docker-php-ext-install[\s\S]*gd intl zip exif/);
-  assert.match(generatedConfig, /pecl install imagick/);
+  assert.match(generatedConfig, /\.\/wp-content:\/var\/www\/html\/wp-content/);
   assert.match(generatedConfig, /pecl install memcached/);
   assert.match(generatedConfig, /type:\s*memcached/);
   assert.match(generatedConfig, /MEMCACHED_HOST:\s*cache/);
-  assert.match(generatedConfig, /Listen 8090/);
-  assert.match(generatedConfig, /VirtualHost \*:80 \*:8090/);
   assert.match(generatedConfig, /startPeriodSeconds:\s*300/);
   assert.match(generatedConfig, /WORDPRESS_DB_HOST:\s*db:3306/);
   assert.match(generatedIndex, /WordPress stub/);
   assert.match(generatedWpConfig, /DB_NAME/);
   assert.match(generatedWpConfig, /\$table_prefix\s*=\s*loomWordPressEnv\('WORDPRESS_TABLE_PREFIX', 'wp_'\);/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.3-apache/);
+  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6-php8\.3-apache/);
   assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6-alpine/);
   assert.match(generatedEnv, /MYSQL_IMAGE=docker\.io\/library\/mysql:8\.4/);
 });
@@ -849,14 +844,14 @@ test("init php-wordpress adopts an existing WordPress project and preserves exis
   const existingWpConfig = await readFile(join(targetDir, "wp-config.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.3-apache\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{WORDPRESS_IMAGE:-docker\.io\/library\/wordpress:6-php8\.3-apache\}/i);
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /workdir:\s*\/var\/www\/html/);
   assert.match(existingWpConfig, /existing/);
   assert.doesNotMatch(existingWpConfig, /loom-auth-key/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.3-apache/);
+  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6-php8\.3-apache/);
 });
 
 test("init php-wordpress adopts an existing WordPress project and adds wp-config when missing", async () => {
@@ -882,7 +877,7 @@ test("init php-wordpress adopts an existing WordPress project and adds wp-config
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /workdir:\s*\/var\/www\/html/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.3-apache/);
+  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6-php8\.3-apache/);
 });
 
 test("init rails7 bootstraps a local Rails project before copying loom config", async () => {

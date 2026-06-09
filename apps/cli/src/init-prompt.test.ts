@@ -81,9 +81,9 @@ test("chooseInitImageOverrides accepts enter for current default", async () => {
 
   input.end("\n");
 
-  const selected = await chooseInitImageOverrides("php-wordpress", { PHP_IMAGE: "docker.io/library/php:8.3-apache" }, [], input, output);
+  const selected = await chooseInitImageOverrides("php-wordpress", { WORDPRESS_IMAGE: "docker.io/library/wordpress:6-php8.3-apache" }, [], input, output);
 
-  assert.deepEqual(selected, { PHP_IMAGE: "docker.io/library/php:8.3-apache" });
+  assert.deepEqual(selected, { WORDPRESS_IMAGE: "docker.io/library/wordpress:6-php8.3-apache" });
 });
 
 test("chooseInitImageOverrides skips locked env keys", async () => {
