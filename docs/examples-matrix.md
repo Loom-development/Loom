@@ -19,8 +19,7 @@ DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
 RUBY_IMAGE=docker.io/library/ruby:3.3
 
 # PHP templates
-PHP_IMAGE=docker.io/library/php:8.3-fpm-alpine
-NGINX_IMAGE=docker.io/library/nginx:alpine
+PHP_IMAGE=docker.io/library/php:8.4-apache
 
 # Spring Boot templates
 JAVA_IMAGE=docker.io/library/maven:3.9-eclipse-temurin-21

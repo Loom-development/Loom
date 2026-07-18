@@ -301,7 +301,7 @@ export async function buildPodmanRunArgs(
   args.push(expectedImage);
 
   if (service.command) {
-    args.push("sh", "-c", service.command);
+    args.push("sh", "-lc", service.command);
   }
 
   return args;

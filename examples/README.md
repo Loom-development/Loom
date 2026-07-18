@@ -33,10 +33,10 @@ Common overrides:
 NODE_IMAGE=docker.io/library/node:22-alpine
 
 # PHP templates
-PHP_IMAGE=docker.io/library/php:8.3-fpm-alpine
+PHP_IMAGE=docker.io/library/php:8.4-apache
 
 # WordPress app image
-PHP_IMAGE=docker.io/library/php:8.3-apache
+WORDPRESS_IMAGE=docker.io/library/wordpress:6-php8.3-apache
 
 # Rails
 RUBY_IMAGE=docker.io/library/ruby:3.3

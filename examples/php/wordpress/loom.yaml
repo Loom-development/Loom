@@ -15,6 +15,7 @@ services:
     composer: false
     user: root
     userns: keep-id
+    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /var/www/html
     entrypoint: ""
     command: |

@@ -4,7 +4,7 @@ Run examples directly with the installed `loom` command.
 
 Tip: `--php-docroot` is optional for `php*` templates during init; if omitted, Loom uses `.`. Use `loom init php --php-docroot <path>` or `loom init php-symfony --php-docroot <path>` to override. For `php-wordpress` and `php-drupal`, this option is ignored.
 
-The default app server for the generic PHP, Drupal, and Symfony templates is nginx + PHP-FPM.
+The default app server for the generic PHP, Drupal, and Symfony templates is Apache with PHP (`php:8.4-apache`).
 
 All PHP templates now include a local Memcached service at `cache:11211` and install the PHP `memcached` extension so frameworks or plugins can opt into persistent object caching without extra container wiring.
 
@@ -23,7 +23,7 @@ All PHP templates now include a local Memcached service at `cache:11211` and ins
 - Config: `examples/php/drupal/loom.yaml`
 - `loom init php-drupal` creates a Drupal project in an empty target directory with a Podman Composer container running `composer create-project drupal/recommended-project .`.
 - If the target directory already contains an existing Drupal project, Loom skips bootstrapping and only adds or updates the Loom files.
-- The Drupal template uses a split nginx + PHP-FPM stack. The `app` service runs PHP-FPM as the host-aligned user, and the `web` service runs nginx serving Drupal from `/app/web`.
+- The Drupal template runs a single `app` service on `php:8.4-apache`, serving Drupal from `/app/web` with Apache's `www-data` user remapped to the host UID:GID.
 - The template includes a Memcached service at `cache:11211` and exposes `MEMCACHED_HOST` and `MEMCACHED_PORT` to the app container.
 - Run: `loom start --config examples/php/drupal/loom.yaml`
 - Persistent data: `./data/mysql` (DB) and `./data/files` (public file uploads)
@@ -31,8 +31,8 @@ All PHP templates now include a local Memcached service at `cache:11211` and ins
 ## Generic PHP
 
 - Config: `examples/php/loom.yaml`
-- The generic PHP template uses a split nginx + PHP-FPM stack. The `app` service runs PHP-FPM as the host-aligned user, and the `web` service runs nginx serving files from the project root.
-- The `app` service installs any missing PHP extension dependencies before starting php-fpm.
+- The generic PHP template runs a single `app` service on `php:8.4-apache`, serving files from the project root with Apache's `www-data` user remapped to the host UID:GID.
+- The `app` service installs any missing PHP extension dependencies before starting Apache.
 - The template includes a Memcached service at `cache:11211` and exposes `MEMCACHED_HOST` and `MEMCACHED_PORT` to the app container.
 - Run: `loom init php --dir my-php && cd my-php && loom start`
 - **Adopting an existing project**: run `loom init php --dir <existing-dir>` in a non-empty directory and Loom will only write `loom.yaml` and `.env.example`. Your existing source files are not touched.
@@ -41,6 +41,6 @@ All PHP templates now include a local Memcached service at `cache:11211` and ins
 ## Symfony
 
 - Config: `examples/php/symfony/loom.yaml`
-- The Symfony template uses a split nginx + PHP-FPM stack. The `app` service runs PHP-FPM, and the `web` service runs nginx serving Symfony from `/app/public`.
+- The Symfony template runs a single `app` service on `php:8.4-apache`, serving Symfony from `/app/public`.
 - The template includes a Memcached service at `cache:11211` and exposes `MEMCACHED_HOST` and `MEMCACHED_PORT` to the app container.
 - Run: `loom start --config examples/php/symfony/loom.yaml`

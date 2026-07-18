@@ -255,7 +255,7 @@ smoke_stack wordpress php-wordpress "WORDPRESS_IMAGE=docker.io/library/wordpress
 smoke_stack django-react django-react "PYTHON_IMAGE=docker.io/library/python:3.12-slim"
 smoke_stack python-flask python-flask "PYTHON_IMAGE=docker.io/library/python:3.12-slim"
 smoke_stack python-fastapi python-fastapi "PYTHON_IMAGE=docker.io/library/python:3.12-slim"
-smoke_stack php php "PHP_IMAGE=docker.io/library/php:8.3-fpm-alpine" --image "NGINX_IMAGE=docker.io/library/nginx:alpine"
+smoke_stack php php "PHP_IMAGE=docker.io/library/php:8.4-apache"
 smoke_stack dotnet dotnet "DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0"
 smoke_stack rails7-hotwire rails7-hotwire "RUBY_IMAGE=docker.io/library/ruby:3.3"
 smoke_stack astro astro "NODE_IMAGE=docker.io/library/node:24-alpine"

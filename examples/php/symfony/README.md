@@ -1,6 +1,6 @@
 # Symfony Template
 
-This template gives you a Symfony application served by nginx + PHP-FPM from local project files.
+This template gives you a Symfony application served by Apache with PHP from local project files.
 
 ## Quickstart
 
@@ -19,12 +19,9 @@ loom status
   - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}`
   - Internal address: `cache:11211`
 - `app`
-  - Runtime: `${PHP_IMAGE:-docker.io/library/php:8.3-fpm-alpine}`
-  - Purpose: PHP-FPM application server
-- `web`
-  - Runtime: `${NGINX_IMAGE:-docker.io/library/nginx:alpine}`
+  - Runtime: `${PHP_IMAGE:-docker.io/library/php:8.4-apache}`
   - Port: `8092`
-  - Purpose: Nginx web server
+  - Purpose: Apache + PHP application server serving Symfony from `/app/public`
 
 ## Route
 
@@ -33,7 +30,6 @@ loom status
 ## Image overrides
 
 - `PHP_IMAGE`
-- `NGINX_IMAGE`
 - `MEMCACHED_IMAGE`
 
 ## Cache

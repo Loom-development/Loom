@@ -45,10 +45,10 @@ export const initTemplateDescriptions: Record<(typeof initTemplateChoices)[numbe
   "python-django": "Django web app on Python.",
   "python-flask": "Flask web app on Python.",
   "python-fastapi": "FastAPI service on Python.",
-  php: "Plain PHP app served by nginx + PHP-FPM.",
+  php: "Plain PHP app served by Apache + PHP.",
   "php-wordpress": "WordPress with PHP.",
-  "php-drupal": "Drupal served by nginx + PHP-FPM.",
-  "php-symfony": "Symfony app served by nginx + PHP-FPM.",
+  "php-drupal": "Drupal served by Apache + PHP.",
+  "php-symfony": "Symfony app served by Apache + PHP.",
   "db-mysql": "MySQL database only.",
   "db-sqlserver": "SQL Server database only.",
   "db-postgres": "PostgreSQL database only.",
@@ -104,16 +104,13 @@ export const initImageChoicesByTemplate: Record<string, InitImageChoice[]> = {
   "python-flask": [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["docker.io/library/python:3.12-slim", "docker.io/library/python:3.13-slim"] }],
   "python-fastapi": [{ envKey: "PYTHON_IMAGE", label: "Python runtime", options: ["docker.io/library/python:3.12-slim", "docker.io/library/python:3.13-slim"] }],
   php: [
-    { envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/library/php:8.3-fpm-alpine", "docker.io/library/php:8.4-fpm-alpine"] },
-    { envKey: "NGINX_IMAGE", label: "Nginx runtime", options: ["docker.io/library/nginx:alpine", "docker.io/library/nginx:stable-alpine"] }
+    { envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/library/php:8.4-apache", "docker.io/library/php:8.3-apache"] }
   ],
   "php-drupal": [
-    { envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/library/php:8.3-fpm-alpine", "docker.io/library/php:8.4-fpm-alpine"] },
-    { envKey: "NGINX_IMAGE", label: "Nginx runtime", options: ["docker.io/library/nginx:alpine", "docker.io/library/nginx:stable-alpine"] }
+    { envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/library/php:8.4-apache", "docker.io/library/php:8.3-apache"] }
   ],
   "php-symfony": [
-    { envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/library/php:8.3-fpm-alpine", "docker.io/library/php:8.4-fpm-alpine"] },
-    { envKey: "NGINX_IMAGE", label: "Nginx runtime", options: ["docker.io/library/nginx:alpine", "docker.io/library/nginx:stable-alpine"] }
+    { envKey: "PHP_IMAGE", label: "PHP runtime", options: ["docker.io/library/php:8.4-apache", "docker.io/library/php:8.3-apache"] }
   ],
   "php-wordpress": [{ envKey: "WORDPRESS_IMAGE", label: "WordPress image", options: ["docker.io/library/wordpress:6-php8.3-apache", "docker.io/library/wordpress:6-php8.4-apache"] }],
   rails7: [{ envKey: "RUBY_IMAGE", label: "Ruby base image", options: ["docker.io/library/ruby:3.3", "docker.io/library/ruby:3.4"] }],
