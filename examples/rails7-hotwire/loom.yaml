@@ -1,0 +1,49 @@
+version: 1
+name: loom-rails7-hotwire
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: ruby
+    image: ${RUBY_IMAGE:-docker.io/library/ruby:3.3}
+    user: root
+    userns: keep-id
+    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    workdir: /workspace
+    command: |
+      set -eu
+      target_uid="${HOST_UID:-1000}"
+      target_gid="${HOST_GID:-1000}"
+      home_dir="/tmp/loom-home"
+      if [ ! -f /tmp/loom-ruby-build-deps.installed ]; then
+        if command -v apt-get >/dev/null 2>&1; then
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential pkg-config default-libmysqlclient-dev libpq-dev libsqlite3-dev git util-linux
+        elif command -v apk >/dev/null 2>&1; then
+          apk update && apk add --no-cache build-base pkgconf mariadb-connector-c-dev postgresql-dev sqlite-dev git util-linux
+        fi
+        touch /tmp/loom-ruby-build-deps.installed
+      fi
+      gem install bundler --no-document
+      mkdir -p "$home_dir"
+      chmod 0777 "$home_dir"
+      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" BUNDLE_PATH="$home_dir/.bundle" BUNDLE_APP_CONFIG="$home_dir/.bundle-config" sh -lc 'bundle install && bin/rails server -b 0.0.0.0 -p 3008'
+    ports:
+      - "3008:3008"
+    volumes:
+      - ./:/workspace
+    healthcheck:
+      command: ruby -rsocket -e "TCPSocket.new('127.0.0.1', 3008).close"
+      intervalSeconds: 4
+      timeoutSeconds: 4
+      retries: 150
+      startPeriodSeconds: 10
+routes:
+  - host: rails7-hotwire.loom.local
+    service: app
+    port: 3008
+    https: true

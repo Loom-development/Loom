@@ -1,0 +1,26 @@
+version: 1
+name: loom-db-mariadb
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  db:
+    type: mariadb
+    image: ${MARIADB_IMAGE:-docker.io/library/mariadb:11}
+    env:
+      MARIADB_ROOT_PASSWORD: loomroot
+      MARIADB_DATABASE: loom
+      MARIADB_USER: loom
+      MARIADB_PASSWORD: loom
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./data/mariadb:/var/lib/mysql
+    healthcheck:
+      command: mariadb-admin ping -h 127.0.0.1 -uroot -ploomroot
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 30
+      startPeriodSeconds: 10

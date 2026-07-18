@@ -1,0 +1,19 @@
+version: 1
+name: loom-db-sqlserver
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  db:
+    type: sqlserver
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2022-latest}
+    env:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "LoomDev!Passw0rd"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - ./data/sqlserver:/var/opt/mssql

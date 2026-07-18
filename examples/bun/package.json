@@ -1,0 +1,8 @@
+{
+  "name": "loom-bun-example",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "bun run index.ts"
+  }
+}

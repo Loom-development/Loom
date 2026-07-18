@@ -1,0 +1,30 @@
+version: 1
+name: loom-dotnet
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  app:
+    type: dotnet
+    image: ${DOTNET_IMAGE:-mcr.microsoft.com/dotnet/sdk:8.0}
+    userns: keep-id
+    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    workdir: /workspace/src
+    command: dotnet restore && dotnet run --urls http://0.0.0.0:5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/workspace
+    healthcheck:
+      command: wget -qO /dev/null http://127.0.0.1:5000/ 2>/dev/null
+      intervalSeconds: 5
+      timeoutSeconds: 5
+      retries: 60
+      startPeriodSeconds: 30
+routes:
+  - host: dotnet.loom.local
+    service: app
+    port: 5000
+    https: true

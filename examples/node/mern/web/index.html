@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MERN Example</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <style>body{font-family:sans-serif;margin:2rem}li{margin:.25rem 0}</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    const e = React.createElement;
+    const apiBase = (location.hostname === 'mern.loom.local') ? 'http://api:3002' : 'http://localhost:3002';
+
+    function App() {
+      const [status, setStatus] = React.useState('loading');
+      const [todos, setTodos] = React.useState([]);
+
+      React.useEffect(() => {
+        fetch(apiBase + '/health').then(r => r.json()).then(d => setStatus(d.status));
+        fetch(apiBase + '/todos').then(r => r.json()).then(setTodos);
+      }, []);
+
+      return e('div', null,
+        e('h1', null, 'MERN Example'),
+        e('p', null, 'Status: ' + status),
+        e('ul', null, todos.map((todo, index) => e('li', { key: index }, todo.title + ' - ' + (todo.completed ? 'done' : 'open'))))
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+  </script>
+</body>
+</html>

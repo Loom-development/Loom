@@ -1,0 +1,22 @@
+version: 1
+name: loom-db-redis
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  db:
+    type: redis
+    image: ${REDIS_IMAGE:-docker.io/library/redis:7-alpine}
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      command: redis-cli ping | grep PONG
+      intervalSeconds: 3
+      timeoutSeconds: 3
+      retries: 30
+      startPeriodSeconds: 2
