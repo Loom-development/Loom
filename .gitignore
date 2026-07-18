@@ -1,5 +1,12 @@
 node_modules/
 .pnpm-store/
+.kilo/
+example/
+scripts/
+loom-marketing.md
+docs/
+PROMPT.md
+.github/
 
 dist/
 coverage/
