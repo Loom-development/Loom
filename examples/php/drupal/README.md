@@ -1,11 +1,11 @@
 # Drupal Template
 
-This template gives you a local Drupal setup with PHP and MySQL, served from project files.
+This template gives you a local Drupal setup with nginx and PHP-FPM, served from project files. Add a database during init with `--db mysql`.
 
 ## Quickstart
 
 ```bash
-loom init php-drupal --dir my-drupal
+loom init php-drupal --dir my-drupal --db mysql
 cd my-drupal
 loom start
 loom status
@@ -13,16 +13,16 @@ loom status
 
 ## Services
 
-- `db`
-  - Runtime: `${MYSQL_IMAGE:-docker.io/library/mysql:8.4}`
-  - Port: `3308`
 - `cache`
   - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}`
-  - Port: `11212`
+  - Internal address: `cache:11211`
 - `app`
-  - Runtime: `${PHP_IMAGE:-docker.io/dunglas/frankenphp:1-php8.3}`
+  - Runtime: `${PHP_IMAGE:-docker.io/library/php:8.3-fpm-alpine}`
+  - Purpose: PHP-FPM application server
+- `web`
+  - Runtime: `${NGINX_IMAGE:-docker.io/library/nginx:alpine}`
   - Port: `8091`
-  - Purpose: Drupal app server
+  - Purpose: Nginx web server
 
 ## Route
 
@@ -31,12 +31,12 @@ loom status
 ## Image overrides
 
 - `PHP_IMAGE`
+- `NGINX_IMAGE`
 - `MEMCACHED_IMAGE`
-- `MYSQL_IMAGE`
 
 ## File permissions
 
-The container starts as `root` long enough to install any missing PHP extension dependencies, then drops to a host-aligned UID:GID before serving Drupal. That keeps writes under the bind-mounted project directory and `sites/default/files` aligned with the host user on Linux rootless Podman.
+The PHP-FPM container runs as the host-aligned UID:GID configured in php-fpm's www pool. That keeps writes under the bind-mounted project directory and `sites/default/files` aligned with the host user on Linux rootless Podman.
 
 The app container exposes `MEMCACHED_HOST=cache` and `MEMCACHED_PORT=11211`, and it installs the PHP `memcached` extension so Drupal modules can use the bundled Memcached service for persistent caching.
 

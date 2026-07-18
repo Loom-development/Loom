@@ -1,6 +1,6 @@
 {
   "name": "@loomdev/cli",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": true,
   "description": "Loom - Podman-based local development platform",
   "license": "Elastic-2.0",

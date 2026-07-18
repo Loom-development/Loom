@@ -5,7 +5,7 @@ This template gives you a Bun-based application workflow as a Node.js alternativ
 ## Quickstart
 
 ```bash
-loom init node-bun --dir my-bun
+loom init bun --dir my-bun
 cd my-bun
 loom start
 loom status

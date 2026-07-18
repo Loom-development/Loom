@@ -12,6 +12,12 @@ examples/spring-react/loom.yaml
 pass=0
 fail=0
 
+# Stop any running Loom proxies before the suite
+podman ps --filter name=-proxy --format '{{.Names}}' 2>/dev/null | while read -r name; do
+  podman rm -f "$name" 2>/dev/null || true
+done
+sleep 2
+
 for cfg in $configs; do
   echo "===== SMOKE: $cfg ====="
 
@@ -28,8 +34,11 @@ for cfg in $configs; do
     fail=$((fail + 1))
   fi
 
+  # Wait for port to free
+  sleep 2
+
   echo
- done
+done
 
 echo "RESULT: pass=$pass fail=$fail"
 if [ "$fail" -gt 0 ]; then

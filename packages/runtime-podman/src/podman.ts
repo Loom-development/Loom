@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import type { CommandResult } from "./types.js";
 
-export function runCommand(command: string, args: string[]): Promise<CommandResult> {
+function runCommand(command: string, args: string[]): Promise<CommandResult> {
   return new Promise((resolve) => {
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
@@ -15,8 +15,8 @@ export function runCommand(command: string, args: string[]): Promise<CommandResu
       stderr += chunk.toString();
     });
 
-    child.on("error", () => {
-      resolve({ ok: false, stdout: "", stderr: `Failed to run ${command}`, code: 1 });
+    child.on("error", (err) => {
+      resolve({ ok: false, stdout: "", stderr: `Failed to run ${command}: ${err.message}`, code: 1 });
     });
 
     child.on("close", (code) => {
@@ -29,7 +29,7 @@ export async function runPodman(args: string[]): Promise<CommandResult> {
   return runCommand("podman", args);
 }
 
-export function runCommandInherit(command: string, args: string[]): Promise<number> {
+function runCommandInherit(command: string, args: string[]): Promise<number> {
   return new Promise((resolve) => {
     const child = spawn(command, args, { stdio: "inherit" });
 

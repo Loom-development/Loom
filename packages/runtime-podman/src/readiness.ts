@@ -27,22 +27,12 @@ export function sleep(ms: number): Promise<void> {
 export async function isPortOpen(port: number, timeoutMs: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = new Socket();
-    let settled = false;
-
-    const finish = (result: boolean) => {
-      if (settled) {
-        return;
-      }
-
-      settled = true;
-      socket.destroy();
-      resolve(result);
-    };
+    const cleanup = () => { socket.removeAllListeners(); socket.destroy(); };
 
     socket.setTimeout(timeoutMs);
-    socket.once("connect", () => finish(true));
-    socket.once("timeout", () => finish(false));
-    socket.once("error", () => finish(false));
+    socket.once("connect", () => { cleanup(); resolve(true); });
+    socket.once("timeout", () => { cleanup(); resolve(false); });
+    socket.once("error", () => { cleanup(); resolve(false); });
     socket.connect(port, "127.0.0.1");
   });
 }
@@ -75,17 +65,25 @@ export async function waitForServiceReadyWithDependencies(
   const portsReachable = dependencies.arePortsReachable ?? arePortsReachable;
   const now = dependencies.now ?? Date.now;
   const name = containerName(projectName, serviceName);
-  const startPeriodMs = (options?.startPeriodSeconds ?? 0) * 1000;
+  const {
+    startPeriodSeconds = 0,
+    intervalSeconds = 2,
+    progressIntervalSeconds = 15,
+    retries = 30,
+    timeoutSeconds = 2,
+    ports = [],
+    command
+  } = options ?? {};
 
-  const intervalMs = (options?.intervalSeconds ?? 2) * 1000;
-  const progressIntervalMs = Math.max((options?.progressIntervalSeconds ?? 15) * 1000, intervalMs);
-  const retries = options?.retries ?? 30;
+  const startPeriodMs = startPeriodSeconds * 1000;
+  const intervalMs = Math.max(intervalSeconds * 1000, 100);
+  const progressIntervalMs = Math.max(progressIntervalSeconds * 1000, intervalMs);
   const graceAttempts = Math.ceil(startPeriodMs / intervalMs);
   const maxAttempts = Math.max(retries + graceAttempts, 1);
   const timeoutMs = Math.max(startPeriodMs + retries * intervalMs, 60_000);
-  const probeTimeoutMs = (options?.timeoutSeconds ?? 2) * 1000;
-  const hostPorts = parseHostPorts(options?.ports);
-  const hasExplicitReadinessProbe = Boolean(options?.command) || hostPorts.length > 0;
+  const probeTimeoutMs = timeoutSeconds * 1000;
+  const hostPorts = parseHostPorts(ports);
+  const hasExplicitReadinessProbe = Boolean(command) || hostPorts.length > 0;
   const stableRunningChecksRequired = hasExplicitReadinessProbe ? 1 : 2;
   let stableRunningChecks = 0;
 

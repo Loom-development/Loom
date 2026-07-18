@@ -22,9 +22,3 @@ Run examples directly with the installed `loom` command.
 - Config: `examples/node/mern/loom.yaml`
 - Start: `loom start --config examples/node/mern/loom.yaml`
 - Stop: `loom stop --config examples/node/mern/loom.yaml`
-
-## Bun runtime example
-
-- Config: `examples/node/bun/loom.yaml`
-- Start: `loom start --config examples/node/bun/loom.yaml`
-- Stop: `loom stop --config examples/node/bun/loom.yaml`

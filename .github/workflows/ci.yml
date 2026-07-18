@@ -27,17 +27,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install PNPM
-        run: npm install -g pnpm@10.6.5
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -52,17 +49,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install PNPM
-        run: npm install -g pnpm@10.6.5
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

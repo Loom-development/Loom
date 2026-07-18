@@ -5,9 +5,9 @@ import {
   SUPPORTED_RESTORE_SERVICE_TYPES,
   backupExtensionForServiceType,
   buildExecArgs,
-  containerName,
-  restoreSupportedForServiceType
+  containerName
 } from "./index.js";
+import { restoreSupportedForServiceType } from "./backup.js";
 
 test("runtime exports are available", () => {
   assert.equal(containerName("proj", "svc"), "proj-svc");

@@ -257,6 +257,8 @@ test("runDrupalCreateProjectWithDependencies uses Podman Composer", async () => 
     "run",
     "--rm",
     ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
+    "-e",
+    "HOME=/tmp",
     "-v",
     "/workspace/drupal:/app",
     "-w",
@@ -315,7 +317,7 @@ test("runWordPressCreateProjectWithDependencies uses Podman to copy WordPress in
         ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
         "-v",
         "/workspace/wordpress:/app",
-        "docker.io/library/wordpress:6.7-php8.3-apache",
+        "docker.io/library/wordpress:6-php8.3-apache",
         "sh",
         "-lc",
         "cp -a /usr/src/wordpress/. /app/"
@@ -347,7 +349,7 @@ test("runWordPressCreateProjectWithDependencies reports unavailable images clear
           throw new Error("pull access denied");
         }
       }),
-    /image 'docker\.io\/library\/wordpress:6\.7-php8\.3-apache' requires registry access or authentication:[\s\S]*podman login docker\.io/i
+    /image 'docker\.io\/library\/wordpress:6-php8\.3-apache' requires registry access or authentication:[\s\S]*podman login docker\.io/i
   );
 });
 
@@ -479,6 +481,8 @@ test("runSymfonyCreateProjectWithDependencies uses Podman Composer", async () =>
         "run",
         "--rm",
         ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
+        "-e",
+        "HOME=/tmp",
         "-v",
         "/workspace/symfony:/app",
         "-w",

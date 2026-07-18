@@ -1,6 +1,6 @@
 # Symfony Template
 
-This template gives you a Symfony application served by FrankenPHP from local project files.
+This template gives you a Symfony application served by nginx + PHP-FPM from local project files.
 
 ## Quickstart
 
@@ -17,11 +17,14 @@ loom status
 
 - `cache`
   - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}`
-  - Port: `11213`
+  - Internal address: `cache:11211`
 - `app`
-  - Runtime: `${PHP_IMAGE:-docker.io/dunglas/frankenphp:1-php8.3}`
+  - Runtime: `${PHP_IMAGE:-docker.io/library/php:8.3-fpm-alpine}`
+  - Purpose: PHP-FPM application server
+- `web`
+  - Runtime: `${NGINX_IMAGE:-docker.io/library/nginx:alpine}`
   - Port: `8092`
-  - Purpose: Symfony app server
+  - Purpose: Nginx web server
 
 ## Route
 
@@ -30,6 +33,7 @@ loom status
 ## Image overrides
 
 - `PHP_IMAGE`
+- `NGINX_IMAGE`
 - `MEMCACHED_IMAGE`
 
 ## Cache

@@ -19,7 +19,11 @@ DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
 RUBY_IMAGE=docker.io/library/ruby:3.3
 
 # PHP templates
-PHP_IMAGE=docker.io/dunglas/frankenphp:1-php8.3
+PHP_IMAGE=docker.io/library/php:8.3-fpm-alpine
+NGINX_IMAGE=docker.io/library/nginx:alpine
+
+# Spring Boot templates
+JAVA_IMAGE=docker.io/library/maven:3.9-eclipse-temurin-21
 ```
 
 ## One command pattern for all templates
@@ -52,7 +56,7 @@ loom stop
 - `node-mean`
 - `node-mern`
 - `node-t3`
-- `node-bun` (alias: `bunjs`)
+- `bun`
 - `python`
 - `python-django`
 - `python-flask`
@@ -66,7 +70,9 @@ loom stop
 - `rails7-hotwire`
 - `jamstack`
 - `serverless`
+- `spring-boot`
 - `spring-react`
+- `astro`
 - `django-react`
 
 ### Database templates

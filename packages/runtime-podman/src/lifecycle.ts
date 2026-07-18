@@ -36,24 +36,24 @@ function isInteractiveTerminal(): boolean {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
 }
 
-function resolveRegistryHost(image: string): string {
+export function resolveRegistryHost(image: string): string {
   const normalizedImage = normalizeImage(image);
   const [registryHost] = normalizedImage.split("/");
   return registryHost || "docker.io";
 }
 
-function buildRegistryLoginHint(image: string): string {
+export function buildRegistryLoginHint(image: string): string {
   const registryHost = resolveRegistryHost(image);
   return ` Try 'podman login ${registryHost}' and verify that the image tag exists and your account can access it.`;
 }
 
-function isRegistryAuthError(detail: string): boolean {
+export function isRegistryAuthError(detail: string): boolean {
   return /(pull access denied|requested access to the resource is denied|authentication required|unauthorized|denied: requested access|insufficient_scope)/i.test(
     detail
   );
 }
 
-function isImageUnavailableError(detail: string): boolean {
+export function isImageUnavailableError(detail: string): boolean {
   return /(manifest unknown|image not known|unable to pull|error locating image|repository does not exist)/i.test(
     detail
   );
@@ -254,8 +254,11 @@ export async function ensureComposerAvailableWithDependencies(
   if (!result.ok) {
     if (/can only create exec sessions on running containers|container state improper/i.test(result.stderr)) {
       const latestInfo = await inspectContainerByName(name);
-      if (!latestInfo?.running) {
-        throw formatStoppedComposerContainerError(name, serviceName, latestInfo?.state);
+      if (!latestInfo) {
+        throw new Error(`Container '${name}' disappeared during composer check: ${result.stderr || "unknown error"}`);
+      }
+      if (!latestInfo.running) {
+        throw formatStoppedComposerContainerError(name, serviceName, latestInfo.state);
       }
     }
 

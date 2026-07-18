@@ -1,11 +1,11 @@
 # WordPress Template
 
-This template gives you a local WordPress setup with PHP and MySQL, served from project files.
+This template gives you a local WordPress setup with PHP, served from project files. Add a database during init with `--db mysql`.
 
 ## Quickstart
 
 ```bash
-loom init php-wordpress --dir my-wordpress
+loom init php-wordpress --dir my-wordpress --db mysql
 cd my-wordpress
 loom start
 loom status
@@ -13,14 +13,11 @@ loom status
 
 ## Services
 
-- `db`
-  - Runtime: `${MYSQL_IMAGE:-docker.io/library/mysql:8.4}`
-  - Port: `3307`
 - `cache`
   - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}`
-  - Port: `11214`
+  - Internal address: `cache:11211`
 - `app`
-  - Runtime: `${PHP_IMAGE:-docker.io/library/php:8.3-apache}`
+  - Runtime: `${WORDPRESS_IMAGE:-docker.io/library/wordpress:6-php8.3-apache}`
   - Port: `8090`
   - Purpose: WordPress app server
 
@@ -28,11 +25,33 @@ loom status
 
 - App: `https://wordpress.loom.local`
 
+## Project structure
+
+```
+my-wordpress/
+├── .env              # environment variables (DB settings, HOST_UID/GID)
+├── loom.yaml         # Loom service configuration
+├── wp-config.php     # reads DB settings from environment variables
+└── wp-content/       # persisted WordPress content
+    ├── plugins/      # your custom plugins
+    ├── themes/       # your custom themes
+    └── uploads/      # media uploads
+```
+
+WordPress core files live inside the container image. Only `wp-content/` is bind-mounted from your project directory so plugins, themes, and uploads persist across restarts.
+
+## Database
+
+Pass `--db mysql` during init to add a MySQL database service. Loom generates connection credentials and writes them to `.env`. `wp-config.php` reads those values at runtime via the `loomWordPressEnv()` helper.
+
+```bash
+loom init php-wordpress --dir my-site --db mysql
+```
+
 ## Image overrides
 
-- `PHP_IMAGE`
+- `WORDPRESS_IMAGE`
 - `MEMCACHED_IMAGE`
-- `MYSQL_IMAGE`
 
 ## File permissions
 

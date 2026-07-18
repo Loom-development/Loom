@@ -69,6 +69,6 @@ test("resolveProxyCertificateInfo requests certificates for all proxy hosts when
     }
   );
 
-  assert.deepEqual(requestedHosts, [["demo.test", "api.demo.test"]]);
+  assert.deepEqual(requestedHosts, [["api.demo.test"]]);
   assert.deepEqual(info, { certPath: "/tmp/cert.pem", keyPath: "/tmp/key.pem" });
 });

@@ -14,7 +14,7 @@ if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
 
 $nodeVersionRaw = & node -p "process.versions.node"
 $nodeMajor = [int]($nodeVersionRaw.Split('.')[0])
-if ($nodeMajor -lt 20) {
+if ($nodeMajor -lt 24) {
   throw "Node.js 24+ is required. Current version: $nodeVersionRaw"
 }
 

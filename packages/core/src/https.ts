@@ -32,5 +32,5 @@ export async function resolveProxyCertificateInfo(
   ensureLocalCertificates: EnsureLocalCertificates,
   existingInfo?: HttpsInfo
 ): Promise<HttpsInfo> {
-  return existingInfo ?? ensureLocalCertificates(projectName, routeBindings.map((binding) => binding.host));
+  return existingInfo ?? ensureLocalCertificates(projectName, routeBindings.filter((b) => b.https).map((b) => b.host));
 }

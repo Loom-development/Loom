@@ -60,7 +60,11 @@ export async function restoreConfiguredService(
     await dependencies.restoreServiceFromFile(config.name, serviceName, service, finalInputPath);
     const networkName = await dependencies.ensureServiceNetwork(config);
     await dependencies.ensureServiceStarted(config.name, serviceName, service, networkName);
-    await dependencies.waitForServiceReady(config.name, serviceName, service);
+    await dependencies.waitForServiceReady(config.name, serviceName, {
+      ...service.healthcheck,
+      ports: service.ports,
+      progressIntervalSeconds: 15
+    });
     return finalInputPath;
   }
 

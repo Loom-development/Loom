@@ -2,7 +2,7 @@
 
 Command-line interface for Loom — a beginner-friendly local development CLI powered by Podman.
 
-Spin up a full app stack with one command. No Docker Desktop required.
+Spin up a full app stack with one command. Works on Linux, macOS, and Windows. No Docker Desktop required.
 
 ## Install Globally
 
@@ -62,7 +62,7 @@ Only `loom.yaml` and `.env` are updated — your source files are not touched.
 
 ## Available templates
 
-**Apps:** `node`, `node-bun`, `node-mern`, `node-mean`, `node-t3`, `python`, `python-django`, `python-flask`, `python-fastapi`, `php`, `php-wordpress`, `php-drupal`, `php-symfony`, `rails7`, `rails7-hotwire`, `dotnet`, `jamstack`, `serverless`, `spring-react`, `django-react`
+**Apps:** `node`, `bun`, `node-mern`, `node-mean`, `node-t3`, `python`, `python-django`, `python-flask`, `python-fastapi`, `php`, `php-wordpress`, `php-drupal`, `php-symfony`, `rails7`, `rails7-hotwire`, `spring-boot`, `astro`, `dotnet`, `jamstack`, `serverless`, `spring-react`, `django-react`
 
 **Databases (standalone):** `db-postgres`, `db-mysql`, `db-mariadb`, `db-mongodb`, `db-redis`, `db-sqlite`, `db-sqlserver`, `db-elasticsearch`, `db-all`
 
@@ -79,7 +79,7 @@ Only `loom.yaml` and `.env` are updated — your source files are not touched.
 | `loom status` | Show runtime and service state |
 | `loom ps` | List project containers |
 | `loom logs <service> -f` | Follow live logs |
-| `loom exec <service> -- <cmd>` | Run a command inside a service |
+| `loom exec <service> -- <cmd>` | Run a command inside a service with host-aligned user |
 | `loom backup <service>` | Backup a database service |
 | `loom backup --all` | Backup all database services |
 | `loom restore <service> <file>` | Restore a database from a backup |

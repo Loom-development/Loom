@@ -59,3 +59,16 @@ export function formatHttpsInfo(httpsInfo?: HttpsInfoLike): string[] {
     `HTTPS key: ${httpsInfo.keyPath}\n`
   ];
 }
+
+export function formatBrowserUrl(routeBindings: RouteBindingLike[], proxyPorts?: ProxyPortsLike): string[] {
+  if (routeBindings.length === 0) {
+    return [];
+  }
+
+  return routeBindings.map((binding) => {
+    const protocol = binding.https ? "https" : "http";
+    const proxyPort = proxyPorts ? (binding.https ? proxyPorts.https : proxyPorts.http) : undefined;
+    const url = proxyPort ? `${protocol}://${binding.host}:${proxyPort}` : `${protocol}://${binding.host}`;
+    return `\n\u2192 Open ${url} in your browser\n`;
+  });
+}

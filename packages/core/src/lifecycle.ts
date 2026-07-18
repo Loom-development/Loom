@@ -47,6 +47,7 @@ export async function stopProjectResources(
     writeOut("- cleaned route hosts\n");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    errors.push(`route hosts: ${message}`);
     writeErr(`- failed cleaning route hosts: ${message}\n`);
   }
 

@@ -31,9 +31,7 @@ export class LoomOrchestrator {
     private readonly projectRoot = process.cwd(),
     private readonly dependencies: OrchestratorDependencies = defaultOrchestratorDependencies,
     private readonly output: OrchestratorOutput = defaultOrchestratorOutput
-  ) {
-    void this.projectRoot;
-  }
+  ) {}
 
   private async recreateExistingProjectContainers(): Promise<void> {
     const containers = await this.dependencies.listProjectContainers(this.config.name);

@@ -229,6 +229,7 @@ test("start writes formatted route and https summaries through the output adapte
     "Route bindings:\n",
     "- https://demo.test:8443 -> app:3000 (direct: http://localhost:8080/)\n",
     "Route proxy listener ports: http://localhost:8080 https://localhost:8443 (use with configured route hostnames)\n",
+    "\n→ Open https://demo.test:8443 in your browser\n",
     "HTTPS cert: /tmp/cert.pem\n",
     "HTTPS key: /tmp/key.pem\n"
   ]);

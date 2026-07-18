@@ -4,8 +4,7 @@ export {
   SUPPORTED_RESTORE_SERVICE_TYPES,
   backupExtensionForServiceType,
   backupServiceToFile,
-  restoreServiceFromFile,
-  restoreSupportedForServiceType
+  restoreServiceFromFile
 } from "./backup.js";
 export {
   containerName,
@@ -17,9 +16,13 @@ export {
 } from "./containers.js";
 export {
   buildExecArgs,
+  buildRegistryLoginHint,
   ensureComposerAvailable,
   ensureServiceStarted,
   execServiceCommand,
+  isImageUnavailableError,
+  isRegistryAuthError,
+  resolveRegistryHost,
   stopService,
   tailServiceLogs
 } from "./lifecycle.js";

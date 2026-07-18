@@ -11,10 +11,13 @@ import { LoomOrchestrator } from "@loom/core";
 import { runNamedTask } from "@loom/tasks";
 import { detectInitTemplateSuggestion } from "./init-detect.js";
 import {
+  chooseInitDatabases,
   chooseInitImageOverrides,
   chooseInitTemplate,
   describeInitTemplate,
-  initImageChoicesByTemplate
+  initImageChoicesByTemplate,
+  isValidDbType,
+  supportedDbTypes
 } from "./init-prompt.js";
 import { prepareInitTarget } from "./init-template.js";
 
@@ -32,7 +35,7 @@ function resolveTemplatesRoot(): string {
     }
   }
 
-  return candidates[0];
+  throw new Error("Loom template examples directory not found. Ensure the 'examples/' directory exists and is readable.");
 }
 
 const templatesRoot = resolveTemplatesRoot();
@@ -42,8 +45,7 @@ const templateMap: Record<string, string> = {
   "node-mean": "node/mean",
   "node-mern": "node/mern",
   "node-t3": "node/t3",
-  "node-bun": "node/bun",
-  bunjs: "node/bun",
+  bun: "bun",
   python: "python",
   "python-django": "python/django",
   "python-flask": "python/flask",
@@ -67,6 +69,8 @@ const templateMap: Record<string, string> = {
   jamstack: "jamstack",
   serverless: "serverless",
   "spring-react": "spring-react",
+  "spring-boot": "spring-boot",
+  astro: "astro",
   "django-react": "django-react"
 };
 
@@ -74,7 +78,10 @@ const ignoredTemplateEntries = new Set([
   "node_modules",
   ".pnpm-store",
   ".turbo",
-  ".loom",
+  ".loom"
+]);
+
+const topLevelIgnoredTemplateEntries = new Set([
   "data",
   "dist",
   ".next"
@@ -158,7 +165,14 @@ async function copyTemplate(sourceDir: string, targetDir: string, force: boolean
     force,
     filter: (sourcePath) => {
       const entryName = sourcePath.split("/").pop() ?? "";
-      return !ignoredTemplateEntries.has(entryName);
+      if (ignoredTemplateEntries.has(entryName)) {
+        return false;
+      }
+      const relativePath = sourcePath.slice(sourceDir.length + 1);
+      if (topLevelIgnoredTemplateEntries.has(entryName) && relativePath.split("/").length === 1) {
+        return false;
+      }
+      return true;
     }
   });
 }
@@ -288,7 +302,6 @@ function buildPhpBaseCommand(containerDocroot: string): string {
     "      set -eu",
     '      target_uid="${HOST_UID:-1000}"',
     '      target_gid="${HOST_GID:-1000}"',
-    '      home_dir="/tmp/loom-home"',
     '      if ! php -r "exit(extension_loaded(\'mysqli\') && extension_loaded(\'pdo_mysql\') && extension_loaded(\'pdo_pgsql\') && extension_loaded(\'pgsql\') && extension_loaded(\'pdo_sqlite\') && extension_loaded(\'intl\') && extension_loaded(\'zip\') && extension_loaded(\'exif\') && extension_loaded(\'imagick\') && extension_loaded(\'memcached\') ? 0 : 1);"; then',
     '        if command -v apt-get >/dev/null 2>&1; then',
     '          export DEBIAN_FRONTEND=noninteractive',
@@ -303,15 +316,24 @@ function buildPhpBaseCommand(containerDocroot: string): string {
     '        docker-php-ext-enable imagick',
     '        docker-php-ext-enable memcached',
     '      fi',
-    '      mkdir -p "$home_dir"',
-    '      chmod 0777 "$home_dir"',
-    `      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -lc 'if [ ! -f ${containerDocroot}/index.php ]; then printf "%s\\n" "<?php echo \\"Loom PHP example is running.\\";" > ${containerDocroot}/index.php; fi; frankenphp php-server --listen :80 --root ${containerDocroot}'`,
+    '      if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then',
+    '        mkdir -p /tmp/pool.d',
+    '        cp /usr/local/etc/php-fpm.d/*.conf /tmp/pool.d/',
+    '        sed "s/^user = .*/user = $target_uid/" /tmp/pool.d/www.conf | sed "s/^group = .*/group = $target_gid/" > /tmp/pool.d/www.conf.tmp && mv /tmp/pool.d/www.conf.tmp /tmp/pool.d/www.conf',
+    '        sed "s|^include\\s*=.*|include=/tmp/pool.d/*.conf|" /usr/local/etc/php-fpm.conf > /tmp/php-fpm.conf',
+    "        sed 's/\\[global\\]/[global]\\nerror_log = /dev\\/stderr/' /tmp/php-fpm.conf > /tmp/php-fpm-fixed.conf && mv /tmp/php-fpm-fixed.conf /tmp/php-fpm.conf",
+    '        exec php-fpm -y /tmp/php-fpm.conf --nodaemonize',
+    '      fi',
+    `      if [ ! -f ${containerDocroot}/index.php ]; then`,
+    `        printf '%s\\n' '<?php echo "Loom PHP example is running.";' > ${containerDocroot}/index.php`,
+    '      fi',
+    '      exec php-fpm',
     "    dependsOn:",
     "      - cache",
     "    env:",
     "      MEMCACHED_HOST: cache",
     '      MEMCACHED_PORT: "11211"',
-    "    ports:"
+    "    volumes:"
   ].join("\n");
 }
 
@@ -337,10 +359,11 @@ async function applyPhpDocroot(targetDir: string, template: string, phpDocrootRa
 
   if (template === "php") {
     const containerDocroot = phpDocroot === "." ? "/app" : `/app/${phpDocroot}`;
-    loomYaml = loomYaml.replace(/command:\s*\|[\s\S]*?\n\s*ports:/m, buildPhpBaseCommand(containerDocroot));
+    const nginxDocroot = phpDocroot === "." ? "/app" : `/app/${phpDocroot}`;
+    loomYaml = loomYaml.replace(/command:\s*\|[\s\S]*?\n\s*volumes:/m, buildPhpBaseCommand(containerDocroot));
+    loomYaml = loomYaml.replace(/(\s+root\s+)\/app(;)/, `$1${nginxDocroot}$2`);
   } else {
-    const templateDocroot = phpDocroot === "." ? "." : phpDocroot;
-    loomYaml = loomYaml.replace(/(frankenphp\s+php-server\s+--listen\s+:[0-9]+\s+--root\s+)([^\s"']+)/, `$1${templateDocroot}`);
+    loomYaml = loomYaml.replace(/(\s+root\s+)\/app\/[^\s;]+(;)/, `$1/app/${phpDocroot}$2`);
   }
 
   await writeFile(loomPath, loomYaml, "utf8");
@@ -349,7 +372,7 @@ async function applyPhpDocroot(targetDir: string, template: string, phpDocrootRa
 
 function replaceYamlEnvVariable(content: string, key: string, value: string): string {
   const pattern = new RegExp(`(^\\s*${key}:\\s*).*$`, "m");
-  return pattern.test(content) ? content.replace(pattern, `$1${value}`) : content;
+  return content.replace(pattern, (_match, group) => `${group}${value}`);
 }
 
 function serviceNameForDbType(loomYaml: string, dbType: string): string {
@@ -415,17 +438,31 @@ async function customizeDbTemplateCredentials(targetDir: string): Promise<void> 
     loomYamlContent = replaceYamlEnvVariable(loomYamlContent, key, value);
   }
 
+  // WordPress reads its own env vars from .env via loomWordPressEnv() in wp-config.php
+  if (hasEnvVariable(envContent, "WORDPRESS_DB_HOST")) {
+    envContent = replaceEnvVariable(envContent, "WORDPRESS_DB_NAME", appDb);
+    envContent = replaceEnvVariable(envContent, "WORDPRESS_DB_USER", appUser);
+    envContent = replaceEnvVariable(envContent, "WORDPRESS_DB_PASSWORD", appPassword);
+
+    const wpDbHost = serviceNameForDbType(loomYamlContent, "mysql") || "db";
+    envContent = replaceEnvVariable(envContent, "WORDPRESS_DB_HOST", `${wpDbHost}:3306`);
+  }
+
   const mysqlHost = serviceNameForDbType(loomYamlContent, "mysql");
   const mariadbHost = serviceNameForDbType(loomYamlContent, "mariadb");
   const postgresHost = serviceNameForDbType(loomYamlContent, "postgres");
   const mongoHost = serviceNameForDbType(loomYamlContent, "mongodb");
   const mssqlHost = serviceNameForDbType(loomYamlContent, "sqlserver");
 
-  const mysqlUrl = `mysql://${appUser}:${appPassword}@${mysqlHost}:3306/${appDb}`;
-  const mariadbUrl = `mysql://${appUser}:${appPassword}@${mariadbHost}:3306/${appDb}`;
-  const postgresUrl = `postgresql://${appUser}:${appPassword}@${postgresHost}:5432/${appDb}`;
-  const mongoUrl = `mongodb://${appUser}:${appPassword}@${mongoHost}:27017/${appDb}?authSource=admin`;
-  const mssqlUrl = `sqlserver://sa:${mssqlPassword}@${mssqlHost}:1433;encrypt=false`;
+  const appUserEnc = encodeURIComponent(appUser);
+  const appPasswordEnc = encodeURIComponent(appPassword);
+  const mssqlPasswordEnc = encodeURIComponent(mssqlPassword);
+
+  const mysqlUrl = `mysql://${appUserEnc}:${appPasswordEnc}@${mysqlHost}:3306/${appDb}`;
+  const mariadbUrl = `mysql://${appUserEnc}:${appPasswordEnc}@${mariadbHost}:3306/${appDb}`;
+  const postgresUrl = `postgresql://${appUserEnc}:${appPasswordEnc}@${postgresHost}:5432/${appDb}`;
+  const mongoUrl = `mongodb://${appUserEnc}:${appPasswordEnc}@${mongoHost}:27017/${appDb}?authSource=admin`;
+  const mssqlUrl = `sqlserver://sa:${mssqlPasswordEnc}@${mssqlHost}:1433;encrypt=false`;
 
   if (hasEnvVariable(envContent, "DATABASE_URL")) {
     if (hasEnvVariable(envContent, "POSTGRES_USER")) {
@@ -491,12 +528,7 @@ async function applyRuntimeImageSelections(
   process.stdout.write(`Configured runtime image selections in ${envPath}\n`);
 }
 
-const supportedDbTypes = ["postgres", "mysql", "mariadb", "mongodb", "redis"] as const;
-type DbType = (typeof supportedDbTypes)[number];
-
-function isValidDbType(value: string): value is DbType {
-  return (supportedDbTypes as readonly string[]).includes(value);
-}
+import type { DbType } from "./init-prompt.js";
 
 function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: string; envVars: Record<string, string> } {
   switch (db) {
@@ -642,6 +674,8 @@ function buildDbServiceBlock(db: DbType): { serviceName: string; serviceYaml: st
           REDIS_URL: "redis://redis:6379"
         }
       };
+    default:
+      throw new Error(`Unknown database type '${db}'. Supported: ${supportedDbTypes.join(", ")}`);
   }
 }
 
@@ -757,17 +791,23 @@ cli
 
       await ensureEnvFileFromExample(targetDir);
       await applyRuntimeImageSelections(targetDir, selectedTemplate, parseEnvAssignments(options.image));
-      if (selectedTemplate.startsWith("db-")) {
-        await customizeDbTemplateCredentials(targetDir);
-      }
+
+      let dbsToAdd: string[] = [];
       if (options.db) {
-        const dbList = Array.isArray(options.db) ? options.db : [options.db];
-        for (const dbType of dbList) {
-          if (!isValidDbType(dbType)) {
-            throw new Error(`Unknown database type '${dbType}'. Supported: ${supportedDbTypes.join(", ")}`);
-          }
-          await applyDatabaseService(targetDir, dbType);
+        dbsToAdd = Array.isArray(options.db) ? options.db : [options.db];
+      } else if (process.stdin.isTTY && !selectedTemplate.startsWith("db-")) {
+        const selected = await chooseInitDatabases();
+        dbsToAdd = selected;
+      }
+
+      for (const dbType of dbsToAdd) {
+        if (!isValidDbType(dbType)) {
+          throw new Error(`Unknown database type '${dbType}'. Supported: ${supportedDbTypes.join(", ")}`);
         }
+        await applyDatabaseService(targetDir, dbType);
+      }
+
+      if (dbsToAdd.length > 0 || selectedTemplate.startsWith("db-")) {
         await customizeDbTemplateCredentials(targetDir);
       }
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
@@ -860,7 +900,7 @@ cli
       const orchestrator = await bootstrapProject(options.config);
       const passthroughIndex = process.argv.indexOf("--");
       const passthrough = passthroughIndex >= 0 ? process.argv.slice(passthroughIndex + 1) : [];
-      await orchestrator.exec(service, cmd.length > 0 ? cmd : passthrough);
+      await orchestrator.exec(service, passthroughIndex >= 0 ? passthrough : cmd);
     })
   );
 

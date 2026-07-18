@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { access, readFile, readdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
+import { buildRegistryLoginHint, isImageUnavailableError, isRegistryAuthError } from "@loom/runtime-podman";
 
 interface InitPreparationDependencies {
   directoryHasFiles?: (path: string) => Promise<boolean>;
@@ -49,7 +50,12 @@ async function directoryHasFiles(path: string): Promise<boolean> {
 
 async function clearDirectoryContents(path: string): Promise<void> {
   const entries = await readdir(path);
-  await Promise.all(entries.map((entry) => rm(resolve(path, entry), { recursive: true, force: true })));
+  const results = await Promise.allSettled(entries.map((entry) => rm(resolve(path, entry), { recursive: true, force: true })));
+  const failures = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+  if (failures.length > 0) {
+    const messages = failures.map((f) => (f.reason instanceof Error ? f.reason.message : String(f.reason))).join("; ");
+    throw new Error(`Failed to clear ${failures.length} entry(ies) in '${path}': ${messages}`);
+  }
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -109,28 +115,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function resolveRegistryHost(image: string): string {
-  const [registryHost] = image.split("/");
-  return registryHost || "docker.io";
-}
-
-function buildRegistryLoginHint(image: string): string {
-  const registryHost = resolveRegistryHost(image);
-  return ` Try 'podman login ${registryHost}' and verify that the image tag exists and your account can access it.`;
-}
-
-function isRegistryAuthError(detail: string): boolean {
-  return /(pull access denied|requested access to the resource is denied|authentication required|unauthorized|denied: requested access|insufficient_scope)/i.test(
-    detail
-  );
-}
-
-function isImageUnavailableError(detail: string): boolean {
-  return /(manifest unknown|image not known|unable to pull|error locating image|repository does not exist)/i.test(
-    detail
-  );
-}
-
 function formatBootstrapError(context: string, image: string, error: unknown): Error {
   const detail = errorMessage(error).trim() || "unknown error";
   if (isRegistryAuthError(detail)) {
@@ -160,6 +144,8 @@ export async function runDrupalCreateProjectWithDependencies(
     "run",
     "--rm",
     ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
+    "-e",
+    "HOME=/tmp",
     "-v",
     `${targetDir}:/app`,
     "-w",
@@ -190,7 +176,7 @@ export async function runWordPressCreateProjectWithDependencies(
   dependencies: WordPressCreateProjectDependencies = {}
 ): Promise<void> {
   const execute = dependencies.runCommand ?? runCommand;
-  const wordpressImage = "docker.io/library/wordpress:6.7-php8.3-apache";
+  const wordpressImage = "docker.io/library/wordpress:6-php8.3-apache";
   const podmanArgs = [
     "run",
     "--rm",
@@ -304,6 +290,8 @@ export async function runSymfonyCreateProjectWithDependencies(
     "run",
     "--rm",
     ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
+    "-e",
+    "HOME=/tmp",
     "-v",
     `${targetDir}:/app`,
     "-w",

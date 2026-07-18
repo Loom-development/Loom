@@ -1,5 +1,5 @@
 import type { LoomConfig } from "@loom/config";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { CertificatePaths } from "@loom/https";
 import { ensurePodmanNetwork, runPodman } from "@loom/runtime-podman";
@@ -142,23 +142,48 @@ export async function ensureServiceNetwork(config: LoomConfig): Promise<string> 
   return network;
 }
 
-function proxyContainerName(projectName: string): string {
-  return `${projectName}-proxy`;
+const SHARED_PROXY = "loom-proxy";
+const PROXY_SITES_DIR = "/etc/caddy/sites";
+
+function proxyContainerName(): string {
+  return SHARED_PROXY;
 }
 
-function buildCaddyfile(bindings: RouteBinding[], certPath: string, keyPath: string): string {
-  const sections = bindings.map((binding) => {
+function buildProjectCaddyfile(bindings: RouteBinding[], certPath: string, keyPath: string): string {
+  return bindings.map((binding) => {
     const scheme = binding.https ? "https" : "http";
     const tlsConfig = binding.https ? `\n  tls ${certPath} ${keyPath}` : "";
     return `${scheme}://${binding.host} {\n  reverse_proxy ${binding.service}:${binding.targetPort}${tlsConfig}\n}`;
-  });
+  }).join("\n\n");
+}
 
+function buildMainCaddyfile(): string {
   return `{
   auto_https off
 }
-
-${sections.join("\n\n")}
+import ${PROXY_SITES_DIR}/*
 `;
+}
+
+async function writeSharedProxyConfig(
+  projectName: string,
+  bindings: RouteBinding[],
+  certPath: string,
+  keyPath: string,
+  networkDir: string
+): Promise<void> {
+  await mkdir(networkDir, { recursive: true });
+
+  const projectFile = resolve(networkDir, `${projectName}.Caddyfile`);
+  const mainFile = resolve(networkDir, "Caddyfile");
+
+  if (bindings.length > 0) {
+    await writeFile(projectFile, buildProjectCaddyfile(bindings, certPath, keyPath), "utf-8");
+  } else {
+    try { await rm(projectFile, { force: true }); } catch { /* ignore */ }
+  }
+
+  await writeFile(mainFile, buildMainCaddyfile(), "utf-8");
 }
 
 export async function ensureRouteProxy(
@@ -170,51 +195,44 @@ export async function ensureRouteProxy(
   hostHttpsPort = 8443
 ): Promise<ProxyRuntime> {
   const runDir = resolve(process.cwd(), ".loom", "network");
-  await mkdir(runDir, { recursive: true });
-
-  const caddyfilePath = resolve(runDir, `${config.name}.Caddyfile`);
   const mountedCertPath = "/certs/tls.crt";
   const mountedKeyPath = "/certs/tls.key";
-  const caddyfile = buildCaddyfile(bindings, mountedCertPath, mountedKeyPath);
-  await writeFile(caddyfilePath, caddyfile, "utf-8");
+  const container = proxyContainerName();
 
-  const container = proxyContainerName(config.name);
+  await writeSharedProxyConfig(config.name, bindings, mountedCertPath, mountedKeyPath, runDir);
+
   const exists = await runPodman(["container", "exists", container]);
-  if (exists.ok) {
-    const remove = await runPodman(["rm", "-f", container]);
-    if (!remove.ok) {
-      throw new Error(`Failed to replace proxy container '${container}': ${remove.stderr || "unknown error"}`);
+
+  if (!exists.ok) {
+    const start = await runPodman([
+      "run",
+      "-d",
+      "--name",
+      container,
+      "--network",
+      networkName,
+      "-p",
+      `${hostHttpPort}:80`,
+      "-p",
+      `${hostHttpsPort}:443`,
+      "-v",
+      `${runDir}:/etc/caddy/sites:ro`,
+      "-v",
+      `${certPaths.certPath}:${mountedCertPath}:ro`,
+      "-v",
+      `${certPaths.keyPath}:${mountedKeyPath}:ro`,
+      "docker.io/library/caddy:2-alpine",
+      "caddy",
+      "run",
+      "--config",
+      "/etc/caddy/sites/Caddyfile",
+      "--adapter",
+      "caddyfile"
+    ]);
+
+    if (!start.ok) {
+      throw new Error(`Failed to start route proxy container '${container}': ${start.stderr || "unknown error"}`);
     }
-  }
-
-  const start = await runPodman([
-    "run",
-    "-d",
-    "--name",
-    container,
-    "--network",
-    networkName,
-    "-p",
-    `${hostHttpPort}:80`,
-    "-p",
-    `${hostHttpsPort}:443`,
-    "-v",
-    `${caddyfilePath}:/etc/caddy/Caddyfile:ro`,
-    "-v",
-    `${certPaths.certPath}:${mountedCertPath}:ro`,
-    "-v",
-    `${certPaths.keyPath}:${mountedKeyPath}:ro`,
-    "docker.io/library/caddy:2-alpine",
-    "caddy",
-    "run",
-    "--config",
-    "/etc/caddy/Caddyfile",
-    "--adapter",
-    "caddyfile"
-  ]);
-
-  if (!start.ok) {
-    throw new Error(`Failed to start route proxy container '${container}': ${start.stderr || "unknown error"}`);
   }
 
   return {
@@ -235,23 +253,21 @@ export async function ensureRouteHosts(projectName: string, bindings: RouteBindi
       await writeFile(hostsPath, nextContent, "utf-8");
     }
     return result;
-  } catch {
-    // Cannot write hosts file (e.g. permission denied on Linux) — return hosts as pending
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`Warning: Failed to write hosts file (${message})\n`);
     return { managedHosts: [], skippedHosts: result.skippedHosts, pendingHosts: result.managedHosts };
   }
 }
 
 export async function stopRouteProxy(projectName: string): Promise<void> {
-  const container = proxyContainerName(projectName);
-  const exists = await runPodman(["container", "exists", container]);
-  if (!exists.ok) {
-    return;
-  }
+  const runDir = resolve(process.cwd(), ".loom", "network");
+  const projectFile = resolve(runDir, `${projectName}.Caddyfile`);
 
-  const remove = await runPodman(["rm", "-f", container]);
-  if (!remove.ok) {
-    throw new Error(`Failed to stop proxy container '${container}': ${remove.stderr || "unknown error"}`);
-  }
+  try { await rm(projectFile, { force: true }); } catch { /* ignore */ }
+
+  const mainFile = resolve(runDir, "Caddyfile");
+  await writeFile(mainFile, buildMainCaddyfile(), "utf-8");
 }
 
 export async function stopRouteHosts(projectName: string): Promise<void> {
@@ -263,7 +279,8 @@ export async function stopRouteHosts(projectName: string): Promise<void> {
     if (nextContent !== currentContent) {
       await writeFile(hostsPath, nextContent, "utf-8");
     }
-  } catch {
-    // Cannot access hosts file — skip silently
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`Warning: Failed to clean hosts file (${message})\n`);
   }
 }

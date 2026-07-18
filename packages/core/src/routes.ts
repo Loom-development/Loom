@@ -3,7 +3,7 @@ import type { RouteBinding } from "@loom/network";
 import type { OrchestratorDependencies } from "./dependencies.js";
 import type { OrchestratorOutput } from "./output.js";
 import { resolveHttpsInfo, resolveProxyCertificateInfo } from "./https.js";
-import { formatHttpsInfo, formatProxyPorts, formatRouteBindings } from "./startup.js";
+import { formatBrowserUrl, formatHttpsInfo, formatProxyPorts, formatRouteBindings } from "./startup.js";
 
 type RouteStartupDependencies = Pick<
   OrchestratorDependencies,
@@ -59,6 +59,10 @@ export async function publishConfiguredRoutes(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       output.writeErr(`Warning: failed to manage Windows hosts entries automatically: ${message}\n`);
+    }
+
+    for (const line of formatBrowserUrl(routeBindings, { http: proxy.httpPort, https: proxy.httpsPort })) {
+      output.writeOut(line);
     }
   }
 

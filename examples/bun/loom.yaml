@@ -1,5 +1,5 @@
 version: 1
-name: loom-node-bun
+name: loom-bun
 runtime:
   engine: podman
   rootless: true

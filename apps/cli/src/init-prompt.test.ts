@@ -17,7 +17,7 @@ test("chooseInitTemplate accepts numeric selection", async () => {
 
   assert.equal(template, "php-drupal");
   assert.match(captured, /Choose a template to initialize:/);
-  assert.match(captured, /12\. php-drupal - Drupal with PHP and MySQL\./);
+  assert.match(captured, /12\. php-drupal - Drupal served by nginx \+ PHP-FPM\./);
   assert.match(captured, /3\. node-mern - MongoDB, Express\.js API, React frontend, and Node\.js runtime\./);
   assert.match(captured, /\d+\. jamstack - JavaScript, APIs, Markup with a static-first frontend and Node\.js API\./);
 });
@@ -94,8 +94,8 @@ test("chooseInitImageOverrides skips locked env keys", async () => {
 
   const selected = await chooseInitImageOverrides(
     "php",
-    { PHP_IMAGE: "docker.io/dunglas/frankenphp:1-php8.3" },
-    ["PHP_IMAGE"],
+    { PHP_IMAGE: "docker.io/library/php:8.3-fpm-alpine", NGINX_IMAGE: "docker.io/library/nginx:alpine" },
+    ["PHP_IMAGE", "NGINX_IMAGE"],
     input,
     output
   );

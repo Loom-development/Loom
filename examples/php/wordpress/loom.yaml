@@ -6,36 +6,15 @@ runtime:
   machine:
     managed: true
 services:
-  db:
-    type: mysql
-    image: ${MYSQL_IMAGE:-docker.io/library/mysql:8.4}
-    volumes:
-      - ./data/mysql:/var/lib/mysql
-    env:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
-      MYSQL_PASSWORD: wordpress
-    ports:
-      - "3307:3306"
-    healthcheck:
-      command: mysqladmin ping -h 127.0.0.1 -proot
-      intervalSeconds: 5
-      timeoutSeconds: 5
-      retries: 30
-      startPeriodSeconds: 5
   cache:
     type: memcached
     image: ${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}
-    ports:
-      - "11214:11211"
   app:
     type: php
     image: ${WORDPRESS_IMAGE:-docker.io/library/wordpress:6-php8.3-apache}
     composer: false
     user: root
     userns: keep-id
-    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /var/www/html
     entrypoint: ""
     command: |
@@ -45,8 +24,8 @@ services:
       if ! php -r "exit(extension_loaded('memcached') ? 0 : 1);"; then
         export DEBIAN_FRONTEND=noninteractive
         apt-get update
-        apt-get install -y --no-install-recommends libmemcached-dev libsasl2-dev
-        printf '\n' | pecl install memcached
+        apt-get install -y --no-install-recommends libmemcached-dev libsasl2-dev libz-dev
+        printf 'yes\n\n\n\n\n\n\n' | pecl install memcached
         docker-php-ext-enable memcached
       fi
       current_gid="$(getent group www-data | cut -d: -f3)"
@@ -70,15 +49,24 @@ services:
     volumes:
       - ./wp-content:/var/www/html/wp-content
     dependsOn:
-      - db
       - cache
     env:
-      WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: wordpress
-      WORDPRESS_DB_PASSWORD: wordpress
-      WORDPRESS_DB_NAME: wordpress
       MEMCACHED_HOST: cache
       MEMCACHED_PORT: "11211"
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST:-db:3306}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:-wordpress}
+      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
+      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG:-}
+      WORDPRESS_AUTH_KEY: ${WORDPRESS_AUTH_KEY:-put your unique phrase here}
+      WORDPRESS_SECURE_AUTH_KEY: ${WORDPRESS_SECURE_AUTH_KEY:-put your unique phrase here}
+      WORDPRESS_LOGGED_IN_KEY: ${WORDPRESS_LOGGED_IN_KEY:-put your unique phrase here}
+      WORDPRESS_NONCE_KEY: ${WORDPRESS_NONCE_KEY:-put your unique phrase here}
+      WORDPRESS_AUTH_SALT: ${WORDPRESS_AUTH_SALT:-put your unique phrase here}
+      WORDPRESS_SECURE_AUTH_SALT: ${WORDPRESS_SECURE_AUTH_SALT:-put your unique phrase here}
+      WORDPRESS_LOGGED_IN_SALT: ${WORDPRESS_LOGGED_IN_SALT:-put your unique phrase here}
+      WORDPRESS_NONCE_SALT: ${WORDPRESS_NONCE_SALT:-put your unique phrase here}
       HOST_UID: ${HOST_UID:-1000}
       HOST_GID: ${HOST_GID:-1000}
     ports:

@@ -33,7 +33,7 @@ Common overrides:
 NODE_IMAGE=docker.io/library/node:22-alpine
 
 # PHP templates
-PHP_IMAGE=docker.io/dunglas/frankenphp:1-php8.3
+PHP_IMAGE=docker.io/library/php:8.3-fpm-alpine
 
 # WordPress app image
 PHP_IMAGE=docker.io/library/php:8.3-apache
@@ -74,7 +74,7 @@ Current restore support:
 - `node-mean`
 - `node-mern`
 - `node-t3`
-- `node-bun`
+- `bun`
 - `python`
 - `python-django`
 - `python-flask`

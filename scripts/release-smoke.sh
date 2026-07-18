@@ -15,12 +15,12 @@ require_command() {
 
 run_loom() {
   if [ -n "${LOOM_BIN_PATH:-}" ]; then
-    "$LOOM_BIN_PATH" "$@"
+    "$LOOM_BIN_PATH" "$@" </dev/null
     return
   fi
 
   if [ -n "${LOOM_BIN_NODE_ENTRY:-}" ]; then
-    node "$LOOM_BIN_NODE_ENTRY" "$@"
+    node "$LOOM_BIN_NODE_ENTRY" "$@" </dev/null
     return
   fi
 
@@ -29,6 +29,14 @@ run_loom() {
 }
 
 resolve_loom_bin() {
+  local_cli_entry="$REPO_ROOT/apps/cli/dist/index.js"
+  if [ -f "$local_cli_entry" ]; then
+    require_command node
+    LOOM_BIN_NODE_ENTRY="$local_cli_entry"
+    echo "Using local Loom CLI build at $LOOM_BIN_NODE_ENTRY"
+    return
+  fi
+
   if command -v "$LOOM_BIN" >/dev/null 2>&1; then
     LOOM_BIN_PATH="$(command -v "$LOOM_BIN")"
     return
@@ -37,14 +45,6 @@ resolve_loom_bin() {
   if [ "$LOOM_BIN" != "loom" ]; then
     echo "Missing required command: $LOOM_BIN" >&2
     exit 1
-  fi
-
-  local_cli_entry="$REPO_ROOT/apps/cli/dist/index.js"
-  if [ -f "$local_cli_entry" ]; then
-    require_command node
-    LOOM_BIN_NODE_ENTRY="$local_cli_entry"
-    echo "Using local Loom CLI build at $LOOM_BIN_NODE_ENTRY"
-    return
   fi
 
   echo "Missing required command: loom" >&2
@@ -99,6 +99,9 @@ stop_project() {
       cd "$project_dir"
       run_loom stop >/dev/null 2>&1 || true
     )
+    project_name="$(basename "$project_dir" | tr '-' '_')"
+    podman rm -f "loom-${project_name}-proxy" 2>/dev/null || true
+    sleep 2
   fi
 }
 
@@ -134,11 +137,13 @@ smoke_stack() {
   label="$1"
   template="$2"
   image_override="$3"
+  shift 3
+  extra_args="$*"
   project_dir="$work_root/$label"
 
   echo "===== RELEASE SMOKE: $label ====="
 
-  if ! run_loom init "$template" --dir "$project_dir" --image "$image_override"; then
+  if ! run_loom init "$template" --dir "$project_dir" --image "$image_override" $extra_args; then
     echo "init failed for $label" >&2
     fail=$((fail + 1))
     KEEP_WORK_ROOT=1
@@ -176,6 +181,40 @@ smoke_stack() {
         assert_owner backend/db.sqlite3 "$uid:$gid" || exit 1
         assert_owner frontend/node_modules "$uid:$gid" || exit 1
         ;;
+      python-flask)
+        run_loom exec app -- sh -c 'id && pwd && printf "flask-write\n" > owned-by-host.txt && ls -l app.py requirements.txt' || exit 1
+        assert_owner owned-by-host.txt "$uid:$gid" || exit 1
+        assert_owner app.py "$uid:$gid" || exit 1
+        ;;
+      python-fastapi)
+        run_loom exec app -- sh -c 'id && pwd && printf "fastapi-write\n" > owned-by-host.txt && ls -l app/main.py requirements.txt' || exit 1
+        assert_owner owned-by-host.txt "$uid:$gid" || exit 1
+        assert_owner app/main.py "$uid:$gid" || exit 1
+        ;;
+      php)
+        run_loom exec app -- sh -c 'id && pwd && printf "php-write\n" > owned-by-host.txt && ls -l index.php' || exit 1
+        assert_owner owned-by-host.txt "$uid:$gid" || exit 1
+        assert_owner index.php "$uid:$gid" || exit 1
+        ;;
+      dotnet)
+        run_loom exec app -- sh -c 'id && cd /workspace && printf "dotnet-write\n" > owned-by-host.txt && ls -ld src/obj src/bin src' || exit 1
+        assert_owner owned-by-host.txt "$uid:$gid" || exit 1
+        assert_owner src/obj "$uid:$gid" || exit 1
+        ;;
+      rails7-hotwire)
+        run_loom exec app -- sh -c 'id && pwd && mkdir -p tmp && printf "rails-hotwire-write\n" > tmp/owned-by-host.txt && ls -ld tmp' || exit 1
+        assert_owner tmp/owned-by-host.txt "$uid:$gid" || exit 1
+        ;;
+      astro)
+        run_loom exec app -- sh -c 'id && pwd && printf "astro-write\n" > owned-by-host.txt && ls -ld node_modules' || exit 1
+        assert_owner owned-by-host.txt "$uid:$gid" || exit 1
+        assert_owner node_modules "$uid:$gid" || exit 1
+        ;;
+      spring-boot)
+        run_loom exec app -- sh -c 'id && pwd && printf "spring-boot-write\n" > owned-by-host.txt && ls -ld target pom.xml' || exit 1
+        assert_owner owned-by-host.txt "$uid:$gid" || exit 1
+        assert_owner target "$uid:$gid" || exit 1
+        ;;
       *)
         echo "Unknown release smoke label: $label" >&2
         exit 1
@@ -195,11 +234,32 @@ smoke_stack() {
   echo
 }
 
+echo "===== Checking for running Loom proxies ====="
+running_proxies="$(podman ps --filter name=-proxy --format '{{.Names}} {{.Status}}' 2>/dev/null || true)"
+if [ -n "$running_proxies" ]; then
+  echo "Stopping existing Loom proxy containers before smoke tests:"
+  while read -r name status; do
+    echo "  - ${name} (${status})"
+    podman rm -f "$name" 2>/dev/null || true
+  done <<PROXIES
+$running_proxies
+PROXIES
+  sleep 2
+  echo
+fi
+
 smoke_stack node node "NODE_IMAGE=docker.io/library/node:22-alpine"
 smoke_stack python python "PYTHON_IMAGE=docker.io/library/python:3.12-slim"
 smoke_stack rails7 rails7 "RUBY_IMAGE=docker.io/library/ruby:3.3"
-smoke_stack wordpress php-wordpress "PHP_IMAGE=docker.io/library/php:8.3-apache"
+smoke_stack wordpress php-wordpress "WORDPRESS_IMAGE=docker.io/library/wordpress:6-php8.3-apache" --db mysql
 smoke_stack django-react django-react "PYTHON_IMAGE=docker.io/library/python:3.12-slim"
+smoke_stack python-flask python-flask "PYTHON_IMAGE=docker.io/library/python:3.12-slim"
+smoke_stack python-fastapi python-fastapi "PYTHON_IMAGE=docker.io/library/python:3.12-slim"
+smoke_stack php php "PHP_IMAGE=docker.io/library/php:8.3-fpm-alpine" --image "NGINX_IMAGE=docker.io/library/nginx:alpine"
+smoke_stack dotnet dotnet "DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0"
+smoke_stack rails7-hotwire rails7-hotwire "RUBY_IMAGE=docker.io/library/ruby:3.3"
+smoke_stack astro astro "NODE_IMAGE=docker.io/library/node:24-alpine"
+smoke_stack spring-boot spring-boot "JAVA_IMAGE=docker.io/library/maven:3.9-eclipse-temurin-21"
 
 echo "RESULT: pass=$pass fail=$fail"
 if [ "$fail" -gt 0 ]; then

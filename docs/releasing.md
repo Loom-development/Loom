@@ -97,21 +97,44 @@ Release workflow requirements:
 
 ## Create a release
 
+### 1. Bump the version
 
-Change the number
-
-```
-cd apps/cli && npm version 0.2.3 --no-git-tag-version
-
-```
-
-The release workflow in `.github/workflows/release.yml` runs on tags that match `v*`.
-
-Typical release flow:
+Update both `package.json` files to the same version:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+# Bump CLI package (what gets published to npm)
+cd apps/cli && npm version 0.2.9 --no-git-tag-version
+
+# Sync root package.json to match
+cd ../..
+node -e "
+const p = require('./package.json');
+p.version = '0.2.9';
+require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n');
+"
+```
+
+Or use `pnpm exec` to bump both:
+
+```bash
+pnpm exec --filter @loomdev/cli npm version 0.2.9 --no-git-tag-version
+node -e "const p=require('./package.json');p.version='0.2.9';require('fs').writeFileSync('./package.json',JSON.stringify(p,null,2)+'\n');"
+```
+
+### 2. Verify everything is clean
+
+```bash
+pnpm install --frozen-lockfile
+pnpm verify
+```
+
+### 3. Commit and tag
+
+```bash
+git add -A
+git commit -m "v0.2.9"
+git tag v0.2.9
+git push origin main v0.2.9
 ```
 
 When that tag is pushed, GitHub Actions will:
@@ -120,21 +143,11 @@ When that tag is pushed, GitHub Actions will:
 - run `pnpm verify:coverage`,
 - build the standalone release archives,
 - build and pack the npm CLI package,
-- create or update the GitHub release for that tag,
-- upload files from `dist/release`,
+- create a GitHub release for the tag,
+- upload release assets from `dist/release`,
 - publish `@loomdev/cli` to npm.
 
-If a GitHub release for the tag already exists, the workflow updates the title and replaces uploaded assets.
-
-The release workflow will:
-
-- verify the repository with coverage,
-- build the standalone GitHub release archives,
-- build and pack the npm CLI package,
-- publish `@loomdev/cli` to npm,
-- attach the standalone archives and packed npm tarball from `dist/release` to the GitHub release.
-
-The dry-run workflow also builds and packs the npm CLI package into `dist/release` so package publication issues are caught before tagging.
+The dry-run workflow in `.github/workflows/release-dry-run.yml` builds and packs the npm CLI package into `dist/release` so publication issues are caught before tagging.
 
 ## Update to latest
 

@@ -1,16 +1,18 @@
 # Loom
 
-Loom is a beginner-friendly local development CLI powered by Podman.
+> One command. Full stack. No Docker Desktop.
 
-It gives you a ready-to-run app stack in minutes with one command, so you can stop wrestling with container setup and start building features.
+Loom is a local development CLI that gives you a ready-to-run app stack in minutes. Pick a template — `loom start` — and you're building. Works on Linux, macOS, and Windows. Powered by Podman.
 
-## Why Loom is worth using
 
-- **Fast onboarding**: spin up full stacks from templates (`Node`, `Python`, `PHP`, databases, and more).
-- **Simple commands**: start, stop, logs, exec, backups — all through one CLI.
-- **Safer startup**: Loom waits for dependencies to become ready before continuing.
-- **Cross-platform**: works on Linux, macOS, and Windows with Podman.
-- **Built for local DX**: local networking, automatic HTTPS certs for routes, and predictable workflows.
+## Why Loom
+
+- **Templates that work**: 30+ starter templates — Node, Python, PHP, Ruby, Java, .NET, Astro, and more. Framework setups for Django, Rails, Symfony, Spring Boot, Next.js. Every template is tested in CI.
+- **Databases without the pain**: `--db postgres` adds a database, generates credentials, wires the connection, and waits for it to be ready.
+- **Automatic HTTPS**: every project gets a local TLS cert and a hostname like `https://myapp.loom.local`.
+- **Health-checked startup**: Loom waits for dependencies to actually be ready, not just "container started."
+- **Host-aligned permissions**: files written inside containers are owned by you, not root.
+- **Free and open**: Podman handles the runtime — no Docker Desktop license required.
 
 ## Install Loom
 
@@ -26,31 +28,49 @@ curl -fsSL https://raw.githubusercontent.com/Loom-development/Loom/main/scripts/
 loom --help
 ```
 
-## 60-second quick start
+## How it works
+
+### 1. Pick a template
 
 ```bash
-# 1) create a project from a template
 loom init node --dir my-app
-
-# 2) enter project
-cd my-app
-
-# 3) start stack
-loom start
-
-# 4) check health
-loom status
 ```
 
-When you are done:
+No `Dockerfile`, no `docker-compose.yml`. Loom generates a working project. Run it interactively to pick your template, runtime, and database.
+
+### 2. Start the stack
 
 ```bash
-loom stop
+cd my-app && loom start
+```
+
+Loom pulls the image, installs your dependencies, starts your database, waits for everything to be healthy, generates HTTPS certs, and maps a local domain. All automatic.
+
+### 3. Open your browser
+
+```
+https://my-app.loom.local
+```
+
+No `localhost:3000`. No port numbers. No cert warnings. Just your app.
+
+When you're done: `loom stop`.
+
+## Everyday commands
+
+```bash
+loom start              # start the project
+loom stop               # stop everything
+loom status             # see what's running
+loom logs app           # tail logs for the 'app' service
+loom exec app -- sh     # open a shell inside the container
+loom restart            # stop + start
+loom restart --recreate # clean rebuild (wipes caches, re-installs)
 ```
 
 ## Start a project with a database
 
-Pass `--db` to `loom init` to add a database alongside your app in one step.
+No template includes a database by default. Add databases during init with the `--db` flag or via the interactive prompt.
 
 ```bash
 # Node app + PostgreSQL
@@ -58,16 +78,18 @@ loom init node --dir my-app --db postgres
 cd my-app
 loom start
 
-# PHP app + MySQL
-loom init php --dir my-php --db mysql
-cd my-php
+# Drupal + MySQL
+loom init php-drupal --dir my-drupal --db mysql
+cd my-drupal
 loom start
 
-# Python app + MongoDB
-loom init python --dir my-python --db mongodb
+# Python app + MongoDB + Redis
+loom init python --dir my-python --db mongodb --db redis
 cd my-python
 loom start
 ```
+
+When running `loom init` without a `--db` flag in an interactive terminal, Loom prompts you to optionally add a database.
 
 Supported database types: `postgres`, `mysql`, `mariadb`, `mongodb`, `redis`
 
@@ -119,7 +141,7 @@ RUBY_IMAGE=docker.io/library/ruby:3.3
 - `loom ps` — list project containers
 - `loom logs <service> --no-follow` — quick logs snapshot
 - `loom logs <service> -f` — follow live logs
-- `loom exec <service> -- <command>` — run commands inside a service container
+- `loom exec <service> -- <command>` — run commands inside a service container (use `--` before the command to avoid flag parsing conflicts)
 - `loom backup <service>` — backup supported database service
 - `loom backup --all` — backup all supported database services
 - `loom restore <service> <input>` — restore a supported database service from a local backup file
@@ -141,19 +163,37 @@ pnpm verify:coverage
 
 ## Popular templates
 
-- **Starter apps**: `node`, `python`, `php`, `node-bun`
+- **Starter apps**: `node`, `python`, `php`, `bun`
 - **Full stacks**: `node-mern`, `node-mean`, `node-t3`, `spring-react`, `django-react`
-- **Framework apps**: `python-django`, `python-flask`, `python-fastapi`, `php-wordpress`, `php-drupal`, `php-symfony`, `rails7`, `rails7-hotwire`, `dotnet`, `jamstack`, `serverless`
+- **Framework apps**: `python-django`, `python-flask`, `python-fastapi`, `php-wordpress`, `php-drupal`, `php-symfony`, `rails7`, `rails7-hotwire`, `spring-boot`, `astro`, `dotnet`, `jamstack`, `serverless`
 - **Databases**: `db-postgres`, `db-mysql`, `db-mongodb`, `db-redis`, `db-sqlite`, `db-sqlserver`, `db-mariadb`, `db-elasticsearch`, `db-all`
 
 Examples matrix with domains, ports, and usage: [docs/examples-matrix.md](docs/examples-matrix.md)
+
+## What happens on `loom init` for bootstrap-heavy templates
+
+Templates like `php-drupal`, `php-symfony`, `rails7`, and `rails7-hotwire` bootstrap their project structure during `loom init` by running the upstream tool in a temporary container. For example:
+
+- `php-symfony` runs `composer create-project symfony/skeleton` in a `composer:2` container.
+- `php-drupal` runs `composer create-project drupal/recommended-project` in a `composer:2` container.
+- `rails7` and `rails7-hotwire` run `rails new` in the configured Ruby image.
+- `php-wordpress` copies WordPress from the official WordPress image.
+
+This means the project files you get are generated fresh from the upstream release — just like running `composer create-project` or `rails new` yourself.
+
+Loom project files (`loom.yaml`, `.env.example`, `README.md`) are layered on top. The only project file Loom modifies after bootstrap is `wp-config.php` for WordPress (to inject DB credentials from environment variables), or when a connection URL needs adjustment.
 
 ## What happens on `loom start`
 
 - Loom checks Podman availability.
 - Loom starts services in dependency order.
+- Each service container installs project dependencies using the configured dependency manager (`npm install`, `composer install`, `pip install`, `bundle install`, etc.) before starting the application.
 - Loom validates readiness (healthcheck or port reachability).
 - Loom prepares local route proxy + HTTPS certs when routes are configured.
+
+Dependencies are installed at container startup, not pre-bundled in templates. This keeps templates lightweight and ensures every `loom start` uses the latest compatible versions from your lock files.
+
+> **Note:** The first `loom start` after `loom init` may take a few minutes while the container installs all project dependencies from scratch (`npm install`, `pip install`, `bundle install`, `composer install`, etc.). Subsequent starts are fast — the dependency cache lives inside the container and persists across restarts unless you use `loom start --recreate`.
 
 If existing project containers drift from the current config or you want a clean rebuild of the stack, run `loom start --recreate`.
 
@@ -193,6 +233,27 @@ services:
 ```
 
 That keeps startup flexible while making `loom exec app -- sh` and configured tasks enter the container as the same host-aligned user your long-running app process uses.
+
+## Cleaning up Podman disk space
+
+Podman caches images, containers, and volumes over time. To free disk space:
+
+```bash
+podman system prune --all --volumes --force
+```
+
+This removes all stopped containers, unused images, and dangling volumes.
+
+**Before running this command:**
+- Backup any project databases with `loom backup <service> <output-file>` first.
+- The command deletes ALL unused volumes — including any database data stored in anonymous or named Docker volumes you may be using outside Loom projects.
+- If a Loom project is currently running, its volumes are protected (in use). Still, stop running projects first to be safe.
+
+To inspect what would be deleted without actually removing anything:
+
+```bash
+podman system prune --all --volumes --dry-run
+```
 
 ## Supported DB backup types
 
@@ -249,6 +310,29 @@ Related documentation:
 - [docs/architecture.md](docs/architecture.md) for the high-level flow.
 - [packages/core/README.md](packages/core/README.md) for core module ownership.
 - [packages/runtime-podman/README.md](packages/runtime-podman/README.md) for Podman runtime module ownership.
+
+## How Loom compares
+
+| | Loom | Docker Compose | Laravel Sail | Laragon |
+|---|---|---|---|---|
+| One-command start | Yes | No | No | No |
+| Free / no license | Yes | Yes* | Yes | Yes |
+| Cross-platform | Yes | Yes | Yes | Windows only |
+| Built-in HTTPS | Yes | Manual | Manual | Manual |
+| DB backup/restore | Yes | Manual | Manual | Manual |
+| Health-based startup | Yes | depends_on | No | No |
+| Host file ownership | Yes | Manual | Manual | N/A |
+| Requires Docker Desktop | No | Yes | Yes | N/A |
+
+*Docker Desktop requires a paid license for commercial use in organizations with 250+ employees or \$10M+ revenue.
+
+## Who Loom is for
+
+**Beginners** — you finished a tutorial and want to build something real. You don't want to learn Docker. `loom init` gives you a working project. `loom start` makes it go.
+
+**Experienced devs** — you know Docker but you're tired of writing the same Compose file for the 40th time. Loom handles health checks, permissions, and backups so you don't have to.
+
+**Teams** — new members clone the repo and run `loom start`. No 20-page setup guide. No port conflict issues. Just start building.
 
 ## Learn more
 

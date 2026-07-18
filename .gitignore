@@ -5,9 +5,6 @@ dist/
 coverage/
 *.tsbuildinfo
 
-docs/
-**/docs/
-
 *.log
 npm-debug.log*
 pnpm-debug.log*
@@ -46,3 +43,7 @@ data/
 
 **/.next/
 **/.turbo/
+**/.angular/
+
+*.sqlite3
+*.db.sqlite3

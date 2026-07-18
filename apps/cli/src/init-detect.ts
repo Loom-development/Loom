@@ -1,9 +1,9 @@
-import { readFile, readdir } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 async function pathExists(path: string): Promise<boolean> {
   try {
-    await readFile(path, "utf8");
+    await access(path);
     return true;
   } catch {
     return false;
@@ -43,7 +43,7 @@ export async function detectInitTemplateSuggestion(rootDir: string): Promise<str
   const packageJson = await readOptionalFile(resolve(rootDir, "package.json"));
   if (packageJson) {
     if (includesAny(packageJson, ["\"bun\"", "bun.lock", "bunfig.toml"])) {
-      return "node-bun";
+      return "bun";
     }
 
     return "node";
@@ -99,11 +99,11 @@ export async function detectInitTemplateSuggestion(rootDir: string): Promise<str
   }
 
   if (await pathExists(resolve(rootDir, "bun.lockb"))) {
-    return "node-bun";
+    return "bun";
   }
 
   if (await pathExists(resolve(rootDir, "bun.lock"))) {
-    return "node-bun";
+    return "bun";
   }
 
   return undefined;

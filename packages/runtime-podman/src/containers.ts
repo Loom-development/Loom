@@ -1,28 +1,85 @@
 import { createHash } from "node:crypto";
-import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, rm } from "node:fs/promises";
+import { resolve, join } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { tmpdir, userInfo } from "node:os";
 import type { LoomService } from "@loom/config";
 import { runPodman } from "./podman.js";
+
+const execFileAsync = promisify(execFile);
 import type { ContainerSummary } from "./types.js";
 
 export function normalizeImage(image: string): string {
-  const hasRegistry = image.includes("/") || image.includes("localhost/");
-  return hasRegistry ? image : `docker.io/library/${image}`;
+  if (image.includes("/")) {
+    if (image.startsWith("docker.io/") && !image.startsWith("docker.io/library/")) {
+      const rest = image.slice("docker.io/".length);
+      return rest.includes("/") ? image : `docker.io/library/${rest}`;
+    }
+    return image;
+  }
+  return `docker.io/library/${image}`;
 }
 
 export function containerName(projectName: string, serviceName: string): string {
   return `${projectName}-${serviceName}`;
 }
 
+async function isDnsWorking(networkName: string): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync("podman", [
+      "run", "--rm", "--network", networkName,
+      "docker.io/library/alpine:latest",
+      "nslookup", "google.com"
+    ], { timeout: 15_000 });
+    return /Non-authoritative answer/.test(stdout);
+  } catch {
+    return false;
+  }
+}
+
+async function restartAardvarkDns(): Promise<void> {
+  process.stderr.write("Loom: aardvark-dns is not responding, restarting it...\n");
+
+  if (process.platform === "linux") {
+    try {
+      await execFileAsync("pkill", ["-9", "aardvark-dns"], { timeout: 5_000 });
+    } catch { /* not running or not found */ }
+
+    const uid = userInfo().uid;
+    const configDir = join(tmpdir(), `containers-user-${uid}`, "containers", "networks", "aardvark-dns");
+    try {
+      await rm(configDir, { recursive: true, force: true });
+    } catch { /* may not exist */ }
+
+    await new Promise((r) => setTimeout(r, 3000));
+  } else {
+    // macOS / Windows: restart the Podman Machine VM
+    try {
+      await execFileAsync("podman", ["machine", "stop"], { timeout: 30_000 });
+      await execFileAsync("podman", ["machine", "start"], { timeout: 60_000 });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`Loom: could not restart Podman Machine: ${msg}\n`);
+    }
+  }
+}
+
 export async function ensurePodmanNetwork(networkName: string): Promise<void> {
-  const inspect = await runPodman(["network", "exists", networkName]);
-  if (inspect.ok) {
-    return;
+  const exists = await runPodman(["network", "exists", networkName]);
+  if (!exists.ok) {
+    const create = await runPodman(["network", "create", networkName]);
+    if (!create.ok) {
+      throw new Error(`Failed to create network '${networkName}': ${create.stderr || "unknown error"}`);
+    }
   }
 
-  const create = await runPodman(["network", "create", networkName]);
-  if (!create.ok) {
-    throw new Error(`Failed to create network '${networkName}': ${create.stderr || "unknown error"}`);
+  if (!(await isDnsWorking(networkName))) {
+    await restartAardvarkDns();
+    if (!(await isDnsWorking(networkName))) {
+      process.stderr.write(`Loom: DNS is still not working on network '${networkName}'. ` +
+        `Try: podman system reset --force\n`);
+    }
   }
 }
 
@@ -244,7 +301,7 @@ export async function buildPodmanRunArgs(
   args.push(expectedImage);
 
   if (service.command) {
-    args.push("sh", "-lc", service.command);
+    args.push("sh", "-c", service.command);
   }
 
   return args;

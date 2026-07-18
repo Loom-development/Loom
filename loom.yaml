@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: node
-    image: docker.io/library/node:20-alpine
+    image: docker.io/library/node:24-alpine
     workdir: /workspace
     command: pnpm dev
     ports:
