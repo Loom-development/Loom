@@ -1,7 +1,7 @@
 node_modules/
 .pnpm-store/
 .kilo/
-example/
+examples/
 scripts/
 loom-marketing.md
 docs/
