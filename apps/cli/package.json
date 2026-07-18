@@ -1,6 +1,6 @@
 {
   "name": "@loomdev/cli",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Command-line interface for Loom local development workflows.",
   "keywords": [
     "loom",
@@ -49,7 +49,8 @@
     "dev": "tsx src/index.ts",
     "lint": "echo 'No lint rules configured'"
   },
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
     "cac": "^6.7.14",
     "@loom/config": "workspace:*",
     "@loom/core": "workspace:*",
