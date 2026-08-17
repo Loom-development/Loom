@@ -7,7 +7,7 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
 import { loadLoomProject } from "@loom/config";
-import { LoomOrchestrator } from "@loom/core";
+import { formatFirstStartNotice, LoomOrchestrator } from "@loom/core";
 import { runNamedTask } from "@loom/tasks";
 import { detectInitTemplateSuggestion } from "./init-detect.js";
 import {
@@ -90,12 +90,14 @@ const topLevelIgnoredTemplateEntries = new Set([
 const phpDocrootIgnoredTemplates = new Set(["php-wordpress", "php-drupal"]);
 
 function withErrorHandling<TArgs extends unknown[]>(fn: (...args: TArgs) => Promise<void>) {
-  return (...args: TArgs) => {
-    fn(...args).catch((error: unknown) => {
+  return async (...args: TArgs) => {
+    try {
+      await fn(...args);
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       process.stderr.write(`${message}\n`);
       process.exitCode = 1;
-    });
+    }
   };
 }
 
@@ -829,6 +831,7 @@ cli
         await customizeDbTemplateCredentials(targetDir);
       }
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
+      process.stdout.write(formatFirstStartNotice());
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);
     })
   );
@@ -961,4 +964,5 @@ cli
 cli.help();
 cli.version(packageJson.version);
 
-cli.parse();
+cli.parse(process.argv, { run: false });
+await cli.runMatchedCommand();

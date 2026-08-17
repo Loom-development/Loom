@@ -18,7 +18,7 @@ services:
       home_dir="/tmp/loom-home"
       mkdir -p "$home_dir/.cache/pip"
       chmod 0777 "$home_dir"
-      exec env HOME="$home_dir" PATH="$home_dir/.local/bin:$PATH" PIP_CACHE_DIR="$home_dir/.cache/pip" sh -lc 'pip install --disable-pip-version-check --user -r requirements.txt && python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8001'
+      exec env HOME="$home_dir" PATH="$home_dir/.local/bin:$PATH" PIP_CACHE_DIR="$home_dir/.cache/pip" sh -c 'pip install --disable-pip-version-check --user -r requirements.txt && python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8001'
     ports:
       - "8001:8001"
     volumes:
@@ -43,7 +43,7 @@ services:
       home_dir="/tmp/loom-home"
       mkdir -p "$home_dir/.npm"
       chmod 0777 "$home_dir"
-      exec env HOME="$home_dir" npm_config_cache="$home_dir/.npm" sh -lc 'npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5176'
+      exec env HOME="$home_dir" npm_config_cache="$home_dir/.npm" sh -c 'npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5176'
     ports:
       - "5176:5176"
     volumes:

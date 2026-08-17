@@ -31,7 +31,7 @@ services:
       corepack enable
       mkdir -p "$home_dir"
       chmod 0777 "$home_dir"
-      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -lc 'pnpm install && pnpm dev'
+      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -c 'pnpm install && pnpm dev'
     ports:
       - "3003:3003"
     volumes:

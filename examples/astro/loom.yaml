@@ -30,7 +30,7 @@ services:
       fi
       mkdir -p "$home_dir"
       chmod 0777 "$home_dir"
-      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -lc 'npm install && npx astro dev --host 0.0.0.0 --port 4321'
+      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -c 'npm install && npx astro dev --host 0.0.0.0 --port 4321'
     ports:
       - "4321:4321"
     volumes:

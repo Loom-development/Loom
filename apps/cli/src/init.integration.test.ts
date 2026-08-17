@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { chmod, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -9,15 +10,51 @@ import { spawnSync } from "node:child_process";
 function runCli(args: string[], options: { env?: NodeJS.ProcessEnv; input?: string } = {}) {
   const currentFileDir = dirname(fileURLToPath(import.meta.url));
   const cliPath = resolve(currentFileDir, "index.js");
+  const captureDir = mkdtempSync(join(tmpdir(), "loom-cli-output-"));
+  const stdinPath = join(captureDir, "stdin");
+  const stdoutPath = join(captureDir, "stdout");
+  const stderrPath = join(captureDir, "stderr");
+  writeFileSync(stdinPath, options.input ?? "", "utf8");
+  const stdinFd = openSync(stdinPath, "r");
+  const stdoutFd = openSync(stdoutPath, "w");
+  const stderrFd = openSync(stderrPath, "w");
 
-  return spawnSync(process.execPath, [cliPath, ...args], {
-    encoding: "utf8",
-    input: options.input,
-    env: {
-      ...process.env,
-      ...options.env
+  try {
+    const result = spawnSync(process.execPath, [cliPath, ...args], {
+      encoding: "utf8",
+      stdio: [stdinFd, stdoutFd, stderrFd],
+      env: {
+        ...process.env,
+        ...options.env
+      }
+    });
+    closeSync(stdinFd);
+    closeSync(stdoutFd);
+    closeSync(stderrFd);
+
+    return {
+      ...result,
+      stdout: readFileSync(stdoutPath, "utf8"),
+      stderr: readFileSync(stderrPath, "utf8")
+    };
+  } finally {
+    try {
+      closeSync(stdinFd);
+    } catch {
+      // already closed after a successful spawn
     }
-  });
+    try {
+      closeSync(stdoutFd);
+    } catch {
+      // already closed after a successful spawn
+    }
+    try {
+      closeSync(stderrFd);
+    } catch {
+      // already closed after a successful spawn
+    }
+    rmSync(captureDir, { recursive: true, force: true });
+  }
 }
 
 test("init php defaults docroot to '.' when not provided", async () => {
@@ -85,6 +122,9 @@ test("init python does not include a database service by default", async () => {
 test("init php-wordpress accepts php-docroot and reports ignore warning", async () => {
   const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
   const targetDir = join(tempRoot, "wp-docroot");
+  await mkdir(targetDir, { recursive: true });
+  await writeFile(join(targetDir, "index.php"), "<?php", "utf8");
+  await writeFile(join(targetDir, "wp-config.php"), "<?php", "utf8");
 
   const result = runCli(["init", "php-wordpress", "--dir", targetDir, "--php-docroot", "public"]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -104,6 +144,7 @@ test("init applies runtime image overrides from --image", async () => {
   assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:24-alpine\}/);
   assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:22-alpine/);
   assert.match(result.stdout, /Configured runtime image selections/);
+  assert.match(result.stdout, /The first start may take a few minutes while Loom downloads images and installs dependencies/);
 });
 
 test("init bootstrap-heavy starters include readiness healthchecks", async () => {

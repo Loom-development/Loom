@@ -126,6 +126,7 @@ test("start uses injected dependencies instead of direct runtime bindings", asyn
     "ready:app"
   ]);
   assert.deepEqual(lines, [
+    "Note: The first start may take a few minutes while Loom downloads images and installs dependencies. Subsequent starts are usually faster.\n",
     "Starting 1 service(s) for demo on network demo-net...\n",
     "- started app\n"
   ]);
@@ -224,6 +225,7 @@ test("start writes formatted route and https summaries through the output adapte
   await orchestrator.start();
 
   assert.deepEqual(lines, [
+    "Note: The first start may take a few minutes while Loom downloads images and installs dependencies. Subsequent starts are usually faster.\n",
     "Starting 1 service(s) for demo on network demo-net...\n",
     "- started app\n",
     "Route bindings:\n",
@@ -357,6 +359,7 @@ test("start with recreate removes existing project containers before starting se
     "Recreating 2 existing container(s) for demo...\n",
     "- removed demo-app\n",
     "- removed demo-proxy\n",
+    "Note: The first start may take a few minutes while Loom downloads images and installs dependencies. Subsequent starts are usually faster.\n",
     "Starting 1 service(s) for demo on network demo-net...\n",
     "- started app\n"
   ]);

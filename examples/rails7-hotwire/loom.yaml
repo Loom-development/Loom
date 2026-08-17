@@ -31,7 +31,7 @@ services:
       gem install bundler --no-document
       mkdir -p "$home_dir"
       chmod 0777 "$home_dir"
-      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" BUNDLE_PATH="$home_dir/.bundle" BUNDLE_APP_CONFIG="$home_dir/.bundle-config" sh -lc 'bundle install && bin/rails server -b 0.0.0.0 -p 3008'
+      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" BUNDLE_PATH="$home_dir/.bundle" BUNDLE_APP_CONFIG="$home_dir/.bundle-config" sh -c 'bundle install && bin/rails server -b 0.0.0.0 -p 3008'
     ports:
       - "3008:3008"
     volumes:

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -9,10 +10,38 @@ import { spawnSync } from "node:child_process";
 function runCli(args: string[]) {
   const currentFileDir = dirname(fileURLToPath(import.meta.url));
   const cliPath = resolve(currentFileDir, "index.js");
+  const captureDir = mkdtempSync(join(tmpdir(), "loom-cli-output-"));
+  const stdoutPath = join(captureDir, "stdout");
+  const stderrPath = join(captureDir, "stderr");
+  const stdoutFd = openSync(stdoutPath, "w");
+  const stderrFd = openSync(stderrPath, "w");
 
-  return spawnSync(process.execPath, [cliPath, ...args], {
-    encoding: "utf8"
-  });
+  try {
+    const result = spawnSync(process.execPath, [cliPath, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", stdoutFd, stderrFd]
+    });
+    closeSync(stdoutFd);
+    closeSync(stderrFd);
+
+    return {
+      ...result,
+      stdout: readFileSync(stdoutPath, "utf8"),
+      stderr: readFileSync(stderrPath, "utf8")
+    };
+  } finally {
+    try {
+      closeSync(stdoutFd);
+    } catch {
+      // already closed after a successful spawn
+    }
+    try {
+      closeSync(stderrFd);
+    } catch {
+      // already closed after a successful spawn
+    }
+    rmSync(captureDir, { recursive: true, force: true });
+  }
 }
 
 test("logs reports unknown service with suggestion and available services", async () => {

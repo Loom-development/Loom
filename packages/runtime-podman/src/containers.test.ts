@@ -105,7 +105,7 @@ test("buildPodmanRunArgs includes labels, env, ports, and shell command", async 
     "loom.service-hash=service-hash",
     "docker.io/library/node:20-alpine",
     "sh",
-    "-lc",
+    "-c",
     "node server.js"
   ]);
 });

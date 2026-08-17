@@ -17,8 +17,10 @@ import { stopProjectResources } from "./lifecycle.js";
 import { requireConfiguredService } from "./services.js";
 import { buildLoomStatus, type LoomStatus } from "./status.js";
 import {
+  formatFirstStartNotice,
   formatStartHeader
 } from "./startup.js";
+export { formatFirstStartNotice } from "./startup.js";
 import { publishConfiguredRoutes } from "./routes.js";
 import { ensureRuntimeReady } from "./runtime.js";
 import { startConfiguredService } from "./service-start.js";
@@ -57,6 +59,7 @@ export class LoomOrchestrator {
     const networkName = await this.dependencies.ensureServiceNetwork(this.config);
     const routeBindings = this.dependencies.resolveRouteBindings(this.config);
     const order = dependencyOrder(this.config);
+    this.output.writeOut(formatFirstStartNotice());
     this.output.writeOut(formatStartHeader(this.config.name, order.length, networkName));
 
     for (const serviceName of order) {

@@ -30,7 +30,7 @@ services:
       fi
       mkdir -p "$home_dir"
       chmod 0777 "$home_dir"
-      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -lc 'npm install && npm start'
+      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -c 'npm install && npm start'
     ports:
       - "3001:3001"
     volumes:
@@ -67,7 +67,7 @@ services:
       fi
       mkdir -p "$home_dir"
       chmod 0777 "$home_dir"
-      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -lc 'npm install && npm start'
+      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -c 'npm install && npm start'
     ports:
       - "4200:4200"
     volumes:
