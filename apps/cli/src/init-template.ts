@@ -185,7 +185,7 @@ export async function runWordPressCreateProjectWithDependencies(
     `${targetDir}:/app`,
     wordpressImage,
     "sh",
-    "-lc",
+    "-c",
     "cp -a /usr/src/wordpress/. /app/"
   ];
 
@@ -222,7 +222,7 @@ export async function runRailsCreateProjectWithDependencies(
     "/workspace",
     rubyImage,
     "sh",
-    "-lc",
+    "-c",
     `gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && ${railsExecutable} _7.1.5_ new . --skip-javascript --skip-test --skip-system-test`
   ];
 
@@ -259,7 +259,7 @@ export async function runRailsHotwireCreateProjectWithDependencies(
     "/workspace",
     rubyImage,
     "sh",
-    "-lc",
+    "-c",
     `gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && ${railsExecutable} _7.1.5_ new . --skip-test --skip-system-test`
   ];
 
@@ -298,7 +298,7 @@ export async function runSymfonyCreateProjectWithDependencies(
     "/app",
     composerImage,
     "sh",
-    "-lc",
+    "-c",
     "composer create-project symfony/skeleton . && composer require symfony/webapp-pack"
   ];
 

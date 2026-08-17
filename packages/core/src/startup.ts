@@ -16,8 +16,8 @@ interface HttpsInfoLike {
   keyPath: string;
 }
 
-export function formatFirstStartNotice(): string {
-  return "Note: The first start may take a few minutes while Loom downloads images and installs dependencies. Subsequent starts are usually faster.\n";
+export function formatStartupNotice(): string {
+  return "Note: Startup may take a few minutes while Loom downloads images and installs dependencies. Starts using cached resources are usually faster.\n";
 }
 
 export function formatStartHeader(projectName: string, serviceCount: number, networkName: string): string {

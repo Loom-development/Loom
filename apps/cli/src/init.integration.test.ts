@@ -144,7 +144,7 @@ test("init applies runtime image overrides from --image", async () => {
   assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:24-alpine\}/);
   assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:22-alpine/);
   assert.match(result.stdout, /Configured runtime image selections/);
-  assert.match(result.stdout, /The first start may take a few minutes while Loom downloads images and installs dependencies/);
+  assert.match(result.stdout, /Startup may take a few minutes while Loom downloads images and installs dependencies/);
 });
 
 test("init bootstrap-heavy starters include readiness healthchecks", async () => {
@@ -352,7 +352,7 @@ test("init rails7-hotwire bootstraps a Rails + Hotwire project before copying Lo
       "      ;;",
       "  esac",
       "done",
-      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-lc\" ]; then",
+      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-c\" ]; then",
       "  echo 'unexpected podman args' >&2",
       "  exit 23",
       "fi",
@@ -425,7 +425,7 @@ test("init php-symfony bootstraps a Symfony project before copying Loom files", 
       "      ;;",
       "  esac",
       "done",
-      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-lc\" ]; then",
+      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-c\" ]; then",
       "  echo 'unexpected podman args' >&2",
       "  exit 23",
       "fi",
@@ -808,7 +808,7 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
       "      ;;",
       "  esac",
       "done",
-      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-lc\" ] || [ \"$3\" != \"cp -a /usr/src/wordpress/. /app/\" ]; then",
+      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-c\" ] || [ \"$3\" != \"cp -a /usr/src/wordpress/. /app/\" ]; then",
       "  echo 'unexpected podman args' >&2",
       "  exit 23",
       "fi",
@@ -952,7 +952,7 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
       "      ;;",
       "  esac",
       "done",
-      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-lc\" ] || [ \"$3\" != \"gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-javascript --skip-test --skip-system-test\" ]; then",
+      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-c\" ] || [ \"$3\" != \"gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-javascript --skip-test --skip-system-test\" ]; then",
       "  echo 'unexpected podman args' >&2",
       "  exit 23",
       "fi",

@@ -126,7 +126,7 @@ test("start uses injected dependencies instead of direct runtime bindings", asyn
     "ready:app"
   ]);
   assert.deepEqual(lines, [
-    "Note: The first start may take a few minutes while Loom downloads images and installs dependencies. Subsequent starts are usually faster.\n",
+    "Note: Startup may take a few minutes while Loom downloads images and installs dependencies. Starts using cached resources are usually faster.\n",
     "Starting 1 service(s) for demo on network demo-net...\n",
     "- started app\n"
   ]);
@@ -225,7 +225,7 @@ test("start writes formatted route and https summaries through the output adapte
   await orchestrator.start();
 
   assert.deepEqual(lines, [
-    "Note: The first start may take a few minutes while Loom downloads images and installs dependencies. Subsequent starts are usually faster.\n",
+    "Note: Startup may take a few minutes while Loom downloads images and installs dependencies. Starts using cached resources are usually faster.\n",
     "Starting 1 service(s) for demo on network demo-net...\n",
     "- started app\n",
     "Route bindings:\n",
@@ -359,7 +359,7 @@ test("start with recreate removes existing project containers before starting se
     "Recreating 2 existing container(s) for demo...\n",
     "- removed demo-app\n",
     "- removed demo-proxy\n",
-    "Note: The first start may take a few minutes while Loom downloads images and installs dependencies. Subsequent starts are usually faster.\n",
+    "Note: Startup may take a few minutes while Loom downloads images and installs dependencies. Starts using cached resources are usually faster.\n",
     "Starting 1 service(s) for demo on network demo-net...\n",
     "- started app\n"
   ]);
@@ -492,7 +492,7 @@ test("runTask reports command execution through the output adapter", async () =>
   await orchestrator.runTask("seed");
 
   assert.deepEqual(lines, ["Running task 'seed' in service 'app': npm run seed\n"]);
-  assert.deepEqual(executed, [["sh", "-lc", "npm run seed"]]);
+  assert.deepEqual(executed, [["sh", "-c", "npm run seed"]]);
 });
 
 test("runTask and exec pass execUser through to runtime exec", async () => {
@@ -526,7 +526,7 @@ test("runTask and exec pass execUser through to runtime exec", async () => {
   await orchestrator.exec("app", ["id"]);
 
   assert.deepEqual(calls, [
-    { service: "app", command: ["sh", "-lc", "npm run seed"], execUser: "1000:1000", workdir: "/workspace" },
+    { service: "app", command: ["sh", "-c", "npm run seed"], execUser: "1000:1000", workdir: "/workspace" },
     { service: "app", command: ["id"], execUser: "1000:1000", workdir: "/workspace" }
   ]);
 });

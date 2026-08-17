@@ -247,7 +247,7 @@ export async function ensureComposerAvailableWithDependencies(
     "exec",
     name,
     "sh",
-    "-lc",
+    "-c",
     "command -v composer >/dev/null 2>&1 || (EXPECTED_SIGNATURE=$(php -r \"copy('https://composer.github.io/installer.sig', 'php://stdout');\") && php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\" && ACTUAL_SIGNATURE=$(php -r \"echo hash_file('sha384', 'composer-setup.php');\") && [ \"$EXPECTED_SIGNATURE\" = \"$ACTUAL_SIGNATURE\" ] && php composer-setup.php --install-dir=/usr/local/bin --filename=composer && rm -f composer-setup.php)"
   ]);
 

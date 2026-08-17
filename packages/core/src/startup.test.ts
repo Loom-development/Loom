@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  formatFirstStartNotice,
+  formatStartupNotice,
   formatHttpsInfo,
   formatProxyPorts,
   formatRouteBindings,
@@ -11,8 +11,8 @@ import {
 
 test("formatStartHeader and formatStartedService create startup progress lines", () => {
   assert.equal(
-    formatFirstStartNotice(),
-    "Note: The first start may take a few minutes while Loom downloads images and installs dependencies. Subsequent starts are usually faster.\n"
+    formatStartupNotice(),
+    "Note: Startup may take a few minutes while Loom downloads images and installs dependencies. Starts using cached resources are usually faster.\n"
   );
   assert.equal(formatStartHeader("demo", 2, "demo-net"), "Starting 2 service(s) for demo on network demo-net...\n");
   assert.equal(formatStartedService("app"), "- started app\n");

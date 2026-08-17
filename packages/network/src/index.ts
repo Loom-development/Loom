@@ -267,7 +267,13 @@ export async function stopRouteProxy(projectName: string): Promise<void> {
   try { await rm(projectFile, { force: true }); } catch { /* ignore */ }
 
   const mainFile = resolve(runDir, "Caddyfile");
-  await writeFile(mainFile, buildMainCaddyfile(), "utf-8");
+  try {
+    await writeFile(mainFile, buildMainCaddyfile(), "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
 }
 
 export async function stopRouteHosts(projectName: string): Promise<void> {

@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { LoomConfig } from "@loom/config";
-import { applyManagedHostsEntries, projectNetworkName, resolveRouteBindings } from "./index.js";
+import { applyManagedHostsEntries, projectNetworkName, resolveRouteBindings, stopRouteProxy } from "./index.js";
 
 test("network exports are available", () => {
   assert.equal(projectNetworkName("loom-app"), "loom-loom-app");
@@ -104,4 +107,17 @@ test("applyManagedHostsEntries removes project block when given no hosts", () =>
   const cleaned = applyManagedHostsEntries(content, "demo", []);
   assert.doesNotMatch(cleaned, /loom:demo/);
   assert.equal(cleaned, "127.0.0.1 localhost\n");
+});
+
+test("stopRouteProxy succeeds when startup failed before proxy config was created", async () => {
+  const previousCwd = process.cwd();
+  const projectDir = await mkdtemp(join(tmpdir(), "loom-network-stop-"));
+
+  try {
+    process.chdir(projectDir);
+    await assert.doesNotReject(stopRouteProxy("demo"));
+  } finally {
+    process.chdir(previousCwd);
+    await rm(projectDir, { recursive: true, force: true });
+  }
 });

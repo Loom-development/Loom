@@ -7,7 +7,7 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
 import { loadLoomProject } from "@loom/config";
-import { formatFirstStartNotice, LoomOrchestrator } from "@loom/core";
+import { formatStartupNotice, LoomOrchestrator } from "@loom/core";
 import { runNamedTask } from "@loom/tasks";
 import { detectInitTemplateSuggestion } from "./init-detect.js";
 import {
@@ -831,7 +831,7 @@ cli
         await customizeDbTemplateCredentials(targetDir);
       }
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
-      process.stdout.write(formatFirstStartNotice());
+      process.stdout.write(formatStartupNotice());
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);
     })
   );

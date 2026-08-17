@@ -319,7 +319,7 @@ test("runWordPressCreateProjectWithDependencies uses Podman to copy WordPress in
         "/workspace/wordpress:/app",
         "docker.io/library/wordpress:6-php8.3-apache",
         "sh",
-        "-lc",
+        "-c",
         "cp -a /usr/src/wordpress/. /app/"
       ],
       cwd: "/workspace/wordpress"
@@ -375,7 +375,7 @@ test("runRailsCreateProjectWithDependencies uses Podman to generate Rails in the
         "/workspace",
         "docker.io/library/ruby:3.3",
         "sh",
-        "-lc",
+        "-c",
         "gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-javascript --skip-test --skip-system-test"
       ],
       cwd: "/workspace/rails7"
@@ -431,7 +431,7 @@ test("runRailsHotwireCreateProjectWithDependencies uses Podman to generate Rails
         "/workspace",
         "docker.io/library/ruby:3.3",
         "sh",
-        "-lc",
+        "-c",
         "gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-test --skip-system-test"
       ],
       cwd: "/workspace/rails-hotwire"
@@ -489,7 +489,7 @@ test("runSymfonyCreateProjectWithDependencies uses Podman Composer", async () =>
         "/app",
         "docker.io/library/composer:2",
         "sh",
-        "-lc",
+        "-c",
         "composer create-project symfony/skeleton . && composer require symfony/webapp-pack"
       ],
       cwd: "/workspace/symfony"

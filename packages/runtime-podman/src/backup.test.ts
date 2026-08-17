@@ -155,7 +155,7 @@ test("restoreServiceFromFile copies the input file and runs the restore command"
 
   assert.deepEqual(commands, [
     ["cp", "/tmp/backup.sql", "demo-db:/tmp/loom-restore.sql"],
-    ["exec", "demo-db", "sh", "-lc", 'psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -f /tmp/loom-restore.sql']
+    ["exec", "demo-db", "sh", "-c", 'psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -f /tmp/loom-restore.sql']
   ]);
 });
 
@@ -180,7 +180,7 @@ test("restoreServiceFromFile uses mysql binary mode and password env vars", asyn
 
   assert.deepEqual(commands, [
     ["cp", "/tmp/backup.sql", "demo-db:/tmp/loom-restore.sql"],
-    ["exec", "demo-db", "sh", "-lc", 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --binary-mode=1 -h 127.0.0.1 -uroot "${MYSQL_DATABASE:-loom}" < /tmp/loom-restore.sql']
+    ["exec", "demo-db", "sh", "-c", 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --binary-mode=1 -h 127.0.0.1 -uroot "${MYSQL_DATABASE:-loom}" < /tmp/loom-restore.sql']
   ]);
 });
 
@@ -205,7 +205,7 @@ test("restoreServiceFromFile uses mariadb binary mode and password env vars", as
 
   assert.deepEqual(commands, [
     ["cp", "/tmp/backup.sql", "demo-db:/tmp/loom-restore.sql"],
-    ["exec", "demo-db", "sh", "-lc", 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb --binary-mode=1 -h 127.0.0.1 -uroot "${MARIADB_DATABASE:-loom}" < /tmp/loom-restore.sql']
+    ["exec", "demo-db", "sh", "-c", 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb --binary-mode=1 -h 127.0.0.1 -uroot "${MARIADB_DATABASE:-loom}" < /tmp/loom-restore.sql']
   ]);
 });
 
@@ -320,7 +320,7 @@ test("restoreServiceFromFile decompresses gzip-compressed mysql dumps before cop
       "exec",
       "demo-db",
       "sh",
-      "-lc",
+      "-c",
       'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --binary-mode=1 -h 127.0.0.1 -uroot "${MYSQL_DATABASE:-loom}" < /tmp/loom-restore.sql'
     ]);
   } finally {

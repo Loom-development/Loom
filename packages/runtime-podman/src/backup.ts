@@ -74,7 +74,7 @@ export function databaseBackupStrategy(serviceType: string): BackupStrategy | nu
       extension: "sql",
       command: [
         "sh",
-        "-lc",
+        "-c",
         "mysqldump -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\" \"${MYSQL_DATABASE:-loom}\""
       ]
     };
@@ -85,7 +85,7 @@ export function databaseBackupStrategy(serviceType: string): BackupStrategy | nu
       extension: "sql",
       command: [
         "sh",
-        "-lc",
+        "-c",
         "mariadb-dump -h 127.0.0.1 -uroot -p\"$MARIADB_ROOT_PASSWORD\" \"${MARIADB_DATABASE:-loom}\""
       ]
     };
@@ -94,7 +94,7 @@ export function databaseBackupStrategy(serviceType: string): BackupStrategy | nu
   if (normalized === "postgres") {
     return {
       extension: "sql",
-      command: ["sh", "-lc", "pg_dump -U \"${POSTGRES_USER:-postgres}\" \"${POSTGRES_DB:-postgres}\""]
+      command: ["sh", "-c", "pg_dump -U \"${POSTGRES_USER:-postgres}\" \"${POSTGRES_DB:-postgres}\""]
     };
   }
 
@@ -103,7 +103,7 @@ export function databaseBackupStrategy(serviceType: string): BackupStrategy | nu
       extension: "archive.gz",
       command: [
         "sh",
-        "-lc",
+        "-c",
         "mongodump --archive --gzip --authenticationDatabase admin --username \"${MONGO_INITDB_ROOT_USERNAME:-root}\" --password \"${MONGO_INITDB_ROOT_PASSWORD:-example}\" --db \"${MONGO_INITDB_DATABASE:-admin}\""
       ]
     };
@@ -112,14 +112,14 @@ export function databaseBackupStrategy(serviceType: string): BackupStrategy | nu
   if (normalized === "redis") {
     return {
       extension: "rdb",
-      command: ["sh", "-lc", "redis-cli SAVE >/dev/null && cat /data/dump.rdb"]
+      command: ["sh", "-c", "redis-cli SAVE >/dev/null && cat /data/dump.rdb"]
     };
   }
 
   if (normalized === "sqlite") {
     return {
       extension: "db",
-      command: ["sh", "-lc", "cat /data/loom.db"]
+      command: ["sh", "-c", "cat /data/loom.db"]
     };
   }
 
@@ -128,7 +128,7 @@ export function databaseBackupStrategy(serviceType: string): BackupStrategy | nu
       extension: "bak",
       command: [
         "sh",
-        "-lc",
+        "-c",
         "mkdir -p /var/opt/mssql/backup && /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -Q \"BACKUP DATABASE [master] TO DISK='/var/opt/mssql/backup/loom.bak' WITH INIT\" >/dev/null && cat /var/opt/mssql/backup/loom.bak"
       ]
     };
@@ -252,7 +252,7 @@ export function databaseRestoreStrategy(serviceType: string): RestoreStrategy | 
       destinationPath: "/tmp/loom-restore.sql",
       command: [
         "sh",
-        "-lc",
+        "-c",
         "MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\" mysql --binary-mode=1 -h 127.0.0.1 -uroot \"${MYSQL_DATABASE:-loom}\" < /tmp/loom-restore.sql"
       ]
     };
@@ -263,7 +263,7 @@ export function databaseRestoreStrategy(serviceType: string): RestoreStrategy | 
       destinationPath: "/tmp/loom-restore.sql",
       command: [
         "sh",
-        "-lc",
+        "-c",
         "MYSQL_PWD=\"$MARIADB_ROOT_PASSWORD\" mariadb --binary-mode=1 -h 127.0.0.1 -uroot \"${MARIADB_DATABASE:-loom}\" < /tmp/loom-restore.sql"
       ]
     };
@@ -274,7 +274,7 @@ export function databaseRestoreStrategy(serviceType: string): RestoreStrategy | 
       destinationPath: "/tmp/loom-restore.sql",
       command: [
         "sh",
-        "-lc",
+        "-c",
         "psql -U \"${POSTGRES_USER:-postgres}\" -d \"${POSTGRES_DB:-postgres}\" -f /tmp/loom-restore.sql"
       ]
     };
@@ -285,7 +285,7 @@ export function databaseRestoreStrategy(serviceType: string): RestoreStrategy | 
       destinationPath: "/tmp/loom-restore.archive.gz",
       command: [
         "sh",
-        "-lc",
+        "-c",
         "mongorestore --drop --archive=/tmp/loom-restore.archive.gz --gzip --authenticationDatabase admin --username \"${MONGO_INITDB_ROOT_USERNAME:-root}\" --password \"${MONGO_INITDB_ROOT_PASSWORD:-example}\" --db \"${MONGO_INITDB_DATABASE:-admin}\""
       ]
     };
