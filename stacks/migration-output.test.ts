@@ -7,13 +7,26 @@ import { fileURLToPath } from "node:url";
 import { findStackDefinition } from "./index.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const ids = ["node-mean", "node-mern", "node-t3", "bun", "jamstack", "serverless", "astro"] as const;
+const ids = [
+  "node-mean", "node-mern", "node-t3", "bun", "jamstack", "serverless", "astro",
+  "python", "python-django", "python-flask", "python-fastapi", "php", "dotnet", "spring-react", "spring-boot",
+  "django-react"
+] as const;
+const languageIds = [
+  "python", "python-django", "python-flask", "python-fastapi", "php", "dotnet", "spring-react", "spring-boot",
+  "django-react"
+] as const;
 
 function normalizeImageDefaults(yaml: string): string {
   return yaml.replace(
     /(^\s*image:\s*)\$\{([A-Z][A-Z0-9_]*):-.*?\}/gm,
     (_match, prefix: string, env: string) => `${prefix}\${${env}:-<IMAGE>}`
   );
+}
+
+function normalizeEnvironmentImageDefaults(envFile: string, imageEnvs: readonly string[]): string {
+  const declared = new Set(imageEnvs);
+  return envFile.replace(/^([A-Z][A-Z0-9_]*_IMAGE)=.*$/gm, (line, env: string) => declared.has(env) ? `${env}=<IMAGE>` : line);
 }
 
 async function filesBelow(directory: string): Promise<string[]> {
@@ -29,14 +42,21 @@ async function filesBelow(directory: string): Promise<string[]> {
   return result.sort();
 }
 
-test("JavaScript stack migration preserves every non-image template byte", async () => {
+test("copy stack migration preserves every non-image template byte", async () => {
   for (const id of ids) {
     const stackRoot = resolve(root, "..", id);
     const templateRoot = resolve(stackRoot, "templates");
+    const definition = findStackDefinition(id)!;
     const fixture = JSON.parse(await readFile(resolve(stackRoot, "fixtures/migration.json"), "utf8")) as { fileCount: number; sourceDigest: string; loomDigest: string };
     const files = (await filesBelow(templateRoot)).filter((path) => path !== "loom.yaml");
     const digest = createHash("sha256");
-    for (const path of files) digest.update(path).update("\0").update(await readFile(resolve(templateRoot, path)));
+    for (const path of files) {
+      let bytes = await readFile(resolve(templateRoot, path));
+      if (path === ".env.example" && languageIds.includes(id as typeof languageIds[number])) {
+        bytes = Buffer.from(normalizeEnvironmentImageDefaults(bytes.toString("utf8"), definition.runtimeImages.map(({ env }) => env)));
+      }
+      digest.update(path).update("\0").update(bytes);
+    }
     assert.equal(files.length, fixture.fileCount, `${id} inventory`);
     assert.equal(digest.digest("hex"), fixture.sourceDigest, `${id} source bytes`);
     const yaml = await readFile(resolve(templateRoot, "loom.yaml"), "utf8");
@@ -55,6 +75,19 @@ test("migration normalization preserves non-image environment defaults", async (
   );
 });
 
+test("environment migration normalization permits declared image pins only", async () => {
+  const definition = findStackDefinition("php")!;
+  const env = await readFile(resolve(root, "..", "php/templates/.env.example"), "utf8");
+  const imageEnvs = definition.runtimeImages.map(({ env: name }) => name);
+  const normalized = normalizeEnvironmentImageDefaults(env, imageEnvs);
+  const phpImage = definition.runtimeImages.find(({ env: name }) => name === "PHP_IMAGE")!.reference;
+  assert.equal(
+    normalizeEnvironmentImageDefaults(env.replace(phpImage, "docker.io/library/php:8.4.99-apache"), imageEnvs),
+    normalized
+  );
+  assert.notEqual(normalizeEnvironmentImageDefaults(env.replace("HOST_UID=1000", "HOST_UID=1001"), imageEnvs), normalized);
+});
+
 test("runtime write metadata matches dependency-free Bun and Serverless templates", () => {
   for (const id of ["bun", "serverless"] as const) {
     const definition = findStackDefinition(id)!;
@@ -63,7 +96,7 @@ test("runtime write metadata matches dependency-free Bun and Serverless template
   }
 });
 
-test("JavaScript template image defaults exactly match their definitions", async () => {
+test("copy stack template image defaults exactly match their definitions", async () => {
   for (const id of ids) {
     const definition = findStackDefinition(id)!;
     const yaml = await readFile(resolve(root, "..", definition.assetPath, "loom.yaml"), "utf8");
@@ -74,7 +107,16 @@ test("JavaScript template image defaults exactly match their definitions", async
   }
 });
 
-test("JavaScript template packages exclude generated state", async () => {
+test("language stack environment image defaults exactly match their definitions", async () => {
+  for (const id of languageIds) {
+    const definition = findStackDefinition(id)!;
+    const env = await readFile(resolve(root, "..", definition.assetPath, ".env.example"), "utf8");
+    const defaults = [...env.matchAll(/^([A-Z][A-Z0-9_]*_IMAGE)=(.+)$/gm)].map((match) => ({ env: match[1]!, reference: match[2]! }));
+    assert.deepEqual(defaults.sort((a, b) => a.env.localeCompare(b.env)), definition.runtimeImages, id);
+  }
+});
+
+test("copy stack template packages exclude generated state", async () => {
   const forbidden = /(?:^|\/)(?:\.loom|node_modules|vendor|\.venv|dist|build|target|bin|obj|data|\.next|\.angular|__pycache__)(?:\/|$)|\.pyc$|\.tsbuildinfo$/;
   for (const id of ids) {
     const files = await filesBelow(resolve(root, "..", id, "templates"));

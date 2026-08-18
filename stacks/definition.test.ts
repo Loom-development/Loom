@@ -32,6 +32,38 @@ test("definitions enforce version, aliases, canonical assets, and maintenance sa
   for (const definition of stackDefinitions) assert.doesNotThrow(() => validateStackDefinition(definition));
 });
 
+test("language application stacks publish exact versioned package definitions", () => {
+  const expected = {
+    python: [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
+    "python-django": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
+    "python-flask": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
+    "python-fastapi": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
+    php: [
+      { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
+      { env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }
+    ],
+    dotnet: [{ env: "DOTNET_IMAGE", reference: "mcr.microsoft.com/dotnet/sdk:8.0.412" }],
+    "spring-react": [
+      { env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.11-eclipse-temurin-21" },
+      { env: "NODE_IMAGE", reference: "docker.io/library/node:22.17.1-alpine" }
+    ],
+    "spring-boot": [{ env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.11-eclipse-temurin-21" }],
+    "django-react": [
+      { env: "NODE_IMAGE", reference: "docker.io/library/node:24.4.1-alpine" },
+      { env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }
+    ]
+  } as const;
+
+  for (const [id, runtimeImages] of Object.entries(expected)) {
+    const definition = findStackDefinition(id)!;
+    assert.equal(definition.definitionVersion, 2, id);
+    assert.deepEqual(definition.legacyScaffoldVersions, ["1"], id);
+    assert.equal(definition.assetPath, `${id}/templates`, id);
+    assert.deepEqual(definition.generator, { kind: "none" }, id);
+    assert.deepEqual(definition.runtimeImages, runtimeImages, id);
+  }
+});
+
 test("Node template inventory and bytes match the approved migration fixture", async () => {
   const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..", "node");
   const expected = JSON.parse(await readFile(resolve(root, "fixtures/expected.json"), "utf8")) as Record<string, string>;

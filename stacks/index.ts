@@ -8,6 +8,15 @@ import { nodeMeanStack } from "./node-mean/stack.js";
 import { nodeMernStack } from "./node-mern/stack.js";
 import { nodeT3Stack } from "./node-t3/stack.js";
 import { serverlessStack } from "./serverless/stack.js";
+import { djangoReactStack } from "./django-react/stack.js";
+import { dotnetStack } from "./dotnet/stack.js";
+import { phpStack } from "./php/stack.js";
+import { pythonStack } from "./python/stack.js";
+import { pythonDjangoStack } from "./python-django/stack.js";
+import { pythonFastapiStack } from "./python-fastapi/stack.js";
+import { pythonFlaskStack } from "./python-flask/stack.js";
+import { springBootStack } from "./spring-boot/stack.js";
+import { springReactStack } from "./spring-react/stack.js";
 
 export * from "./definition.js";
 export * from "./pins.js";
@@ -54,7 +63,9 @@ function compatibilityDefinition(id: Exclude<StackId, "node">): StackDefinition 
     protectedPaths: protectedPathsByStack[id], compatibility });
 }
 const migratedDefinitions = new Map<StackId, StackDefinition>([
-  nodeStack, nodeMeanStack, nodeMernStack, nodeT3Stack, bunStack, jamstackStack, serverlessStack, astroStack
+  nodeStack, nodeMeanStack, nodeMernStack, nodeT3Stack, bunStack, pythonStack, pythonDjangoStack, pythonFlaskStack,
+  pythonFastapiStack, phpStack, dotnetStack, jamstackStack, serverlessStack, springReactStack, springBootStack,
+  astroStack, djangoReactStack
 ].map((definition) => [definition.id, definition]));
 export const stackDefinitions = stackIds.map((id) => migratedDefinitions.get(id) ?? compatibilityDefinition(id as Exclude<StackId, "node">)) as readonly StackDefinition[];
 const stackDefinitionsById = new Map<StackId, StackDefinition>(stackDefinitions.map((definition) => [definition.id, definition]));

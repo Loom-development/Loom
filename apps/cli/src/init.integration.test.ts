@@ -67,7 +67,7 @@ test("init php defaults docroot to '.' when not provided", async () => {
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
   assert.match(generatedConfig, /apache2-foreground/);
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4-apache\}/);
+  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.10-apache\}/);
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
@@ -76,9 +76,9 @@ test("init php defaults docroot to '.' when not provided", async () => {
   assert.match(generatedConfig, /pecl install memcached/);
   assert.match(generatedConfig, /type:\s*memcached/);
   assert.match(generatedConfig, /MEMCACHED_HOST:\s*cache/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4-apache/);
+  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
   assert.doesNotMatch(generatedEnv, /NGINX_IMAGE=/);
-  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6-alpine/);
+  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6\.39-alpine/);
   assert.match(generatedConfig, /healthcheck:/);
   assert.match(generatedConfig, /DocumentRoot \/app/);
   assert.doesNotMatch(generatedConfig, /type:\s*nginx/);
@@ -299,12 +299,12 @@ test("init django-react creates backend, frontend, and env files", async () => {
 
   assert.match(result.stdout, /Initializing 'django-react': Django backend and React frontend\./);
   assert.match(generatedConfig, /name:\s*loom-django_react_app/i);
-  assert.match(generatedConfig, /image:\s*\$\{PYTHON_IMAGE:-docker\.io\/library\/python:3\.12-slim\}/);
-  assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:24-alpine\}/);
+  assert.match(generatedConfig, /image:\s*\$\{PYTHON_IMAGE:-docker\.io\/library\/python:3\.12\.11-slim\}/);
+  assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:24\.4\.1-alpine\}/);
   assert.match(generatedConfig, /type:\s*python[\s\S]*user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}[\s\S]*userns:\s*keep-id[\s\S]*execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /type:\s*node[\s\S]*user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}[\s\S]*userns:\s*keep-id[\s\S]*execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedEnv, /PYTHON_IMAGE=docker\.io\/library\/python:3\.12-slim/);
-  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:24-alpine/);
+  assert.match(generatedEnv, /PYTHON_IMAGE=docker\.io\/library\/python:3\.12\.11-slim/);
+  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:24\.4\.1-alpine/);
   assert.match(generatedEnv, /HOST_UID=1000/);
   assert.match(generatedEnv, /HOST_GID=1000/);
   assert.match(backendRequirements, /Django~=5\.2\.0/);
@@ -321,10 +321,10 @@ test("init dotnet includes host-aligned exec user defaults", async () => {
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{DOTNET_IMAGE:-mcr\.microsoft\.com\/dotnet\/sdk:8\.0\}/);
+  assert.match(generatedConfig, /image:\s*\$\{DOTNET_IMAGE:-mcr\.microsoft\.com\/dotnet\/sdk:8\.0\.412\}/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedEnv, /DOTNET_IMAGE=mcr\.microsoft\.com\/dotnet\/sdk:8\.0/);
+  assert.match(generatedEnv, /DOTNET_IMAGE=mcr\.microsoft\.com\/dotnet\/sdk:8\.0\.412/);
   assert.match(generatedEnv, /HOST_UID=1000/);
   assert.match(generatedEnv, /HOST_GID=1000/);
 });
@@ -339,12 +339,12 @@ test("init spring-react includes host-aligned exec user defaults", async () => {
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{JAVA_IMAGE:-docker\.io\/library\/maven:3\.9-eclipse-temurin-21\}/);
-  assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:22-alpine\}/);
+  assert.match(generatedConfig, /image:\s*\$\{JAVA_IMAGE:-docker\.io\/library\/maven:3\.9\.11-eclipse-temurin-21\}/);
+  assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:22\.17\.1-alpine\}/);
   assert.match(generatedConfig, /type:\s*java[\s\S]*userns:\s*keep-id[\s\S]*execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /type:\s*node[\s\S]*userns:\s*keep-id[\s\S]*execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedEnv, /JAVA_IMAGE=docker\.io\/library\/maven:3\.9-eclipse-temurin-21/);
-  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:22-alpine/);
+  assert.match(generatedEnv, /JAVA_IMAGE=docker\.io\/library\/maven:3\.9\.11-eclipse-temurin-21/);
+  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:22\.17\.1-alpine/);
   assert.match(generatedEnv, /HOST_UID=1000/);
   assert.match(generatedEnv, /HOST_GID=1000/);
 });
