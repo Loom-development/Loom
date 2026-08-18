@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { access, copyFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { isAbsolute, relative, resolve } from "node:path";
+import { access, copyFile, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
+import packageJson from "../package.json" with { type: "json" };
 import type { DbType } from "./init-prompt.js";
 import type { LoomProjectManifestV2 } from "./project-manifest.js";
 import type { StackDefinition } from "./stacks.js";
@@ -31,6 +32,10 @@ export interface PlanProjectUpgradeOptions {
   stack: StackDefinition;
 }
 
+export interface ApplyProjectUpgradeOptions {
+  forceModified: boolean;
+}
+
 function assertSafeRelativePath(path: string, label: string): void {
   const segments = path.split(/[\\/]/);
   if (!path || isAbsolute(path) || /^[A-Za-z]:[\\/]/.test(path) || segments.some((segment) => !segment || segment === "." || segment === "..")) {
@@ -54,6 +59,29 @@ async function sha256File(path: string): Promise<string | undefined> {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
   }
+}
+
+async function assertNoSymlinkPath(root: string, relativePath: string, label: string): Promise<string> {
+  assertSafeRelativePath(relativePath, label);
+  const resolvedRoot = await realpath(root);
+  const destination = resolve(resolvedRoot, relativePath);
+  const fromRealRoot = relative(resolvedRoot, destination);
+  if (!fromRealRoot || fromRealRoot.startsWith("..") || isAbsolute(fromRealRoot)) throw new Error(`Unsafe ${label} '${relativePath}'`);
+  let current = resolvedRoot;
+  for (const segment of relativePath.split(/[\\/]/)) {
+    current = resolve(current, segment);
+    try {
+      if ((await lstat(current)).isSymbolicLink()) throw new Error(`Refusing symlinked ${label} '${relativePath}'`);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") break;
+      throw error;
+    }
+  }
+  return destination;
+}
+
+function baselinePath(path: string, sha256: string): string {
+  return `.loom/baselines/${sha256}-${encodeURIComponent(path)}`;
 }
 
 export function renderProjectName(loomYaml: string, projectName: string): string {
@@ -141,18 +169,80 @@ async function renderCandidates(options: PlanProjectUpgradeOptions, candidateRoo
 export async function planProjectUpgrade(options: PlanProjectUpgradeOptions): Promise<ProjectUpgradePlan> {
   await mkdir(resolve(options.projectRoot, ".loom"), { recursive: true });
   const candidateRoot = await mkdtemp(resolve(options.projectRoot, ".loom", "upgrade-candidate-"));
-  for (const path of Object.keys(options.manifest.ownedFiles)) assertSafeRelativePath(path, "owned file path");
-  for (const path of options.stack.loomOwnedFiles) assertSafeRelativePath(path, "Loom-owned asset path");
-  await renderCandidates(options, candidateRoot);
-  const files: ProjectUpgradeFilePlan[] = [];
-  for (const path of Object.keys(options.manifest.ownedFiles).sort()) {
-    if (!options.stack.loomOwnedFiles.includes(path)) throw new Error(`Stack '${options.stack.id}' does not declare owned asset '${path}'`);
-    const currentSha256 = await sha256File(resolveContained(options.projectRoot, path, "owned file path"));
-    const candidatePath = resolveContained(candidateRoot, path, "candidate path");
-    const candidateSha256 = await sha256File(candidatePath);
-    if (!candidateSha256) throw new Error(`Missing Loom-owned asset '${path}' for stack '${options.stack.id}'`);
-    const baselineSha256 = options.manifest.ownedFiles[path].sha256;
-    files.push({ path, state: currentSha256 === undefined ? "missing" : currentSha256 === baselineSha256 ? "unchanged" : "modified", ...(currentSha256 ? { currentSha256 } : {}), baselineSha256, candidateSha256, candidatePath });
+  try {
+    for (const path of Object.keys(options.manifest.ownedFiles)) assertSafeRelativePath(path, "owned file path");
+    for (const path of options.stack.loomOwnedFiles) assertSafeRelativePath(path, "Loom-owned asset path");
+    await renderCandidates(options, candidateRoot);
+    const files: ProjectUpgradeFilePlan[] = [];
+    for (const path of Object.keys(options.manifest.ownedFiles).sort()) {
+      if (!options.stack.loomOwnedFiles.includes(path)) throw new Error(`Stack '${options.stack.id}' does not declare owned asset '${path}'`);
+      const currentSha256 = await sha256File(resolveContained(options.projectRoot, path, "owned file path"));
+      const candidatePath = resolveContained(candidateRoot, path, "candidate path");
+      const candidateSha256 = await sha256File(candidatePath);
+      if (!candidateSha256) throw new Error(`Missing Loom-owned asset '${path}' for stack '${options.stack.id}'`);
+      const baselineSha256 = options.manifest.ownedFiles[path].sha256;
+      files.push({ path, state: currentSha256 === undefined ? "missing" : currentSha256 === baselineSha256 ? "unchanged" : "modified", ...(currentSha256 ? { currentSha256 } : {}), baselineSha256, candidateSha256, candidatePath });
+    }
+    return { projectRoot: resolve(options.projectRoot), candidateRoot, manifest: options.manifest, stack: options.stack, files };
+  } catch (error) {
+    await rm(candidateRoot, { recursive: true, force: true });
+    throw error;
   }
-  return { projectRoot: resolve(options.projectRoot), candidateRoot, manifest: options.manifest, stack: options.stack, files };
+}
+
+export async function applyProjectUpgrade(
+  plan: ProjectUpgradePlan,
+  options: ApplyProjectUpgradeOptions
+): Promise<{ updated: string[]; skipped: string[] }> {
+  const updated = plan.files.filter((file) => file.state !== "modified" || options.forceModified).map((file) => file.path);
+  const skipped = plan.files.filter((file) => file.state === "modified" && !options.forceModified).map((file) => file.path);
+  const loomDir = await assertNoSymlinkPath(plan.projectRoot, ".loom", "Loom metadata path");
+  const stageRoot = await mkdtemp(resolve(loomDir, "upgrade-stage-"));
+  try {
+    for (const file of plan.files.filter((entry) => updated.includes(entry.path))) {
+      const staged = resolveContained(stageRoot, file.path, "staged owned file path");
+      await mkdir(dirname(staged), { recursive: true });
+      await copyFile(file.candidatePath, staged);
+      if (await sha256File(staged) !== file.candidateSha256) throw new Error(`Candidate hash changed for '${file.path}'`);
+      const target = await assertNoSymlinkPath(plan.projectRoot, file.path, "owned file path");
+      await mkdir(dirname(target), { recursive: true });
+      await assertNoSymlinkPath(plan.projectRoot, file.path, "owned file path");
+    }
+
+    const nextManifest: LoomProjectManifestV2 = {
+      ...plan.manifest,
+      loomVersion: packageJson.version,
+      stack: { id: plan.stack.id, scaffoldVersion: plan.stack.scaffoldVersion },
+      ownedFiles: { ...plan.manifest.ownedFiles }
+    };
+    for (const file of plan.files.filter((entry) => updated.includes(entry.path))) {
+      const nextBaselinePath = baselinePath(file.path, file.candidateSha256);
+      const stagedBaseline = resolveContained(stageRoot, nextBaselinePath, "staged baseline path");
+      await mkdir(dirname(stagedBaseline), { recursive: true });
+      await copyFile(file.candidatePath, stagedBaseline);
+      nextManifest.ownedFiles[file.path] = { sha256: file.candidateSha256, baselinePath: nextBaselinePath };
+    }
+    const stagedManifest = resolve(stageRoot, ".loom", "manifest.json");
+    await mkdir(dirname(stagedManifest), { recursive: true });
+    await writeFile(stagedManifest, `${JSON.stringify(nextManifest, null, 2)}\n`, "utf8");
+
+    for (const file of plan.files.filter((entry) => updated.includes(entry.path))) {
+      const target = await assertNoSymlinkPath(plan.projectRoot, file.path, "owned file path");
+      await rename(resolveContained(stageRoot, file.path, "staged owned file path"), target);
+    }
+    for (const file of plan.files.filter((entry) => updated.includes(entry.path))) {
+      const path = nextManifest.ownedFiles[file.path].baselinePath;
+      const target = await assertNoSymlinkPath(plan.projectRoot, path, "baseline path");
+      await mkdir(dirname(target), { recursive: true });
+      await rename(resolveContained(stageRoot, path, "staged baseline path"), target);
+    }
+    const manifestTarget = await assertNoSymlinkPath(plan.projectRoot, ".loom/manifest.json", "manifest path");
+    await rename(stagedManifest, manifestTarget);
+    return { updated, skipped };
+  } finally {
+    await Promise.all([
+      rm(stageRoot, { recursive: true, force: true }),
+      rm(plan.candidateRoot, { recursive: true, force: true })
+    ]);
+  }
 }

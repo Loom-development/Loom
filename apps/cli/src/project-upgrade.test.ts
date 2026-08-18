@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LoomProjectManifestV2 } from "./project-manifest.js";
-import { planProjectUpgrade } from "./project-upgrade.js";
+import { applyProjectUpgrade, planProjectUpgrade } from "./project-upgrade.js";
 import type { StackDefinition } from "./stacks.js";
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -104,5 +104,82 @@ test("planner replays stored PHP docroot and database additions", async () => {
     assert.match(candidate, /^ {2}redis:$/m);
   } finally {
     await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("applier updates missing and unchanged files while skipping modified files", async () => {
+  const value = await fixture();
+  try {
+    const baseline = await readFile(join(value.projectRoot, ".loom/baselines/loom"), "utf8");
+    await writeFile(join(value.projectRoot, "loom.yaml"), baseline, "utf8");
+    const sourceBefore = await readFile(join(value.projectRoot, "source.ts"));
+    const plan = await planProjectUpgrade(value);
+    const result = await applyProjectUpgrade(plan, { forceModified: false });
+    assert.deepEqual(result, { updated: [".env.example", "loom.yaml"], skipped: [] });
+    assert.equal(await readFile(join(value.projectRoot, ".env.example"), "utf8"), "NODE_IMAGE=node:24\n");
+    assert.match(await readFile(join(value.projectRoot, "loom.yaml"), "utf8"), /^name: loom-demo$/m);
+    assert.deepEqual(await readFile(join(value.projectRoot, "source.ts")), sourceBefore);
+    const manifest = JSON.parse(await readFile(join(value.projectRoot, ".loom/manifest.json"), "utf8"));
+    assert.equal(manifest.version, 2);
+    assert.equal(manifest.stack.scaffoldVersion, "2");
+    assert.equal(manifest.ownedFiles["loom.yaml"].sha256, sha256(await readFile(join(value.projectRoot, "loom.yaml"), "utf8")));
+    assert.equal((await readdir(join(value.projectRoot, ".loom"))).some((path) => path.startsWith("upgrade-")), false);
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("applier replaces modified files only when forced", async () => {
+  const value = await fixture();
+  try {
+    let plan = await planProjectUpgrade(value);
+    assert.deepEqual(await applyProjectUpgrade(plan, { forceModified: false }), { updated: [".env.example"], skipped: ["loom.yaml"] });
+    assert.match(await readFile(join(value.projectRoot, "loom.yaml"), "utf8"), /# local/);
+    plan = await planProjectUpgrade(value);
+    assert.deepEqual(await applyProjectUpgrade(plan, { forceModified: true }), { updated: [".env.example", "loom.yaml"], skipped: [] });
+    assert.doesNotMatch(await readFile(join(value.projectRoot, "loom.yaml"), "utf8"), /# local/);
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("applier preserves manifest and baselines when a destination write fails", async () => {
+  const value = await fixture();
+  try {
+    await writeFile(join(value.projectRoot, ".loom", "manifest.json"), "old manifest\n", "utf8");
+    const baselineBefore = await readFile(join(value.projectRoot, ".loom", "baselines", "loom"));
+    const plan = await planProjectUpgrade(value);
+    await mkdir(join(value.projectRoot, ".env.example"));
+    await assert.rejects(applyProjectUpgrade(plan, { forceModified: true }));
+    assert.equal(await readFile(join(value.projectRoot, ".loom", "manifest.json"), "utf8"), "old manifest\n");
+    assert.deepEqual(await readFile(join(value.projectRoot, ".loom", "baselines", "loom")), baselineBefore);
+    assert.equal((await readdir(join(value.projectRoot, ".loom"))).some((path) => path.startsWith("upgrade-")), false);
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("applier rejects symlinked owned files and parent directories that escape the project", async () => {
+  for (const parentSymlink of [false, true]) {
+    const value = await fixture();
+    try {
+      const outside = join(value.root, "outside");
+      await mkdir(outside);
+      const path = parentSymlink ? "owned/loom.yaml" : "loom.yaml";
+      value.stack = { ...value.stack, loomOwnedFiles: [path] };
+      value.manifest = { ...value.manifest, ownedFiles: { [path]: value.manifest.ownedFiles["loom.yaml"] } };
+      await mkdir(join(value.templatesRoot, "node", "owned"), { recursive: true });
+      await writeFile(join(value.templatesRoot, "node", path), "name: template\n", "utf8");
+      if (parentSymlink) await symlink(outside, join(value.projectRoot, "owned"));
+      else {
+        await rm(join(value.projectRoot, "loom.yaml"));
+        await symlink(join(outside, "escaped.yaml"), join(value.projectRoot, "loom.yaml"));
+      }
+      const plan = await planProjectUpgrade(value);
+      await assert.rejects(applyProjectUpgrade(plan, { forceModified: true }), /symlink/i);
+      await assert.rejects(lstat(join(outside, parentSymlink ? "loom.yaml" : "escaped.yaml")));
+    } finally {
+      await rm(value.root, { recursive: true, force: true });
+    }
   }
 });
