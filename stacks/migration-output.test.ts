@@ -26,12 +26,15 @@ test("JavaScript stack migration preserves every non-image template byte", async
   for (const id of ids) {
     const stackRoot = resolve(root, "..", id);
     const templateRoot = resolve(stackRoot, "templates");
-    const fixture = JSON.parse(await readFile(resolve(stackRoot, "fixtures/migration.json"), "utf8")) as { fileCount: number; sourceDigest: string };
+    const fixture = JSON.parse(await readFile(resolve(stackRoot, "fixtures/migration.json"), "utf8")) as { fileCount: number; sourceDigest: string; loomDigest: string };
     const files = (await filesBelow(templateRoot)).filter((path) => path !== "loom.yaml");
     const digest = createHash("sha256");
     for (const path of files) digest.update(path).update("\0").update(await readFile(resolve(templateRoot, path)));
     assert.equal(files.length, fixture.fileCount, `${id} inventory`);
     assert.equal(digest.digest("hex"), fixture.sourceDigest, `${id} source bytes`);
+    const yaml = await readFile(resolve(templateRoot, "loom.yaml"), "utf8");
+    const normalizedYaml = yaml.replace(/\$\{([A-Z][A-Z0-9_]*):-.*?\}/g, (_match, env: string) => `\${${env}:-<IMAGE>}`);
+    assert.equal(createHash("sha256").update(normalizedYaml).digest("hex"), fixture.loomDigest, `${id} Loom configuration`);
   }
 });
 
@@ -40,8 +43,9 @@ test("JavaScript template image defaults exactly match their definitions", async
     const definition = findStackDefinition(id)!;
     const yaml = await readFile(resolve(root, "..", definition.assetPath, "loom.yaml"), "utf8");
     const defaults = [...yaml.matchAll(/image:\s*\$\{([A-Z][A-Z0-9_]*)[:-]-(.+?)\}/g)].map((match) => ({ env: match[1]!, reference: match[2]! }));
-    const uniqueDefaults = [...new Map(defaults.map((image) => [image.env, image])).values()].sort((a, b) => a.env.localeCompare(b.env));
-    assert.deepEqual(uniqueDefaults, definition.runtimeImages, id);
+    const imagesByEnv = new Map(definition.runtimeImages.map((image) => [image.env, image.reference]));
+    assert.deepEqual([...new Set(defaults.map(({ env }) => env))].sort(), [...imagesByEnv.keys()].sort(), `${id} image environments`);
+    for (const image of defaults) assert.equal(image.reference, imagesByEnv.get(image.env), `${id} ${image.env}`);
   }
 });
 
