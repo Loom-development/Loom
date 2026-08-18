@@ -62,6 +62,8 @@ test("language application stacks publish exact versioned package definitions", 
     assert.deepEqual(definition.generator, { kind: "none" }, id);
     assert.deepEqual(definition.runtimeImages, runtimeImages, id);
   }
+
+  assert.deepEqual(findStackDefinition("php")!.generatedPaths, [{ path: "vendor", category: "dependency" }]);
 });
 
 test("Node template inventory and bytes match the approved migration fixture", async () => {

@@ -16,5 +16,6 @@ export const phpStack = defineStack({
   ],
   start: ["apache2-foreground"], readiness: { kind: "port", value: "127.0.0.1:80", timeoutSeconds: 360 }, hostWrites: [],
   verification: ["php", "-r", "exit((int)!@fsockopen('127.0.0.1', 80));"], loomOwnedFiles: [".env.example", "loom.yaml"],
-  generatedPaths: [], protectedPaths: ["index.php"], compatibility: { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" }
+  generatedPaths: [{ path: "vendor", category: "dependency" }], protectedPaths: ["index.php"],
+  compatibility: { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" }
 });
