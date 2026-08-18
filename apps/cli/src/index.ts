@@ -21,6 +21,7 @@ import {
 } from "./init-prompt.js";
 import { prepareInitTarget } from "./init-template.js";
 import { writeProjectManifest } from "./project-manifest.js";
+import { renderPhpDocroot, renderProjectName } from "./project-upgrade.js";
 import { findStackDefinition, listStackIds } from "./stacks.js";
 
 const cli = cac("loom");
@@ -203,7 +204,7 @@ async function applyProjectName(targetDir: string): Promise<void> {
   const loomPath = resolve(targetDir, "loom.yaml");
   const projectName = deriveProjectName(targetDir);
   const loomYaml = await readFile(loomPath, "utf8");
-  const updatedLoomYaml = loomYaml.replace(/^(name:\s*).+$/m, `$1${projectName}`);
+  const updatedLoomYaml = renderProjectName(loomYaml, projectName);
 
   if (updatedLoomYaml !== loomYaml) {
     await writeFile(loomPath, updatedLoomYaml, "utf8");
@@ -266,75 +267,6 @@ function hasEnvVariable(content: string, key: string): boolean {
   return pattern.test(content);
 }
 
-function normalizeDocrootPath(raw: string): string {
-  const normalized = raw.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-  if (!normalized || normalized === ".") {
-    return ".";
-  }
-
-  return normalized;
-}
-
-function buildPhpBaseCommand(containerDocroot: string): string {
-  return [
-    "command: |",
-    "      set -eu",
-    '      target_uid="${HOST_UID:-1000}"',
-    '      target_gid="${HOST_GID:-1000}"',
-    '      if ! php -r "exit(extension_loaded(\'mysqli\') && extension_loaded(\'pdo_mysql\') && extension_loaded(\'pdo_pgsql\') && extension_loaded(\'pgsql\') && extension_loaded(\'pdo_sqlite\') && extension_loaded(\'intl\') && extension_loaded(\'zip\') && extension_loaded(\'exif\') && extension_loaded(\'imagick\') && extension_loaded(\'memcached\') ? 0 : 1);"; then',
-    '        export DEBIAN_FRONTEND=noninteractive',
-    '        apt-get update',
-    '        apt-get install -y --no-install-recommends imagemagick libicu-dev libmagickwand-dev libmemcached-dev libsasl2-dev libzip-dev libpq-dev libsqlite3-dev libmariadb-dev pkg-config util-linux zlib1g-dev',
-    '        docker-php-ext-install -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)" mysqli pdo_mysql pdo_pgsql pgsql pdo_sqlite intl zip exif',
-    "        printf '\\n' | pecl install imagick",
-    "        printf '\\n' | pecl install memcached",
-    '        docker-php-ext-enable imagick',
-    '        docker-php-ext-enable memcached',
-    '      fi',
-    '      current_gid="$(getent group www-data | cut -d: -f3)"',
-    '      if [ "$current_gid" != "$target_gid" ]; then',
-    '        if getent group "$target_gid" >/dev/null 2>&1; then',
-    '          existing_group="$(getent group "$target_gid" | cut -d: -f1)"',
-    '          usermod -g "$existing_group" www-data',
-    '        else',
-    '          groupmod -o -g "$target_gid" www-data',
-    '        fi',
-    '      fi',
-    '      current_uid="$(id -u www-data)"',
-    '      if [ "$current_uid" != "$target_uid" ]; then',
-    '        if getent passwd "$target_uid" >/dev/null 2>&1; then',
-    '          existing_user="$(getent passwd "$target_uid" | cut -d: -f1)"',
-    '          usermod -l loom-www-data -m -d /var/www -s /usr/sbin/nologin "$existing_user" >/dev/null 2>&1 || true',
-    '        fi',
-    '        usermod -o -u "$target_uid" www-data',
-    '      fi',
-    "      cat > /etc/apache2/sites-available/000-default.conf << 'APACHE_CONF'",
-    '      <VirtualHost *:80>',
-    `          DocumentRoot ${containerDocroot}`,
-    `          <Directory ${containerDocroot}>`,
-    '              Options FollowSymLinks',
-    '              AllowOverride All',
-    '              Require all granted',
-    '              FallbackResource /index.php',
-    '          </Directory>',
-    '          ErrorLog /dev/stderr',
-    '          CustomLog /dev/stdout combined',
-    '      </VirtualHost>',
-    '      APACHE_CONF',
-    '      a2enmod rewrite >/dev/null',
-    `      if [ ! -f ${containerDocroot}/index.php ]; then`,
-    `        printf '%s\\n' '<?php echo "Loom PHP example is running.";' > ${containerDocroot}/index.php`,
-    '      fi',
-    '      exec apache2-foreground',
-    "    dependsOn:",
-    "      - cache",
-    "    env:",
-    "      MEMCACHED_HOST: cache",
-    '      MEMCACHED_PORT: "11211"',
-    "    volumes:"
-  ].join("\n");
-}
-
 async function applyPhpDocroot(targetDir: string, template: string, phpDocrootRaw?: string): Promise<void> {
   if (!phpDocrootRaw) {
     return;
@@ -351,20 +283,12 @@ async function applyPhpDocroot(targetDir: string, template: string, phpDocrootRa
     return;
   }
 
-  const phpDocroot = normalizeDocrootPath(phpDocrootRaw);
   const loomPath = resolve(targetDir, "loom.yaml");
-  let loomYaml = await readFile(loomPath, "utf8");
-
-  if (template === "php") {
-    const containerDocroot = phpDocroot === "." ? "/app" : `/app/${phpDocroot}`;
-    loomYaml = loomYaml.replace(/command:\s*\|[\s\S]*?\n\s*volumes:/m, buildPhpBaseCommand(containerDocroot));
-  } else {
-    loomYaml = loomYaml.replace(/(\s+DocumentRoot\s+)\/app\/[^\s]+/, `$1/app/${phpDocroot}`);
-    loomYaml = loomYaml.replace(/(\s+<Directory\s+)\/app\/[^\s>]+(>)/, `$1/app/${phpDocroot}$2`);
-  }
+  const loomYaml = renderPhpDocroot(await readFile(loomPath, "utf8"), template, phpDocrootRaw);
+  const displayedDocroot = phpDocrootRaw.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "") || ".";
 
   await writeFile(loomPath, loomYaml, "utf8");
-  process.stdout.write(`Set PHP docroot to '${phpDocroot}' in ${loomPath}\n`);
+  process.stdout.write(`Set PHP docroot to '${displayedDocroot}' in ${loomPath}\n`);
 }
 
 function replaceYamlEnvVariable(content: string, key: string, value: string): string {
