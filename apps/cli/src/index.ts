@@ -10,6 +10,7 @@ import { loadLoomProject } from "@loom/config";
 import { formatStartupNotice, LoomOrchestrator } from "@loom/core";
 import { runNamedTask } from "@loom/tasks";
 import { detectInitTemplateSuggestion } from "./init-detect.js";
+import { confirmProjectClean } from "./clean-prompt.js";
 import {
   chooseInitDatabases,
   chooseInitImageOverrides,
@@ -21,6 +22,8 @@ import {
 } from "./init-prompt.js";
 import { prepareInitTarget } from "./init-template.js";
 import { loadProjectManifest, writeProjectManifest } from "./project-manifest.js";
+import { applyProjectClean, planProjectClean, type ProjectCleanPlan } from "./project-clean.js";
+import { defaultDoctorProbes, runProjectDoctor, type DoctorProbes, type DoctorResult } from "./project-doctor.js";
 import { applyProjectUpgrade, planProjectUpgrade, renderPhpDocroot, renderProjectName } from "./project-upgrade.js";
 import { findStackDefinition, listStackIds } from "./stacks.js";
 
@@ -57,6 +60,46 @@ const topLevelIgnoredTemplateEntries = new Set([
 ]);
 
 const phpDocrootIgnoredTemplates = new Set(["php-wordpress", "php-drupal"]);
+
+function formatBytes(bytes: number): string {
+  return `${bytes} B`;
+}
+
+function renderCleanPlan(plan: ProjectCleanPlan): void {
+  process.stdout.write("Generated paths:\n");
+  for (const item of plan.items) {
+    process.stdout.write(`  ${item.path} [${item.category}] ${item.exists ? formatBytes(item.bytes) : "missing"}\n`);
+  }
+  if (plan.items.length === 0) process.stdout.write("  (none)\n");
+  process.stdout.write(`Total: ${formatBytes(plan.totalBytes)}\n`);
+}
+
+function doctorFixtureProbes(): DoctorProbes | undefined {
+  if (process.env.NODE_ENV !== "test" || !process.env.LOOM_TEST_DOCTOR_FIXTURE) return undefined;
+  const fixture = process.env.LOOM_TEST_DOCTOR_FIXTURE;
+  const defaults = defaultDoctorProbes();
+  return {
+    ...defaults,
+    podman: async () => ({
+      available: fixture !== "failure",
+      rootless: true,
+      ...(fixture === "failure" ? {} : { version: "test" }),
+      machine: { supported: false, running: false }
+    }),
+    architecture: () => "x64",
+    pathState: async () => ({ exists: false, writable: false }),
+    portAvailable: async () => true,
+    runningContainers: async () => [],
+    hostsWritable: async () => fixture !== "warning"
+  };
+}
+
+function renderDoctorResults(results: readonly DoctorResult[]): void {
+  const labels = { pass: "PASS", warning: "WARN", failure: "FAIL" } as const;
+  for (const item of results) {
+    process.stdout.write(`[${labels[item.status]}] ${item.id}: ${item.summary}${item.detail ? ` — ${item.detail}` : ""}\n`);
+  }
+}
 
 function withErrorHandling<TArgs extends unknown[]>(fn: (...args: TArgs) => Promise<void>) {
   return async (...args: TArgs) => {
@@ -842,6 +885,67 @@ cli
       const result = await applyProjectUpgrade(plan, { forceModified: options.forceModified ?? false });
       process.stdout.write(`Upgrade complete: ${result.updated.length} updated, ${result.skipped.length} skipped.\n`);
       if (result.skipped.length > 0) process.exitCode = 1;
+    })
+  );
+
+cli
+  .command("doctor", "Diagnose project and host compatibility")
+  .option("--config <path>", "Path to loom config", { default: "loom.yaml" })
+  .option("--json", "Print structured JSON results", { default: false })
+  .action(
+    withErrorHandling(async (options: { config?: string; json?: boolean }) => {
+      const configPath = resolve(process.cwd(), options.config ?? "loom.yaml");
+      const project = await loadLoomProject(configPath);
+      const manifest = await loadProjectManifest(project.projectRoot);
+      const stack = manifest.kind === "missing" ? undefined : findStackDefinition(manifest.manifest.stack.id);
+      const fixtureProbes = doctorFixtureProbes();
+      const results = await runProjectDoctor({
+        projectRoot: project.projectRoot,
+        config: project.config,
+        manifest,
+        stack,
+        ...(fixtureProbes ? { probes: fixtureProbes } : {})
+      });
+
+      if (options.json) process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
+      else renderDoctorResults(results);
+      if (results.some(({ status }) => status === "failure")) process.exitCode = 1;
+    })
+  );
+
+cli
+  .command("clean", "Remove stack-declared generated paths")
+  .option("--config <path>", "Path to loom config", { default: "loom.yaml" })
+  .option("--force", "Run without interactive confirmation", { default: false })
+  .option("--dry-run", "Preview without removing paths", { default: false })
+  .action(
+    withErrorHandling(async (options: { config?: string; force?: boolean; dryRun?: boolean }) => {
+      const configPath = resolve(process.cwd(), options.config ?? "loom.yaml");
+      const project = await loadLoomProject(configPath);
+      const loaded = await loadProjectManifest(project.projectRoot);
+      if (loaded.kind === "missing") {
+        throw new Error(`No Loom project manifest found in '${project.projectRoot}'. Run 'loom init' or 'loom adopt' first.`);
+      }
+      if (loaded.kind === "migration-required") {
+        throw new Error("This project uses a v1 Loom manifest. Run 'loom upgrade --initialize-baseline' before cleaning.");
+      }
+      const stack = findStackDefinition(loaded.manifest.stack.id);
+      if (!stack) {
+        throw new Error(`Unknown stack '${loaded.manifest.stack.id}' in Loom project manifest. Available stacks: ${listStackIds().join(", ")}`);
+      }
+
+      const plan = await planProjectClean({ projectRoot: project.projectRoot, stack, manifest: loaded.manifest });
+      renderCleanPlan(plan);
+      if (options.dryRun) return;
+      if (!options.force) {
+        if (!process.stdin.isTTY) throw new Error("Cleanup requires an interactive terminal or the explicit --force option.");
+        if (!(await confirmProjectClean())) {
+          process.stdout.write("Cleanup cancelled.\n");
+          return;
+        }
+      }
+      const result = await applyProjectClean(plan);
+      process.stdout.write(`Cleanup complete: ${result.removed.length} removed, ${result.missing.length} missing.\n`);
     })
   );
 

@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { isCleanConfirmed } from "./clean-prompt.js";
 
-function runCli(args: string[]) {
+function runCli(args: string[], options: { input?: string; env?: NodeJS.ProcessEnv } = {}) {
   const currentFileDir = dirname(fileURLToPath(import.meta.url));
   const cliPath = resolve(currentFileDir, "index.js");
   const captureDir = mkdtempSync(join(tmpdir(), "loom-cli-output-"));
@@ -19,7 +20,9 @@ function runCli(args: string[]) {
   try {
     const result = spawnSync(process.execPath, [cliPath, ...args], {
       encoding: "utf8",
-      stdio: ["ignore", stdoutFd, stderrFd]
+      input: options.input,
+      env: { ...process.env, ...options.env },
+      stdio: [options.input === undefined ? "ignore" : "pipe", stdoutFd, stderrFd]
     });
     closeSync(stdoutFd);
     closeSync(stderrFd);
@@ -101,6 +104,110 @@ test("help includes the restore command", () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /restore <service> <input>/i);
   assert.match(result.stdout, /upgrade/i);
+  assert.match(result.stdout, /doctor/i);
+  assert.match(result.stdout, /clean/i);
+});
+
+test("doctor renders deterministic human results and warnings exit zero", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-doctor-"));
+  const initialized = runCli(["init", "node", "--dir", projectRoot]);
+  assert.equal(initialized.status, 0, initialized.stderr);
+
+  const result = runCli(["doctor", "--config", join(projectRoot, "loom.yaml")], {
+    env: { NODE_ENV: "test", LOOM_TEST_DOCTOR_FIXTURE: "warning" }
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^\[PASS\] manifest:/m);
+  assert.match(result.stdout, /\[WARN\] hosts:/);
+  assert.ok(result.stdout.indexOf("manifest:") < result.stdout.indexOf("podman:"));
+});
+
+test("doctor JSON is parseable and failures exit one", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-doctor-"));
+  const initialized = runCli(["init", "node", "--dir", projectRoot]);
+  assert.equal(initialized.status, 0, initialized.stderr);
+
+  const result = runCli(["doctor", "--config", join(projectRoot, "loom.yaml"), "--json"], {
+    env: { NODE_ENV: "test", LOOM_TEST_DOCTOR_FIXTURE: "failure" }
+  });
+  assert.equal(result.status, 1);
+  const results = JSON.parse(result.stdout) as Array<{ id: string; status: string }>;
+  assert.equal(results.find(({ id }) => id === "podman")?.status, "failure");
+  assert.equal(result.stderr, "");
+});
+
+test("doctor reports missing and unknown manifest stacks as failures", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-doctor-"));
+  const initialized = runCli(["init", "node", "--dir", projectRoot]);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  await rmSync(join(projectRoot, ".loom", "manifest.json"));
+  const environment = { NODE_ENV: "test", LOOM_TEST_DOCTOR_FIXTURE: "healthy" };
+  const missing = runCli(["doctor", "--config", join(projectRoot, "loom.yaml"), "--json"], { env: environment });
+  assert.equal(missing.status, 1);
+  assert.equal((JSON.parse(missing.stdout) as Array<{ id: string; status: string }>)[0]?.status, "failure");
+
+  await mkdir(join(projectRoot, ".loom"), { recursive: true });
+  await writeFile(join(projectRoot, ".loom", "manifest.json"), JSON.stringify({
+    version: 1, loomVersion: "0.1.0", stack: { id: "not-a-stack", scaffoldVersion: "1" }, ownedFiles: {}
+  }));
+  const unknown = runCli(["doctor", "--config", join(projectRoot, "loom.yaml"), "--json"], { env: environment });
+  assert.equal(unknown.status, 1);
+  assert.match(unknown.stdout, /unknown stack/i);
+});
+
+test("clean previews exact sorted paths and dry-run never deletes", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-clean-"));
+  const initialized = runCli(["init", "node", "--dir", projectRoot]);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  await mkdir(join(projectRoot, "dist"));
+  await writeFile(join(projectRoot, "dist", "app.js"), "build\n");
+
+  const result = runCli(["clean", "--config", join(projectRoot, "loom.yaml"), "--dry-run"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, / {2}dist \[build\] 6 B\n {2}node_modules \[dependency\] missing\nTotal: 6 B/);
+  assert.equal(await readFile(join(projectRoot, "dist", "app.js"), "utf8"), "build\n");
+});
+
+test("clean confirmation accepts only explicit yes answers", () => {
+  for (const answer of ["y", "Y", "yes", "YES", " yes "]) assert.equal(isCleanConfirmed(answer), true);
+  for (const answer of ["", "n", "no", "yeah", "true"]) assert.equal(isCleanConfirmed(answer), false);
+});
+
+test("clean refuses non-interactive deletion without force and force removes only generated paths", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-clean-"));
+  const initialized = runCli(["init", "node", "--dir", projectRoot]);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  await mkdir(join(projectRoot, "dist"));
+  await writeFile(join(projectRoot, "dist", "app.js"), "build\n");
+  await writeFile(join(projectRoot, "keep.txt"), "keep\n");
+
+  const refused = runCli(["clean", "--config", join(projectRoot, "loom.yaml")]);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stdout, /Generated paths:/);
+  assert.match(refused.stderr, /--force/);
+  assert.equal(await readFile(join(projectRoot, "dist", "app.js"), "utf8"), "build\n");
+
+  const forced = runCli(["clean", "--config", join(projectRoot, "loom.yaml"), "--force"]);
+  assert.equal(forced.status, 0, forced.stderr);
+  assert.match(forced.stdout, /Cleanup complete: 1 removed, 1 missing/);
+  await assert.rejects(readFile(join(projectRoot, "dist", "app.js"), "utf8"));
+  assert.equal(await readFile(join(projectRoot, "keep.txt"), "utf8"), "keep\n");
+});
+
+test("clean rejects an unsafe plan before deleting any generated path", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-clean-"));
+  const outsideRoot = await mkdtemp(join(tmpdir(), "loom-cli-clean-outside-"));
+  const initialized = runCli(["init", "node", "--dir", projectRoot]);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  await mkdir(join(projectRoot, "dist"));
+  await writeFile(join(projectRoot, "dist", "app.js"), "retain\n");
+  await symlink(outsideRoot, join(projectRoot, "node_modules"));
+
+  const result = runCli(["clean", "--config", join(projectRoot, "loom.yaml"), "--force"]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /symlink/i);
+  assert.equal(result.stdout, "");
+  assert.equal(await readFile(join(projectRoot, "dist", "app.js"), "utf8"), "retain\n");
 });
 
 test("upgrade reports a missing manifest", async () => {
