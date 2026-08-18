@@ -726,7 +726,7 @@ cli
 
       await mkdir(targetDir, { recursive: true });
 
-      const initPreparation = await prepareInitTarget(selectedTemplate, targetDir, options.blankTemplate ?? false);
+      const initPreparation = await prepareInitTarget(stack, targetDir, options.blankTemplate ?? false);
 
       if (initPreparation.templateEntriesToUpdate) {
         await copyTemplateEntries(

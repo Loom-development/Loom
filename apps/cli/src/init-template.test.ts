@@ -1,13 +1,24 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  prepareInitTarget,
+  prepareInitTarget as prepareInitTargetFromDefinition,
   runDrupalCreateProjectWithDependencies,
   runRailsCreateProjectWithDependencies,
   runRailsHotwireCreateProjectWithDependencies,
+  runStackGeneratorWithDependencies,
   runSymfonyCreateProjectWithDependencies,
   runWordPressCreateProjectWithDependencies
 } from "./init-template.js";
+import { findStackDefinition, type StackDefinition } from "./stacks.js";
+
+function prepareInitTarget(
+  template: string,
+  targetDir: string,
+  blankTemplate: boolean,
+  dependencies: Parameters<typeof prepareInitTargetFromDefinition>[3] = {}
+) {
+  return prepareInitTargetFromDefinition(findStackDefinition(template)!, targetDir, blankTemplate, dependencies);
+}
 
 test("prepareInitTarget returns config-only result for non-empty generic targets without --blank-template", async () => {
   assert.deepEqual(
@@ -263,9 +274,9 @@ test("runDrupalCreateProjectWithDependencies uses Podman Composer", async () => 
     "/workspace/drupal:/app",
     "-w",
     "/app",
-    "docker.io/library/composer:2",
+    "docker.io/library/composer:2.8.10",
     "create-project",
-    "drupal/recommended-project",
+    "drupal/recommended-project:11.2.2",
     "."
       ],
       cwd: "/workspace/drupal"
@@ -295,7 +306,7 @@ test("runDrupalCreateProjectWithDependencies reports unavailable images clearly"
           throw new Error("manifest unknown: manifest unknown");
         }
       }),
-    /image 'docker\.io\/library\/composer:2' is not available or could not be pulled/i
+    /image 'docker\.io\/library\/composer:2\.8\.10' is not available or could not be pulled/i
   );
 });
 
@@ -317,7 +328,7 @@ test("runWordPressCreateProjectWithDependencies uses Podman to copy WordPress in
         ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
         "-v",
         "/workspace/wordpress:/app",
-        "docker.io/library/wordpress:6-php8.3-apache",
+        "docker.io/library/wordpress:6.8.2-php8.3-apache",
         "sh",
         "-c",
         "cp -a /usr/src/wordpress/. /app/"
@@ -349,7 +360,7 @@ test("runWordPressCreateProjectWithDependencies reports unavailable images clear
           throw new Error("pull access denied");
         }
       }),
-    /image 'docker\.io\/library\/wordpress:6-php8\.3-apache' requires registry access or authentication:[\s\S]*podman login docker\.io/i
+    /image 'docker\.io\/library\/wordpress:6\.8\.2-php8\.3-apache' requires registry access or authentication:[\s\S]*podman login docker\.io/i
   );
 });
 
@@ -373,10 +384,10 @@ test("runRailsCreateProjectWithDependencies uses Podman to generate Rails in the
         "/workspace/rails7:/workspace",
         "-w",
         "/workspace",
-        "docker.io/library/ruby:3.3",
+        "docker.io/library/ruby:3.3.8",
         "sh",
         "-c",
-        "gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-javascript --skip-test --skip-system-test"
+        "gem install bundler -v 2.6.9 --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-javascript --skip-test --skip-system-test"
       ],
       cwd: "/workspace/rails7"
     }
@@ -405,7 +416,7 @@ test("runRailsCreateProjectWithDependencies reports unavailable images clearly",
           throw new Error("image not known");
         }
       }),
-    /image 'docker\.io\/library\/ruby:3\.3' is not available or could not be pulled/i
+    /image 'docker\.io\/library\/ruby:3\.3\.8' is not available or could not be pulled/i
   );
 });
 
@@ -429,10 +440,10 @@ test("runRailsHotwireCreateProjectWithDependencies uses Podman to generate Rails
         "/workspace/rails-hotwire:/workspace",
         "-w",
         "/workspace",
-        "docker.io/library/ruby:3.3",
+        "docker.io/library/ruby:3.3.8",
         "sh",
         "-c",
-        "gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-test --skip-system-test"
+        "gem install bundler -v 2.6.9 --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-test --skip-system-test"
       ],
       cwd: "/workspace/rails-hotwire"
     }
@@ -461,7 +472,7 @@ test("runRailsCreateProjectWithDependencies reports registry auth failures clear
           throw new Error("authentication required");
         }
       }),
-    /image 'docker\.io\/library\/ruby:3\.3' requires registry access or authentication:[\s\S]*podman login docker\.io/i
+    /image 'docker\.io\/library\/ruby:3\.3\.8' requires registry access or authentication:[\s\S]*podman login docker\.io/i
   );
 });
 
@@ -487,10 +498,10 @@ test("runSymfonyCreateProjectWithDependencies uses Podman Composer", async () =>
         "/workspace/symfony:/app",
         "-w",
         "/app",
-        "docker.io/library/composer:2",
+        "docker.io/library/composer:2.8.10",
         "sh",
         "-c",
-        "composer create-project symfony/skeleton . && composer require symfony/webapp-pack"
+        "composer create-project symfony/skeleton:7.3.99 . && composer require symfony/webapp-pack:1.3.0"
       ],
       cwd: "/workspace/symfony"
     }
@@ -519,6 +530,59 @@ test("runSymfonyCreateProjectWithDependencies reports unavailable images clearly
           throw new Error("manifest unknown: manifest unknown");
         }
       }),
-    /image 'docker\.io\/library\/composer:2' is not available or could not be pulled/i
+    /image 'docker\.io\/library\/composer:2\.8\.10' is not available or could not be pulled/i
   );
+});
+
+test("bootstrap command rendering consumes only the selected definition pins", async () => {
+  const base = findStackDefinition("php-drupal")!;
+  const selected = {
+    ...base,
+    generator: {
+      kind: "command",
+      image: "docker.io/library/composer:9.9.9",
+      package: "vendor/project",
+      version: "12.34.56",
+      command: ["create-project", "{package}:{version}", "."]
+    }
+  } satisfies StackDefinition;
+  const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
+
+  await runStackGeneratorWithDependencies(selected, "/workspace/selected", {
+    runCommand: async (command, args, cwd) => { calls.push({ command, args, cwd }); }
+  });
+
+  assert.deepEqual(calls, [{
+    command: "podman",
+    args: [
+      "run", "--rm", ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
+      "-e", "HOME=/tmp", "-v", "/workspace/selected:/app", "-w", "/app",
+      "docker.io/library/composer:9.9.9", "create-project", "vendor/project:12.34.56", "."
+    ],
+    cwd: "/workspace/selected"
+  }]);
+});
+
+test("all bootstrap definitions resolve exact packages and gem installs", async () => {
+  for (const id of ["php-drupal", "php-symfony", "php-wordpress", "rails7", "rails7-hotwire"] as const) {
+    const definition = findStackDefinition(id)!;
+    assert.equal(definition.generator.kind, "command", id);
+    if (definition.generator.kind !== "command") continue;
+    const calls: Array<{ args: string[] }> = [];
+    await runStackGeneratorWithDependencies(definition, `/workspace/${id}`, {
+      runCommand: async (_command, args) => { calls.push({ args }); }
+    });
+    const invocation = calls[0]!.args.join(" ");
+    assert.ok(calls[0]!.args.includes(definition.generator.image), `${id} image`);
+    if (definition.generator.package === "wordpress") {
+      assert.ok(definition.generator.image.includes(definition.generator.version), `${id} image version`);
+    } else if (definition.generator.package.includes("/")) {
+      assert.match(invocation, new RegExp(`${definition.generator.package.replace("/", "\\/")}:${definition.generator.version.replaceAll(".", "\\.")}(?:\\s|$)`), id);
+    } else {
+      assert.match(invocation, new RegExp(`gem install ${definition.generator.package} -v ${definition.generator.version.replaceAll(".", "\\.")}(?:\\s|$)`), id);
+    }
+    for (const install of invocation.matchAll(/gem install ([^&]+)/g)) {
+      assert.match(install[1]!, /(?:^|\s)-v\s+\d+\.\d+\.\d+(?:\s|$)/, `${id} exact gem install: ${install[0]}`);
+    }
+  }
 });

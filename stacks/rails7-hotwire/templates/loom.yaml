@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: ruby
-    image: ${RUBY_IMAGE:-docker.io/library/ruby:3.3}
+    image: ${RUBY_IMAGE:-docker.io/library/ruby:3.3.8}
     user: root
     userns: keep-id
     execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
@@ -28,7 +28,7 @@ services:
         fi
         touch /tmp/loom-ruby-build-deps.installed
       fi
-      gem install bundler --no-document
+      gem install bundler -v 2.6.9 --no-document
       mkdir -p "$home_dir"
       chmod 0777 "$home_dir"
       exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" BUNDLE_PATH="$home_dir/.bundle" BUNDLE_APP_CONFIG="$home_dir/.bundle-config" sh -c 'bundle install && bin/rails server -b 0.0.0.0 -p 3008'

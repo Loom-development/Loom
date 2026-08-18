@@ -14,10 +14,10 @@ loom status
 ## Services
 
 - `cache`
-  - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}`
+  - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6.39-alpine}`
   - Internal address: `cache:11211`
 - `app`
-  - Runtime: `${WORDPRESS_IMAGE:-docker.io/library/wordpress:6-php8.3-apache}`
+  - Runtime: `${WORDPRESS_IMAGE:-docker.io/library/wordpress:6.8.2-php8.3-apache}`
   - Port: `8090`
   - Purpose: WordPress app server
 

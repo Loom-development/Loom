@@ -8,10 +8,10 @@ runtime:
 services:
   cache:
     type: memcached
-    image: ${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}
+    image: ${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6.39-alpine}
   app:
     type: php
-    image: ${WORDPRESS_IMAGE:-docker.io/library/wordpress:6-php8.3-apache}
+    image: ${WORDPRESS_IMAGE:-docker.io/library/wordpress:6.8.2-php8.3-apache}
     composer: false
     user: root
     userns: keep-id

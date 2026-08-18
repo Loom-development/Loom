@@ -20,7 +20,8 @@ test("stack definitions expose assets, scaffold versions, and initial Loom owner
   const rails = findStackDefinition("rails7");
   assert.equal(rails?.id, "rails7");
   assert.equal(rails?.assetPath, "rails7/templates");
-  assert.equal(rails?.scaffoldVersion, "rails-7.1.5");
+  assert.equal(rails?.scaffoldVersion, "2");
+  assert.deepEqual(rails?.legacyScaffoldVersions, ["rails-7.1.5"]);
   assert.deepEqual(rails?.loomOwnedFiles, [".env.example", "loom.yaml"]);
   assert.equal(findStackDefinition("missing"), undefined);
 

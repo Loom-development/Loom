@@ -7,11 +7,12 @@ import { fileURLToPath } from "node:url";
 import { findStackDefinition } from "./index.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
+const bootstrapIds = ["php-wordpress", "php-drupal", "php-symfony", "rails7", "rails7-hotwire"] as const;
 const ids = [
   "node-mean", "node-mern", "node-t3", "bun", "jamstack", "serverless", "astro",
   "python", "python-django", "python-flask", "python-fastapi", "php", "dotnet", "spring-react", "spring-boot",
   "django-react", "db-mysql", "db-sqlserver", "db-postgres", "db-mongodb", "db-redis", "db-elasticsearch",
-  "db-sqlite", "db-mariadb", "db-all"
+  "db-sqlite", "db-mariadb", "db-all", ...bootstrapIds
 ] as const;
 const languageIds = [
   "python", "python-django", "python-flask", "python-fastapi", "php", "dotnet", "spring-react", "spring-boot",
@@ -21,7 +22,7 @@ const databaseIds = [
   "db-mysql", "db-sqlserver", "db-postgres", "db-mongodb", "db-redis", "db-elasticsearch", "db-sqlite",
   "db-mariadb", "db-all"
 ] as const;
-const environmentPinIds = [...languageIds, ...databaseIds] as const;
+const environmentPinIds = [...languageIds, ...databaseIds, ...bootstrapIds] as const;
 
 function normalizeImageDefaults(yaml: string, imageEnvs: readonly string[]): string {
   const declared = new Set(imageEnvs);

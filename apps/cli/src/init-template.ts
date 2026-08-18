@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { access, readFile, readdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { buildRegistryLoginHint, isImageUnavailableError, isRegistryAuthError } from "@loom/runtime-podman";
+import { findStackDefinition, type StackDefinition } from "./stacks.js";
 
 interface InitPreparationDependencies {
   directoryHasFiles?: (path: string) => Promise<boolean>;
@@ -21,23 +22,14 @@ interface InitPreparationResult {
   templateEntriesToCreateIfMissing?: string[];
 }
 
-interface DrupalCreateProjectDependencies {
+interface CreateProjectDependencies {
   runCommand?: (command: string, args: string[], cwd: string) => Promise<void>;
 }
 
-interface WordPressCreateProjectDependencies {
-  runCommand?: (command: string, args: string[], cwd: string) => Promise<void>;
-}
-
-interface RailsCreateProjectDependencies {
-  runCommand?: (command: string, args: string[], cwd: string) => Promise<void>;
-}
-
-interface SymfonyCreateProjectDependencies {
-  runCommand?: (command: string, args: string[], cwd: string) => Promise<void>;
-}
-
-const railsExecutable = "/usr/local/bundle/bin/rails";
+type DrupalCreateProjectDependencies = CreateProjectDependencies;
+type WordPressCreateProjectDependencies = CreateProjectDependencies;
+type RailsCreateProjectDependencies = CreateProjectDependencies;
+type SymfonyCreateProjectDependencies = CreateProjectDependencies;
 
 async function directoryHasFiles(path: string): Promise<boolean> {
   try {
@@ -132,26 +124,47 @@ function formatBootstrapError(context: string, image: string, error: unknown): E
   return new Error(`Failed to initialize ${context}: ${detail}`);
 }
 
-export async function runDrupalCreateProjectWithDependencies(
-  targetDir: string,
-  dependencies: DrupalCreateProjectDependencies = {}
-): Promise<void> {
-  const execute = dependencies.runCommand ?? runCommand;
-  const composerImage = "docker.io/library/composer:2";
-  const createProjectArgs = ["create-project", "drupal/recommended-project", "."];
+function requiredStackDefinition(id: string): StackDefinition {
+  const definition = findStackDefinition(id);
+  if (!definition) throw new Error(`Unknown bootstrap stack '${id}'.`);
+  return definition;
+}
 
+function renderGeneratorCommand(definition: StackDefinition): string[] {
+  if (definition.generator.kind !== "command") throw new Error(`Stack '${definition.id}' does not declare a command generator.`);
+  const generator = definition.generator;
+  return generator.command.map((argument) => argument
+    .replaceAll("{package}", generator.package)
+    .replaceAll("{version}", generator.version));
+}
+
+const bootstrapContexts: Partial<Record<StackDefinition["id"], string>> = {
+  "php-drupal": "Drupal project with Podman Composer",
+  "php-symfony": "Symfony project with Podman Composer",
+  "php-wordpress": "WordPress project with Podman",
+  rails7: "Rails 7 project with Podman",
+  "rails7-hotwire": "Rails 7 + Hotwire project with Podman"
+};
+
+export async function runStackGeneratorWithDependencies(
+  definition: StackDefinition,
+  targetDir: string,
+  dependencies: CreateProjectDependencies = {}
+): Promise<void> {
+  if (definition.generator.kind !== "command") throw new Error(`Stack '${definition.id}' does not declare a command generator.`);
+  const execute = dependencies.runCommand ?? runCommand;
+  const composerBootstrap = definition.generator.package.includes("/");
+  const mountTarget = definition.id.startsWith("rails7") ? "/workspace" : "/app";
   const podmanArgs = [
     "run",
     "--rm",
     ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
-    "-e",
-    "HOME=/tmp",
+    ...(composerBootstrap ? ["-e", "HOME=/tmp"] : []),
     "-v",
-    `${targetDir}:/app`,
-    "-w",
-    "/app",
-    composerImage,
-    ...createProjectArgs
+    `${targetDir}:${mountTarget}`,
+    ...(definition.id === "php-wordpress" ? [] : ["-w", mountTarget]),
+    definition.generator.image,
+    ...renderGeneratorCommand(definition)
   ];
 
   try {
@@ -159,165 +172,38 @@ export async function runDrupalCreateProjectWithDependencies(
   } catch (error) {
     if (errorCode(error) === "ENOENT") {
       throw new Error(
-        "Podman is required to initialize 'php-drupal'. Install Podman and retry 'loom init php-drupal'."
+        `Podman is required to initialize '${definition.id}'. Install Podman and retry 'loom init ${definition.id}'.`
       );
     }
 
-    throw formatBootstrapError("Drupal project with Podman Composer", composerImage, error);
+    throw formatBootstrapError(bootstrapContexts[definition.id] ?? `${definition.id} project with Podman`, definition.generator.image, error);
   }
 }
 
-export async function runDrupalCreateProject(targetDir: string): Promise<void> {
-  return runDrupalCreateProjectWithDependencies(targetDir);
+export async function runDrupalCreateProjectWithDependencies(targetDir: string, dependencies: DrupalCreateProjectDependencies = {}): Promise<void> {
+  return runStackGeneratorWithDependencies(requiredStackDefinition("php-drupal"), targetDir, dependencies);
 }
+export async function runDrupalCreateProject(targetDir: string): Promise<void> { return runDrupalCreateProjectWithDependencies(targetDir); }
 
-export async function runWordPressCreateProjectWithDependencies(
-  targetDir: string,
-  dependencies: WordPressCreateProjectDependencies = {}
-): Promise<void> {
-  const execute = dependencies.runCommand ?? runCommand;
-  const wordpressImage = "docker.io/library/wordpress:6-php8.3-apache";
-  const podmanArgs = [
-    "run",
-    "--rm",
-    ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
-    "-v",
-    `${targetDir}:/app`,
-    wordpressImage,
-    "sh",
-    "-c",
-    "cp -a /usr/src/wordpress/. /app/"
-  ];
-
-  try {
-    await execute("podman", podmanArgs, targetDir);
-  } catch (error) {
-    if (errorCode(error) === "ENOENT") {
-      throw new Error(
-        "Podman is required to initialize 'php-wordpress'. Install Podman and retry 'loom init php-wordpress'."
-      );
-    }
-
-    throw formatBootstrapError("WordPress project with Podman", wordpressImage, error);
-  }
+export async function runWordPressCreateProjectWithDependencies(targetDir: string, dependencies: WordPressCreateProjectDependencies = {}): Promise<void> {
+  return runStackGeneratorWithDependencies(requiredStackDefinition("php-wordpress"), targetDir, dependencies);
 }
+export async function runWordPressCreateProject(targetDir: string): Promise<void> { return runWordPressCreateProjectWithDependencies(targetDir); }
 
-export async function runWordPressCreateProject(targetDir: string): Promise<void> {
-  return runWordPressCreateProjectWithDependencies(targetDir);
+export async function runRailsCreateProjectWithDependencies(targetDir: string, dependencies: RailsCreateProjectDependencies = {}): Promise<void> {
+  return runStackGeneratorWithDependencies(requiredStackDefinition("rails7"), targetDir, dependencies);
 }
+export async function runRailsCreateProject(targetDir: string): Promise<void> { return runRailsCreateProjectWithDependencies(targetDir); }
 
-export async function runRailsCreateProjectWithDependencies(
-  targetDir: string,
-  dependencies: RailsCreateProjectDependencies = {}
-): Promise<void> {
-  const execute = dependencies.runCommand ?? runCommand;
-  const rubyImage = "docker.io/library/ruby:3.3";
-  const podmanArgs = [
-    "run",
-    "--rm",
-    ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
-    "-v",
-    `${targetDir}:/workspace`,
-    "-w",
-    "/workspace",
-    rubyImage,
-    "sh",
-    "-c",
-    `gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && ${railsExecutable} _7.1.5_ new . --skip-javascript --skip-test --skip-system-test`
-  ];
-
-  try {
-    await execute("podman", podmanArgs, targetDir);
-  } catch (error) {
-    if (errorCode(error) === "ENOENT") {
-      throw new Error(
-        "Podman is required to initialize 'rails7'. Install Podman and retry 'loom init rails7'."
-      );
-    }
-
-    throw formatBootstrapError("Rails 7 project with Podman", rubyImage, error);
-  }
+export async function runRailsHotwireCreateProjectWithDependencies(targetDir: string, dependencies: RailsCreateProjectDependencies = {}): Promise<void> {
+  return runStackGeneratorWithDependencies(requiredStackDefinition("rails7-hotwire"), targetDir, dependencies);
 }
+export async function runRailsHotwireCreateProject(targetDir: string): Promise<void> { return runRailsHotwireCreateProjectWithDependencies(targetDir); }
 
-export async function runRailsCreateProject(targetDir: string): Promise<void> {
-  return runRailsCreateProjectWithDependencies(targetDir);
+export async function runSymfonyCreateProjectWithDependencies(targetDir: string, dependencies: SymfonyCreateProjectDependencies = {}): Promise<void> {
+  return runStackGeneratorWithDependencies(requiredStackDefinition("php-symfony"), targetDir, dependencies);
 }
-
-export async function runRailsHotwireCreateProjectWithDependencies(
-  targetDir: string,
-  dependencies: RailsCreateProjectDependencies = {}
-): Promise<void> {
-  const execute = dependencies.runCommand ?? runCommand;
-  const rubyImage = "docker.io/library/ruby:3.3";
-  const podmanArgs = [
-    "run",
-    "--rm",
-    ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
-    "-v",
-    `${targetDir}:/workspace`,
-    "-w",
-    "/workspace",
-    rubyImage,
-    "sh",
-    "-c",
-    `gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && ${railsExecutable} _7.1.5_ new . --skip-test --skip-system-test`
-  ];
-
-  try {
-    await execute("podman", podmanArgs, targetDir);
-  } catch (error) {
-    if (errorCode(error) === "ENOENT") {
-      throw new Error(
-        "Podman is required to initialize 'rails7-hotwire'. Install Podman and retry 'loom init rails7-hotwire'."
-      );
-    }
-
-    throw formatBootstrapError("Rails 7 + Hotwire project with Podman", rubyImage, error);
-  }
-}
-
-export async function runRailsHotwireCreateProject(targetDir: string): Promise<void> {
-  return runRailsHotwireCreateProjectWithDependencies(targetDir);
-}
-
-export async function runSymfonyCreateProjectWithDependencies(
-  targetDir: string,
-  dependencies: SymfonyCreateProjectDependencies = {}
-): Promise<void> {
-  const execute = dependencies.runCommand ?? runCommand;
-  const composerImage = "docker.io/library/composer:2";
-  const podmanArgs = [
-    "run",
-    "--rm",
-    ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
-    "-e",
-    "HOME=/tmp",
-    "-v",
-    `${targetDir}:/app`,
-    "-w",
-    "/app",
-    composerImage,
-    "sh",
-    "-c",
-    "composer create-project symfony/skeleton . && composer require symfony/webapp-pack"
-  ];
-
-  try {
-    await execute("podman", podmanArgs, targetDir);
-  } catch (error) {
-    if (errorCode(error) === "ENOENT") {
-      throw new Error(
-        "Podman is required to initialize 'php-symfony'. Install Podman and retry 'loom init php-symfony'."
-      );
-    }
-
-    throw formatBootstrapError("Symfony project with Podman Composer", composerImage, error);
-  }
-}
-
-export async function runSymfonyCreateProject(targetDir: string): Promise<void> {
-  return runSymfonyCreateProjectWithDependencies(targetDir);
-}
+export async function runSymfonyCreateProject(targetDir: string): Promise<void> { return runSymfonyCreateProjectWithDependencies(targetDir); }
 
 async function looksLikeDrupalProject(
   targetDir: string,
@@ -391,11 +277,12 @@ async function looksLikeSymfonyProject(
 }
 
 export async function prepareInitTarget(
-  template: string,
+  definition: StackDefinition,
   targetDir: string,
   blankTemplate: boolean,
   dependencies: InitPreparationDependencies = {}
 ): Promise<InitPreparationResult> {
+  const template = definition.id;
   const hasFiles = dependencies.directoryHasFiles ?? directoryHasFiles;
   const nonEmpty = await hasFiles(targetDir);
 
@@ -414,7 +301,7 @@ export async function prepareInitTarget(
       );
     }
 
-    const bootstrapDrupal = dependencies.runDrupalCreateProject ?? runDrupalCreateProject;
+    const bootstrapDrupal = dependencies.runDrupalCreateProject ?? ((path: string) => runStackGeneratorWithDependencies(definition, path));
     await bootstrapDrupal(targetDir);
     return { overwriteTemplateFiles: false };
   }
@@ -434,7 +321,7 @@ export async function prepareInitTarget(
       );
     }
 
-    const bootstrapWordPress = dependencies.runWordPressCreateProject ?? runWordPressCreateProject;
+    const bootstrapWordPress = dependencies.runWordPressCreateProject ?? ((path: string) => runStackGeneratorWithDependencies(definition, path));
     await bootstrapWordPress(targetDir);
     return { overwriteTemplateFiles: false };
   }
@@ -454,7 +341,7 @@ export async function prepareInitTarget(
       );
     }
 
-    const bootstrapRails = dependencies.runRailsCreateProject ?? runRailsCreateProject;
+    const bootstrapRails = dependencies.runRailsCreateProject ?? ((path: string) => runStackGeneratorWithDependencies(definition, path));
     await bootstrapRails(targetDir);
     return { overwriteTemplateFiles: false };
   }
@@ -474,7 +361,7 @@ export async function prepareInitTarget(
       );
     }
 
-    const bootstrapRailsHotwire = dependencies.runRailsHotwireCreateProject ?? runRailsHotwireCreateProject;
+    const bootstrapRailsHotwire = dependencies.runRailsHotwireCreateProject ?? ((path: string) => runStackGeneratorWithDependencies(definition, path));
     await bootstrapRailsHotwire(targetDir);
     return { overwriteTemplateFiles: false };
   }
@@ -494,7 +381,7 @@ export async function prepareInitTarget(
       );
     }
 
-    const bootstrapSymfony = dependencies.runSymfonyCreateProject ?? runSymfonyCreateProject;
+    const bootstrapSymfony = dependencies.runSymfonyCreateProject ?? ((path: string) => runStackGeneratorWithDependencies(definition, path));
     await bootstrapSymfony(targetDir);
     return {
       overwriteTemplateFiles: false,

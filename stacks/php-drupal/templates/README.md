@@ -14,10 +14,10 @@ loom status
 ## Services
 
 - `cache`
-  - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}`
+  - Runtime: `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6.39-alpine}`
   - Internal address: `cache:11211`
 - `app`
-  - Runtime: `${PHP_IMAGE:-docker.io/library/php:8.4-apache}`
+  - Runtime: `${PHP_IMAGE:-docker.io/library/php:8.4.10-apache}`
   - Port: `8091`
   - Purpose: Apache + PHP application server serving Drupal from `/app/web`
 

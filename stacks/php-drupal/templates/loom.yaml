@@ -8,10 +8,10 @@ runtime:
 services:
   cache:
     type: memcached
-    image: ${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6-alpine}
+    image: ${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6.39-alpine}
   app:
     type: php
-    image: ${PHP_IMAGE:-docker.io/library/php:8.4-apache}
+    image: ${PHP_IMAGE:-docker.io/library/php:8.4.10-apache}
     composer: false
     user: root
     userns: keep-id

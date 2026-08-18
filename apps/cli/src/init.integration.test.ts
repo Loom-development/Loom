@@ -416,7 +416,7 @@ test("init rails7-hotwire bootstraps a Rails + Hotwire project before copying Lo
       "    --rm|--userns=keep-id)",
       "      shift",
       "      ;;",
-      "    docker.io/library/ruby:3.3)",
+      "    docker.io/library/ruby:3.3.8)",
       "      shift",
       "      break",
       "      ;;",
@@ -459,7 +459,7 @@ test("init rails7-hotwire bootstraps a Rails + Hotwire project before copying Lo
   assert.match(generatedConfig, /healthcheck:/);
   assert.match(generatedConfig, /TCPSocket\.new\('127\.0\.0\.1', 3008\)\.close/);
   assert.match(generatedConfig, /startPeriodSeconds:\s*10/);
-  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3/);
+  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3\.8/);
   assert.match(generatedLayout, /Hotwire/);
 });
 
@@ -489,7 +489,7 @@ test("init php-symfony bootstraps a Symfony project before copying Loom files", 
       "    --rm|--userns=keep-id)",
       "      shift",
       "      ;;",
-      "    docker.io/library/composer:2)",
+      "    docker.io/library/composer:2.8.10)",
       "      shift",
       "      break",
       "      ;;",
@@ -523,7 +523,7 @@ test("init php-symfony bootstraps a Symfony project before copying Loom files", 
   const generatedIndex = await readFile(join(targetDir, "public", "index.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4-apache\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.10-apache\}/i);
   assert.match(generatedConfig, /workdir:\s*\/app/);
   assert.match(generatedConfig, /docker-php-ext-install[\s\S]*intl zip exif/);
   assert.match(generatedConfig, /pecl install imagick/);
@@ -532,8 +532,8 @@ test("init php-symfony bootstraps a Symfony project before copying Loom files", 
   assert.match(generatedConfig, /MEMCACHED_HOST:\s*cache/);
   assert.match(generatedConfig, /DocumentRoot \/app\/public/);
   assert.match(generatedIndex, /Symfony stub/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4-apache/);
-  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6-alpine/);
+  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
+  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6\.39-alpine/);
 });
 
 test("init php-symfony adopts an existing Symfony project and only adds Loom files", async () => {
@@ -556,7 +556,7 @@ test("init php-symfony adopts an existing Symfony project and only adds Loom fil
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
   assert.match(existingIndex, /existing symfony/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4-apache/);
+  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
 });
 
 test("init db template defaults to ./db and creates .env", async () => {
@@ -789,7 +789,7 @@ test("init php-drupal bootstraps a Drupal project with Podman Composer before co
       "    --rm|--userns=keep-id)",
       "      shift",
       "      ;;",
-      "    docker.io/library/composer:2)",
+      "    docker.io/library/composer:2.8.10)",
       "      shift",
       "      break",
       "      ;;",
@@ -798,7 +798,7 @@ test("init php-drupal bootstraps a Drupal project with Podman Composer before co
       "      ;;",
       "  esac",
       "done",
-      "if [ \"$1\" != \"create-project\" ] || [ \"$2\" != \"drupal/recommended-project\" ] || [ \"$3\" != \".\" ]; then",
+      "if [ \"$1\" != \"create-project\" ] || [ \"$2\" != \"drupal/recommended-project:11.2.2\" ] || [ \"$3\" != \".\" ]; then",
       "  echo 'unexpected podman args' >&2",
       "  exit 23",
       "fi",
@@ -822,7 +822,7 @@ test("init php-drupal bootstraps a Drupal project with Podman Composer before co
   const generatedIndex = await readFile(join(targetDir, "web", "index.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4-apache\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.10-apache\}/i);
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
@@ -835,8 +835,8 @@ test("init php-drupal bootstraps a Drupal project with Podman Composer before co
   assert.match(generatedConfig, /\.\/data\/files:\/app\/web\/sites\/default\/files/);
   assert.match(generatedComposer, /drupal\/recommended-project/);
   assert.match(generatedIndex, /Drupal stub/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4-apache/);
-  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6-alpine/);
+  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
+  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6\.39-alpine/);
 });
 
 test("init php-drupal reports when Podman is unavailable", async () => {
@@ -871,12 +871,12 @@ test("init php-drupal adopts an existing Drupal project and only adds Loom files
   const existingIndex = await readFile(join(targetDir, "web", "index.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4-apache\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.10-apache\}/i);
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(existingIndex, /existing drupal/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4-apache/);
+  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
 });
 
 test("init php-wordpress bootstraps a local WordPress project before copying loom config", async () => {
@@ -902,7 +902,7 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
       "    --rm|--userns=keep-id)",
       "      shift",
       "      ;;",
-      "    docker.io/library/wordpress:6-php8.3-apache)",
+      "    docker.io/library/wordpress:6.8.2-php8.3-apache)",
       "      shift",
       "      break",
       "      ;;",
@@ -935,7 +935,7 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
   const generatedWpConfig = await readFile(join(targetDir, "wp-config.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{WORDPRESS_IMAGE:-docker\.io\/library\/wordpress:6-php8\.3-apache\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{WORDPRESS_IMAGE:-docker\.io\/library\/wordpress:6\.8\.2-php8\.3-apache\}/i);
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
@@ -948,8 +948,8 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
   assert.match(generatedIndex, /WordPress stub/);
   assert.match(generatedWpConfig, /DB_NAME/);
   assert.match(generatedWpConfig, /\$table_prefix\s*=\s*loomWordPressEnv\('WORDPRESS_TABLE_PREFIX', 'wp_'\);/);
-  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6-php8\.3-apache/);
-  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6-alpine/);
+  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6\.8\.2-php8\.3-apache/);
+  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6\.39-alpine/);
 });
 
 test("init php-wordpress reports when Podman is unavailable", async () => {
@@ -984,14 +984,14 @@ test("init php-wordpress adopts an existing WordPress project and preserves exis
   const existingWpConfig = await readFile(join(targetDir, "wp-config.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{WORDPRESS_IMAGE:-docker\.io\/library\/wordpress:6-php8\.3-apache\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{WORDPRESS_IMAGE:-docker\.io\/library\/wordpress:6\.8\.2-php8\.3-apache\}/i);
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /workdir:\s*\/var\/www\/html/);
   assert.match(existingWpConfig, /existing/);
   assert.doesNotMatch(existingWpConfig, /loom-auth-key/);
-  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6-php8\.3-apache/);
+  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6\.8\.2-php8\.3-apache/);
 });
 
 test("init php-wordpress adopts an existing WordPress project and adds wp-config when missing", async () => {
@@ -1017,7 +1017,7 @@ test("init php-wordpress adopts an existing WordPress project and adds wp-config
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /workdir:\s*\/var\/www\/html/);
-  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6-php8\.3-apache/);
+  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6\.8\.2-php8\.3-apache/);
 });
 
 test("init rails7 bootstraps a local Rails project before copying loom config", async () => {
@@ -1046,7 +1046,7 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
       "    --rm|--userns=keep-id)",
       "      shift",
       "      ;;",
-      "    docker.io/library/ruby:3.3)",
+      "    docker.io/library/ruby:3.3.8)",
       "      shift",
       "      break",
       "      ;;",
@@ -1055,7 +1055,7 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
       "      ;;",
       "  esac",
       "done",
-      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-c\" ] || [ \"$3\" != \"gem install bundler --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-javascript --skip-test --skip-system-test\" ]; then",
+      "if [ \"$1\" != \"sh\" ] || [ \"$2\" != \"-c\" ] || [ \"$3\" != \"gem install bundler -v 2.6.9 --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-javascript --skip-test --skip-system-test\" ]; then",
       "  echo 'unexpected podman args' >&2",
       "  exit 23",
       "fi",
@@ -1080,11 +1080,11 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
   const generatedRailsBin = await readFile(join(targetDir, "bin", "rails"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{RUBY_IMAGE:-docker\.io\/library\/ruby:3\.3\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{RUBY_IMAGE:-docker\.io\/library\/ruby:3\.3\.8\}/i);
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedConfig, /gem install bundler --no-document/);
+  assert.match(generatedConfig, /gem install bundler -v 2\.6\.9 --no-document/);
   assert.match(generatedConfig, /bundle install/);
   assert.match(generatedConfig, /bin\/rails server -b 0\.0\.0\.0 -p 3006/);
   assert.match(generatedConfig, /healthcheck:/);
@@ -1093,7 +1093,7 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
   assert.doesNotMatch(generatedConfig, /rails _7\.1\.5_ new rails7/);
   assert.match(generatedGemfile, /rubygems/);
   assert.match(generatedRailsBin, /env ruby/);
-  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3/);
+  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3\.8/);
 });
 
 test("init rails7 reports when Podman is unavailable", async () => {
@@ -1128,7 +1128,7 @@ test("init rails7 adopts an existing Rails project and only adds Loom files", as
   const existingGemfile = await readFile(join(targetDir, "Gemfile"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{RUBY_IMAGE:-docker\.io\/library\/ruby:3\.3\}/i);
+  assert.match(generatedConfig, /image:\s*\$\{RUBY_IMAGE:-docker\.io\/library\/ruby:3\.3\.8\}/i);
   assert.match(existingGemfile, /rubygems/);
-  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3/);
+  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3\.8/);
 });

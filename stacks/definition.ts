@@ -17,7 +17,7 @@ export interface StackCompatibility {
 }
 export type StackGenerator =
   | { kind: "none" }
-  | { kind: "command"; package: string; version: string; command: readonly string[] };
+  | { kind: "command"; image: string; package: string; version: string; command: readonly string[] };
 export interface StackRuntimeImage { env: string; reference: string }
 export interface StackVerificationCheck { service?: string; command: readonly string[] }
 export interface StackDefinition {
@@ -80,7 +80,10 @@ export function validateStackDefinition(definition: StackDefinition): void {
   if (definition.assetPath !== `${definition.id}/templates` || !safeRelative(definition.assetPath)) throw new Error(`Unsafe asset path: ${definition.assetPath}`);
   assertSortedUnique(definition.legacyScaffoldVersions, "legacy scaffold versions");
   if (definition.generator.kind === "command") {
-    if (!definition.generator.package.trim() || definition.generator.command.length === 0) throw new Error("Command generator requires a package and command");
+    if (!definition.generator.package.trim() || definition.generator.command.length === 0 || definition.generator.command.some((argument) => !argument.trim())) {
+      throw new Error("Command generator requires a package and nonempty command argv");
+    }
+    validateRuntimeImage({ env: "GENERATOR_IMAGE", reference: definition.generator.image });
     validateGeneratorVersion(definition.generator.version);
   }
   const runtimeEnvs = definition.runtimeImages.map(({ env }) => env);

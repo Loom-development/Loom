@@ -20,12 +20,17 @@ import { dbSqliteStack } from "./db-sqlite/stack.js";
 import { dbSqlserverStack } from "./db-sqlserver/stack.js";
 import { dotnetStack } from "./dotnet/stack.js";
 import { phpStack } from "./php/stack.js";
+import { phpDrupalStack } from "./php-drupal/stack.js";
+import { phpSymfonyStack } from "./php-symfony/stack.js";
+import { phpWordpressStack } from "./php-wordpress/stack.js";
 import { pythonStack } from "./python/stack.js";
 import { pythonDjangoStack } from "./python-django/stack.js";
 import { pythonFastapiStack } from "./python-fastapi/stack.js";
 import { pythonFlaskStack } from "./python-flask/stack.js";
 import { springBootStack } from "./spring-boot/stack.js";
 import { springReactStack } from "./spring-react/stack.js";
+import { rails7Stack } from "./rails7/stack.js";
+import { rails7HotwireStack } from "./rails7-hotwire/stack.js";
 
 export * from "./definition.js";
 export * from "./pins.js";
@@ -61,11 +66,8 @@ const protectedPathsByStack: Record<StackId, readonly string[]> = {
   serverless: ["src", "web/src"], "spring-react": ["backend/src", "frontend/src"], "spring-boot": ["src"], astro: ["public", "src"],
   "django-react": ["backend/project", "frontend/src"]
 };
-const scaffoldVersions: Partial<Record<StackId, string>> = {
-  "php-wordpress": "wordpress-6-php8.3-apache", "php-drupal": "unversioned", "php-symfony": "unversioned", rails7: "rails-7.1.5", "rails7-hotwire": "rails-7.1.5-hotwire"
-};
 function compatibilityDefinition(id: Exclude<StackId, "node">): StackDefinition {
-  const scaffoldVersion = scaffoldVersions[id] ?? "1";
+  const scaffoldVersion = "1";
   return defineStack({ id, definitionVersion: 1, legacyScaffoldVersions: [], assetPath: `${id}/templates`, scaffoldVersion,
     generator: { kind: "none" }, runtimeImages: [], install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 },
     hostWrites: [], verification: [], loomOwnedFiles: [".env.example", "loom.yaml"], generatedPaths: generatedPathsByStack[id],
@@ -75,7 +77,8 @@ const migratedDefinitions = new Map<StackId, StackDefinition>([
   nodeStack, nodeMeanStack, nodeMernStack, nodeT3Stack, bunStack, pythonStack, pythonDjangoStack, pythonFlaskStack,
   pythonFastapiStack, phpStack, dotnetStack, jamstackStack, serverlessStack, springReactStack, springBootStack,
   astroStack, djangoReactStack, dbMysqlStack, dbSqlserverStack, dbPostgresStack, dbMongodbStack, dbRedisStack,
-  dbElasticsearchStack, dbSqliteStack, dbMariadbStack, dbAllStack
+  dbElasticsearchStack, dbSqliteStack, dbMariadbStack, dbAllStack, phpWordpressStack, phpDrupalStack,
+  phpSymfonyStack, rails7Stack, rails7HotwireStack
 ].map((definition) => [definition.id, definition]));
 export const stackDefinitions = stackIds.map((id) => migratedDefinitions.get(id) ?? compatibilityDefinition(id as Exclude<StackId, "node">)) as readonly StackDefinition[];
 const stackDefinitionsById = new Map<StackId, StackDefinition>(stackDefinitions.map((definition) => [definition.id, definition]));

@@ -84,6 +84,96 @@ test("language application stacks publish exact versioned package definitions", 
   assert.deepEqual(findStackDefinition("php")!.generatedPaths, [{ path: "vendor", category: "dependency" }]);
 });
 
+test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
+  const expected = {
+    "php-wordpress": {
+      aliases: ["wordpress-6-php8.3-apache"],
+      generator: {
+        kind: "command",
+        image: "docker.io/library/wordpress:6.8.2-php8.3-apache",
+        package: "wordpress",
+        version: "6.8.2",
+        command: ["sh", "-c", "cp -a /usr/src/wordpress/. /app/"]
+      },
+      runtimeImages: [
+        { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
+        { env: "WORDPRESS_IMAGE", reference: "docker.io/library/wordpress:6.8.2-php8.3-apache" }
+      ]
+    },
+    "php-drupal": {
+      aliases: ["unversioned"],
+      generator: {
+        kind: "command",
+        image: "docker.io/library/composer:2.8.10",
+        package: "drupal/recommended-project",
+        version: "11.2.2",
+        command: ["create-project", "{package}:{version}", "."]
+      },
+      runtimeImages: [
+        { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
+        { env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }
+      ]
+    },
+    "php-symfony": {
+      aliases: ["unversioned"],
+      generator: {
+        kind: "command",
+        image: "docker.io/library/composer:2.8.10",
+        package: "symfony/skeleton",
+        version: "7.3.99",
+        command: [
+          "sh",
+          "-c",
+          "composer create-project {package}:{version} . && composer require symfony/webapp-pack:1.3.0"
+        ]
+      },
+      runtimeImages: [
+        { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
+        { env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }
+      ]
+    },
+    rails7: {
+      aliases: ["rails-7.1.5"],
+      generator: {
+        kind: "command",
+        image: "docker.io/library/ruby:3.3.8",
+        package: "rails",
+        version: "7.1.5",
+        command: [
+          "sh",
+          "-c",
+          "gem install bundler -v 2.6.9 --no-document && gem install {package} -v {version} --no-document && /usr/local/bundle/bin/rails _{version}_ new . --skip-javascript --skip-test --skip-system-test"
+        ]
+      },
+      runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.8" }]
+    },
+    "rails7-hotwire": {
+      aliases: ["rails-7.1.5-hotwire"],
+      generator: {
+        kind: "command",
+        image: "docker.io/library/ruby:3.3.8",
+        package: "rails",
+        version: "7.1.5",
+        command: [
+          "sh",
+          "-c",
+          "gem install bundler -v 2.6.9 --no-document && gem install {package} -v {version} --no-document && /usr/local/bundle/bin/rails _{version}_ new . --skip-test --skip-system-test"
+        ]
+      },
+      runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.8" }]
+    }
+  } as const;
+
+  for (const [id, metadata] of Object.entries(expected)) {
+    const definition = findStackDefinition(id)!;
+    assert.equal(definition.definitionVersion, 2, id);
+    assert.equal(definition.scaffoldVersion, "2", id);
+    assert.deepEqual(definition.legacyScaffoldVersions, metadata.aliases, `${id} aliases`);
+    assert.deepEqual(definition.generator, metadata.generator, `${id} generator`);
+    assert.deepEqual(definition.runtimeImages, metadata.runtimeImages, `${id} images`);
+  }
+});
+
 test("database stacks publish exact versioned package definitions and lifecycle metadata", () => {
   const expected = {
     "db-mysql": {
@@ -181,7 +271,7 @@ test("database stacks publish exact versioned package definitions and lifecycle 
 
   assert.deepEqual(
     stackDefinitions.filter(({ definitionVersion }) => definitionVersion === 1).map(({ id }) => id),
-    ["php-wordpress", "php-drupal", "php-symfony", "rails7", "rails7-hotwire"]
+    []
   );
 });
 

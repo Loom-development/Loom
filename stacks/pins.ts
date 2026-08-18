@@ -24,6 +24,10 @@ export const runtimeImagePins = {
   mysql84: "docker.io/library/mysql:8.4.6",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/php
   php84Apache: "docker.io/library/php:8.4.10-apache",
+  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/ruby
+  ruby338: "docker.io/library/ruby:3.3.8",
+  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/wordpress
+  wordpress682Php83Apache: "docker.io/library/wordpress:6.8.2-php8.3-apache",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/postgres
   postgres16Alpine: "docker.io/library/postgres:16.9-alpine",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/python
@@ -32,5 +36,19 @@ export const runtimeImagePins = {
   redis74Alpine: "docker.io/library/redis:7.4.5-alpine"
 } as const;
 
-// Bootstrap generator versions live here once a stack uses a command generator.
-export const generatorPins = {} as const;
+export const generatorPins = {
+  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/composer
+  composerImage: "docker.io/library/composer:2.8.10",
+  // Verified 2026-08-17 against RubyGems: https://rubygems.org/gems/bundler/versions/2.6.9
+  bundler: "2.6.9",
+  // Verified 2026-08-17 against Packagist: https://packagist.org/packages/drupal/recommended-project
+  drupalRecommendedProject: "11.2.2",
+  // Verified 2026-08-17 against RubyGems: https://rubygems.org/gems/rails/versions/7.1.5
+  rails: "7.1.5",
+  // Verified 2026-08-17 against Packagist: https://packagist.org/packages/symfony/skeleton
+  symfonySkeleton: "7.3.99",
+  // Verified 2026-08-17 against Packagist: https://packagist.org/packages/symfony/webapp-pack
+  symfonyWebappPack: "1.3.0",
+  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/wordpress
+  wordpress: "6.8.2"
+} as const;
