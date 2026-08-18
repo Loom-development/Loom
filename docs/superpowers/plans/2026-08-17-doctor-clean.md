@@ -224,7 +224,7 @@ Expected: compilation fails because `project-clean.ts` does not exist.
 
 - [ ] **Step 3: Implement the cleanup planner**
 
-Resolve the real project root once. Validate every declaration before inspecting sizes. Walk with `lstat` and `readdir`; reject any symlink encountered and sum regular-file sizes. Build a protected set from stack metadata, manifest-owned paths, `loom.yaml`, `.env`, known dependency manifests, and known lockfiles. Reject a generated path when it equals or contains a protected path. Return sorted items and an exact total.
+Resolve the real project root once. Validate every declaration before inspecting sizes. Discover project and workspace dependency manifests and lockfiles outside all declared generated roots without following symlinks or walking `.loom`; dependency metadata nested inside a generated root remains cleanable. Walk generated roots with `lstat` and `readdir`, reject any symlink encountered, and sum regular-file sizes. Build a protected set from stack metadata, manifest-owned paths, `loom.yaml`, `.env`, and the discovered project/workspace files. Reject a generated path when it equals or contains a protected path. Return sorted items and an exact total.
 
 - [ ] **Step 4: Write failing executor tests**
 

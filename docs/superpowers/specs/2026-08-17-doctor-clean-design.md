@@ -86,8 +86,9 @@ Before returning a plan, the planner rejects the whole operation if any path:
 - Is `.loom` or is nested within `.loom`.
 - Is or traverses a symbolic link.
 - Equals or contains a stack-declared protected source path, `loom.yaml`,
-  `.env`, a dependency manifest, a lockfile, or a manifest-declared Loom-owned
-  file.
+  `.env`, a project or workspace dependency manifest or lockfile discovered
+  outside declared generated roots, or a manifest-declared Loom-owned file.
+  Dependency metadata nested inside a declared generated root remains cleanable.
 - Is not explicitly declared by the selected stack.
 
 Protection is deny-first: an unsafe declaration prevents all deletion. The
