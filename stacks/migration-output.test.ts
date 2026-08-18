@@ -9,6 +9,13 @@ import { findStackDefinition } from "./index.js";
 const root = dirname(fileURLToPath(import.meta.url));
 const ids = ["node-mean", "node-mern", "node-t3", "bun", "jamstack", "serverless", "astro"] as const;
 
+function normalizeImageDefaults(yaml: string): string {
+  return yaml.replace(
+    /(^\s*image:\s*)\$\{([A-Z][A-Z0-9_]*):-.*?\}/gm,
+    (_match, prefix: string, env: string) => `${prefix}\${${env}:-<IMAGE>}`
+  );
+}
+
 async function filesBelow(directory: string): Promise<string[]> {
   const result: string[] = [];
   async function visit(current: string): Promise<void> {
@@ -33,8 +40,26 @@ test("JavaScript stack migration preserves every non-image template byte", async
     assert.equal(files.length, fixture.fileCount, `${id} inventory`);
     assert.equal(digest.digest("hex"), fixture.sourceDigest, `${id} source bytes`);
     const yaml = await readFile(resolve(templateRoot, "loom.yaml"), "utf8");
-    const normalizedYaml = yaml.replace(/\$\{([A-Z][A-Z0-9_]*):-.*?\}/g, (_match, env: string) => `\${${env}:-<IMAGE>}`);
+    const normalizedYaml = normalizeImageDefaults(yaml);
     assert.equal(createHash("sha256").update(normalizedYaml).digest("hex"), fixture.loomDigest, `${id} Loom configuration`);
+  }
+});
+
+test("migration normalization preserves non-image environment defaults", async () => {
+  const yaml = await readFile(resolve(root, "..", "node-mean/templates/loom.yaml"), "utf8");
+  const changed = yaml.replace("${HOST_UID:-1000}", "${HOST_UID:-1001}");
+  assert.notEqual(changed, yaml, "fixture must contain a non-image default");
+  assert.notEqual(
+    createHash("sha256").update(normalizeImageDefaults(changed)).digest("hex"),
+    createHash("sha256").update(normalizeImageDefaults(yaml)).digest("hex")
+  );
+});
+
+test("runtime write metadata matches dependency-free Bun and Serverless templates", () => {
+  for (const id of ["bun", "serverless"] as const) {
+    const definition = findStackDefinition(id)!;
+    assert.deepEqual(definition.hostWrites, [], `${id} host writes`);
+    assert.deepEqual(definition.generatedPaths, [], `${id} generated paths`);
   }
 });
 
