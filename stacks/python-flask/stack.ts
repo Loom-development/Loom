@@ -6,7 +6,7 @@ export const pythonFlaskStack = defineStack({
   generator: { kind: "none" }, runtimeImages: [{ env: "PYTHON_IMAGE", reference: runtimeImagePins.python312Slim }],
   install: ["pip install --user -r requirements.txt"], start: ["flask --app app run --host 0.0.0.0 --port 8002"],
   readiness: { kind: "http", value: "http://127.0.0.1:8002/health", timeoutSeconds: 488 }, hostWrites: ["__pycache__"],
-  verification: ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=2)"],
+  verification: [{ service: "app", command: ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=2)"] }],
   loomOwnedFiles: [".env.example", "loom.yaml"], generatedPaths: [{ path: "__pycache__", category: "cache" }],
   protectedPaths: ["app.py", "requirements.txt"], compatibility: { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" }
 });

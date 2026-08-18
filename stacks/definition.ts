@@ -19,6 +19,7 @@ export type StackGenerator =
   | { kind: "none" }
   | { kind: "command"; package: string; version: string; command: readonly string[] };
 export interface StackRuntimeImage { env: string; reference: string }
+export interface StackVerificationCheck { service?: string; command: readonly string[] }
 export interface StackDefinition {
   id: StackId;
   definitionVersion: number;
@@ -32,7 +33,7 @@ export interface StackDefinition {
   start: readonly string[];
   readiness: { kind: "command" | "http" | "port"; value: string; timeoutSeconds: number };
   hostWrites: readonly string[];
-  verification: readonly string[];
+  verification: readonly StackVerificationCheck[];
   loomOwnedFiles: readonly string[];
   generatedPaths: readonly StackGeneratedPath[];
   protectedPaths: readonly string[];
@@ -85,6 +86,14 @@ export function validateStackDefinition(definition: StackDefinition): void {
   const runtimeEnvs = definition.runtimeImages.map(({ env }) => env);
   assertSortedUnique(runtimeEnvs, "runtime image environments");
   for (const image of definition.runtimeImages) validateRuntimeImage(image);
+  for (const check of definition.verification) {
+    if (check.service !== undefined && !/^[a-z][a-z0-9-]*$/.test(check.service)) {
+      throw new Error(`Verification service '${check.service}' must be a service name`);
+    }
+    if (check.command.length === 0 || check.command.some((argument) => !argument.trim())) {
+      throw new Error("Verification command requires nonempty argv");
+    }
+  }
 
   const generatedPaths = definition.generatedPaths.map(({ path }) => path);
   const protectedPaths = [...definition.protectedPaths];

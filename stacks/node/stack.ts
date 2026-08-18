@@ -13,7 +13,7 @@ export const nodeStack = defineStack({
   start: ["npm start"],
   readiness: { kind: "http", value: "http://127.0.0.1:3000/health", timeoutSeconds: 496 },
   hostWrites: ["node_modules"],
-  verification: ["node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],
+  verification: [{ service: "app", command: ["node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"] }],
   loomOwnedFiles: [".env.example", "loom.yaml"],
   generatedPaths: [
     { path: "dist", category: "build" },

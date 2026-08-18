@@ -6,7 +6,7 @@ export const nodeT3Stack = defineStack({
   generator: { kind: "none" }, runtimeImages: [{ env: "NODE_IMAGE", reference: runtimeImagePins.node24Alpine }],
   install: ["corepack enable && pnpm install"], start: ["pnpm dev"],
   readiness: { kind: "http", value: "http://127.0.0.1:3003", timeoutSeconds: 486 }, hostWrites: ["node_modules"],
-  verification: ["node", "-e", "fetch('http://127.0.0.1:3003').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],
+  verification: [{ service: "app", command: ["node", "-e", "fetch('http://127.0.0.1:3003').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"] }],
   loomOwnedFiles: [".env.example", "loom.yaml"], generatedPaths: [{ path: ".next", category: "build" }, { path: "node_modules", category: "dependency" }],
   protectedPaths: ["apps", "packages"], compatibility: { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" }
 });

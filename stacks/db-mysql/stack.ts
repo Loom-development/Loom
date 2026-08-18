@@ -6,7 +6,7 @@ export const dbMysqlStack = defineStack({
   generator: { kind: "none" }, runtimeImages: [{ env: "MYSQL_IMAGE", reference: runtimeImagePins.mysql84 }],
   install: [], start: [],
   readiness: { kind: "command", value: "mysqladmin ping -h 127.0.0.1 -uroot -ploomroot", timeoutSeconds: 100 },
-  hostWrites: [], verification: ["mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-ploomroot"],
+  hostWrites: [], verification: [{ service: "db", command: ["mysql", "-h", "127.0.0.1", "-uloom", "-ploom", "loom", "-e", "SELECT 1"] }],
   loomOwnedFiles: [".env.example", "loom.yaml"], generatedPaths: [], protectedPaths: [],
-  compatibility: { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" }
+  compatibility: { architectures: ["arm64", "x64"], runtime: "podman-rootless" }
 });

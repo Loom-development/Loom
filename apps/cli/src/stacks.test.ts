@@ -47,10 +47,9 @@ test("every stack has explicit, deterministic maintenance metadata", () => {
       definition.generatedPaths.length
     );
     assert.deepEqual([...definition.protectedPaths], [...definition.protectedPaths].sort());
-    assert.deepEqual(definition.compatibility, {
-      architectures: ["arm", "arm64", "x64"],
-      runtime: "podman-rootless"
-    });
+    assert.equal(definition.compatibility.runtime, "podman-rootless");
+    assert.ok(definition.compatibility.architectures.length > 0);
+    assert.ok(definition.compatibility.architectures.every((architecture) => ["arm", "arm64", "x64"].includes(architecture)));
   }
 });
 

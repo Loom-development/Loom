@@ -8,7 +8,7 @@ export const pythonDjangoStack = defineStack({
   start: ["python manage.py migrate --noinput", "python manage.py runserver 0.0.0.0:8001"],
   readiness: { kind: "http", value: "http://127.0.0.1:8001/health", timeoutSeconds: 488 },
   hostWrites: ["db.sqlite3", "project/__pycache__"],
-  verification: ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2)"],
+  verification: [{ service: "app", command: ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2)"] }],
   loomOwnedFiles: [".env.example", "loom.yaml"], generatedPaths: [{ path: "project/__pycache__", category: "cache" }],
   protectedPaths: ["manage.py", "project", "requirements.txt"], compatibility: { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" }
 });

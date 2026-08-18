@@ -17,7 +17,7 @@ export const djangoReactStack = defineStack({
   ],
   readiness: { kind: "http", value: "http://127.0.0.1:5176", timeoutSeconds: 485 },
   hostWrites: ["backend/db.sqlite3", "backend/project/__pycache__", "frontend/node_modules", "frontend/package-lock.json"],
-  verification: ["node", "-e", "fetch('http://127.0.0.1:5176').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"],
+  verification: [{ service: "web", command: ["node", "-e", "fetch('http://127.0.0.1:5176').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"] }],
   loomOwnedFiles: [".env.example", "loom.yaml"], generatedPaths: [
     { path: "backend/project/__pycache__", category: "cache" }, { path: "frontend/dist", category: "build" },
     { path: "frontend/node_modules", category: "dependency" }
