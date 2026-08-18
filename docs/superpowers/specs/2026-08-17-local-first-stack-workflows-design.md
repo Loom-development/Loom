@@ -1,8 +1,8 @@
 # Local-First Stack Workflows
 
 > **Status: implementation in progress.** The stack registry, upgrade-safe v2
-> ownership manifest, `loom adopt`, and manifest-aware `loom upgrade` are
-> implemented. Pinned generators, diagnostics, cleanup, repository restructuring,
+> ownership manifest, `loom adopt`, manifest-aware `loom upgrade`, diagnostics,
+> and safe generated-path cleanup are implemented. Pinned generators, repository restructuring,
 > and the complete release matrix remain target behavior unless explicitly
 > identified as current behavior.
 
@@ -145,11 +145,17 @@ silently generate or rewrite lockfiles. Dependency installation can be skipped
 when a fingerprint of the lockfile, runtime image, install command, and relevant
 stack definition has not changed.
 
-The planned `loom clean` command will list and remove only generated paths declared by the selected
-stack. It requires confirmation unless a non-interactive force option is
-explicitly supplied.
+`loom clean` lists and removes only generated paths declared by the selected
+stack. `--dry-run` previews without deleting, interactive execution requires
+confirmation, and non-interactive execution requires `--force`. The force flag
+bypasses confirmation only, not validation. Cleanup preserves `.loom/`, database
+and runtime state, application source, configuration, manifests, lockfiles, and
+Loom-owned files. It revalidates each path immediately before deletion and is
+best effort: an unsafe path or filesystem error stops later removals without
+rolling back earlier ones. Database data is managed through backup and restore,
+not cleanup.
 
-The planned `loom doctor` command will diagnose at least:
+`loom doctor` diagnoses:
 
 - Incorrect host ownership or permissions
 - Missing, conflicting, or stale lockfiles and dependencies
@@ -158,6 +164,9 @@ The planned `loom doctor` command will diagnose at least:
 - Podman availability and rootless configuration
 - Invalid routes and host integration limitations
 - Stack-definition and project compatibility mismatches
+
+The command supports deterministic human-readable and JSON output. Warnings,
+including host-integration limitations, exit 0; any failure exits 1.
 
 Errors identify the failed phase: generator, image pull, dependency install,
 process launch, readiness, route proxy, or host integration.
@@ -204,8 +213,8 @@ Migration should proceed in bounded phases:
    existing command behavior.
 2. Add `loom adopt` and manifest-aware safe writes.
 3. Move bootstrap-heavy templates to pinned generator definitions.
-4. Add manifest-driven `loom upgrade` (complete), then `loom doctor` and
-   `loom clean`.
+4. Add manifest-driven `loom upgrade`, `loom doctor`, and `loom clean`
+   (complete).
 5. Split repository examples into runnable projects and stack assets.
 6. Require the complete generated-stack matrix as a release gate.
 

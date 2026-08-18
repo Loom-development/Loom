@@ -33,6 +33,14 @@ This boundary keeps files visible to editors, Git, debuggers, and host command-l
 
 The command also accepts `--config <path>` to locate a project outside the current directory. It is non-interactive: replacement of modified Loom-owned files always requires the explicit `--force-modified` flag.
 
+## Diagnostics and generated-path cleanup
+
+`loom doctor` runs deterministic checks for the project manifest and stack, rootless Podman, host architecture, lockfiles, dependency ownership, configured ports, routes, and host integration. The default renderer labels checks as pass, warning, or failure; `--json` exposes the same structured result list. Warnings exit 0, including host-integration limitations such as inability to update `/etc/hosts`; any failure exits 1.
+
+`loom clean` derives its plan exclusively from generated paths declared by the manifest-selected stack. It always displays the paths, categories, presence, and byte total before deletion. `--dry-run` stops after that preview. Interactive use requires confirmation, while non-interactive use requires `--force`; that flag bypasses only confirmation, never safety validation.
+
+The planner and executor reject traversal, project-root targets, and symlinked targets or parents. They protect `.loom/` and its database/runtime state, source roots, project configuration and environment files, dependency manifests and lockfiles, manifest-declared Loom-owned files, and every unlisted path. Execution is intentionally best effort rather than transactional: every item is revalidated immediately before removal, cleanup stops on the first newly unsafe path or filesystem error, and earlier successful deletions remain deleted. Missing declared paths are successful no-ops. Database lifecycle stays with `loom backup` and `loom restore`; cleanup does not reset data.
+
 ## What Loom is doing in the background
 
 When you run `loom start`, Loom:
@@ -160,13 +168,11 @@ Service definitions can now also opt into Podman user mapping through `user` and
 
 ## Stack lifecycle direction
 
-The approved local-first design makes new-project generation and existing-project adoption equal workflows. The stack registry, ownership manifest, adoption, and manifest-aware upgrade are available now. Remaining planned capabilities include:
+The approved local-first design makes new-project generation and existing-project adoption equal workflows. The stack registry, ownership manifest, adoption, manifest-aware upgrade, structured diagnostics, and safe generated-path cleanup are available now. Remaining planned capabilities include:
 
 - Pinned, release-tested stack definitions for reproducible `loom init` output.
-- `loom doctor` for ownership, runtime, lockfile, port, and compatibility diagnostics.
-- `loom clean` for removing only stack-declared generated paths after confirmation.
 
-Pinned generator coverage and the diagnostic and cleanup commands remain planned. The complete approved design is documented in [Local-First Stack Workflows](superpowers/specs/2026-08-17-local-first-stack-workflows-design.md).
+Pinned generator coverage remains planned. The complete approved design is documented in [Local-First Stack Workflows](superpowers/specs/2026-08-17-local-first-stack-workflows-design.md).
 
 ### Why the split matters
 

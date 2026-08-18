@@ -64,6 +64,8 @@ When you're done: `loom stop`.
 loom start              # start the project
 loom adopt [stack]      # configure an existing local project
 loom upgrade            # update safe, Loom-owned project files
+loom doctor             # diagnose project and host compatibility
+loom clean --dry-run    # preview removable generated paths
 loom stop               # stop everything
 loom status             # see what's running
 loom logs app           # tail logs for the 'app' service
@@ -140,6 +142,26 @@ loom upgrade
 
 Use `--config path/to/loom.yaml` when the project configuration is not in the current directory. `--initialize-baseline` is refused for projects that already have an upgrade-safe v2 manifest.
 
+## Diagnose and clean a project safely
+
+`loom doctor` checks the project manifest and selected stack, Podman rootless availability, host architecture, lockfiles, dependency ownership, ports, routes, and host integration. Human-readable output labels every check `PASS`, `WARN`, or `FAIL`; `--json` prints the same structured results for automation. Warnings, including an unavailable `/etc/hosts` integration, exit with status 0. Any failure exits with status 1.
+
+```bash
+loom doctor
+loom doctor --json
+loom doctor --config path/to/loom.yaml
+```
+
+`loom clean` previews only the dependency, cache, and build paths declared by the project's stack. Run it interactively to confirm the preview, use `--dry-run` to preview without prompting or deleting, or use `--force` for explicit non-interactive execution.
+
+```bash
+loom clean --dry-run
+loom clean
+loom clean --force
+```
+
+Cleanup never removes `.loom/`, database or runtime state, application source, `loom.yaml`, `.env`, dependency manifests, lockfiles, manifest-declared Loom-owned files, or unlisted paths. Validation cannot be bypassed by `--force`. Deletion is best effort: paths are revalidated immediately before removal, and cleanup stops if a path becomes unsafe or a filesystem operation fails; earlier removals are not rolled back. Missing generated paths are harmless. Use `loom backup` and `loom restore` for database data—`loom clean` is not a database reset command.
+
 If you run `loom init` without a template, Loom now prompts you to choose one interactively and suggests a default when it recognizes common root files such as `package.json`, `composer.json`, `pyproject.toml`, or `Gemfile`.
 
 Initialized templates now copy `.env.example` to `.env` when present. For templates that expose image tags, you can switch to a different LTS or runtime version by editing the `*_IMAGE` values in `.env` instead of changing `loom.yaml` directly.
@@ -171,6 +193,8 @@ RUBY_IMAGE=docker.io/library/ruby:3.3
 - `loom start` — start your project services
 - `loom adopt [stack]` — add Loom configuration to an existing local project without replacing application files
 - `loom upgrade` — update missing or unchanged Loom-owned files; use `--force-modified` only when you intend to replace local Loom configuration changes
+- `loom doctor` — diagnose project, runtime, compatibility, port, route, and host-integration issues; add `--json` for automation
+- `loom clean --dry-run` — preview stack-declared generated paths; run interactively or add `--force` to remove them
 - `loom stop` — stop everything cleanly
 - `loom restart` — stop + start
 - `loom start --recreate` — remove existing project containers and start fresh

@@ -16,6 +16,8 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 - Upgrade-safe v2 `.loom/manifest.json` ownership records and baselines for newly initialized and adopted projects.
 - `loom upgrade` for updating only manifest-declared Loom files. Missing and unchanged files update automatically; locally modified Loom files require `--force-modified`.
 - One-time migration of v1 manifests with `loom upgrade --initialize-baseline`, which records current baselines without replacing project files.
+- `loom doctor` with human-readable and JSON diagnostics for project ownership, rootless Podman, lockfiles, ports, routes, architecture, and host integration. Warnings exit 0; failures exit 1.
+- `loom clean` with an exact preview and stack-declared dependency, cache, and build paths. It preserves source, configuration, lockfiles, `.loom/`, and database state; `--force` bypasses confirmation only.
 
 ## What’s next
 
@@ -37,10 +39,10 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 - Improve upgrade previews for locally modified Loom configuration.
 - Keep framework and application upgrades developer-controlled.
 
-### 4) Faster diagnosis and cleanup
+### 4) Deeper diagnosis and cleanup
 
-- Add `loom doctor` for ownership, runtime, lockfile, port, and architecture problems.
-- Add `loom clean` for declared dependency/build paths with an explicit deletion preview.
+- Expand stack-specific diagnostic guidance while retaining stable JSON result identifiers.
+- Expand release smoke coverage for stack-declared generated paths and preservation boundaries.
 - Report failures by phase: generator, image pull, dependency install, process launch, readiness, routes, or host integration.
 
 ### 5) Clear examples
