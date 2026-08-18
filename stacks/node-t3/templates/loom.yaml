@@ -1,5 +1,5 @@
 version: 1
-name: astro-example
+name: node-t3-example
 runtime:
   engine: podman
   rootless: true
@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: node
-    image: ${NODE_IMAGE:-docker.io/library/node:24-alpine}
+    image: ${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}
     user: root
     userns: keep-id
     execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
@@ -28,25 +28,28 @@ services:
         fi
         touch /tmp/loom-node-build-deps.installed
       fi
+      corepack enable
       mkdir -p "$home_dir"
       chmod 0777 "$home_dir"
-      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -c 'npm install && npx astro dev --host 0.0.0.0 --port 4321'
+      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -c 'pnpm install && pnpm dev'
     ports:
-      - "4321:4321"
+      - "3003:3003"
     volumes:
       - ./:/workspace
+    env:
+      PORT: "3003"
     healthcheck:
-      command: node -e "fetch('http://127.0.0.1:4321').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      command: node -e "fetch('http://127.0.0.1:3003').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       intervalSeconds: 4
       timeoutSeconds: 4
       retries: 120
-      startPeriodSeconds: 15
+      startPeriodSeconds: 6
 routes:
-  - host: astro.loom.local
+  - host: t3.loom.local
     service: app
-    port: 4321
+    port: 3003
     https: true
 tasks:
   test:
     service: app
-    command: npx astro check
+    command: corepack enable && pnpm typecheck

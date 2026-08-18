@@ -1,6 +1,13 @@
 import type { GeneratedPathCategory, StackDefinition, StackGeneratedPath, StackId } from "./definition.js";
 import { defineStack, stackIds, validateStackDefinition } from "./definition.js";
 import { nodeStack } from "./node/stack.js";
+import { astroStack } from "./astro/stack.js";
+import { bunStack } from "./bun/stack.js";
+import { jamstackStack } from "./jamstack/stack.js";
+import { nodeMeanStack } from "./node-mean/stack.js";
+import { nodeMernStack } from "./node-mern/stack.js";
+import { nodeT3Stack } from "./node-t3/stack.js";
+import { serverlessStack } from "./serverless/stack.js";
 
 export * from "./definition.js";
 export * from "./pins.js";
@@ -46,7 +53,10 @@ function compatibilityDefinition(id: Exclude<StackId, "node">): StackDefinition 
     hostWrites: [], verification: [], loomOwnedFiles: [".env.example", "loom.yaml"], generatedPaths: generatedPathsByStack[id],
     protectedPaths: protectedPathsByStack[id], compatibility });
 }
-export const stackDefinitions = stackIds.map((id) => id === "node" ? nodeStack : compatibilityDefinition(id)) as readonly StackDefinition[];
+const migratedDefinitions = new Map<StackId, StackDefinition>([
+  nodeStack, nodeMeanStack, nodeMernStack, nodeT3Stack, bunStack, jamstackStack, serverlessStack, astroStack
+].map((definition) => [definition.id, definition]));
+export const stackDefinitions = stackIds.map((id) => migratedDefinitions.get(id) ?? compatibilityDefinition(id as Exclude<StackId, "node">)) as readonly StackDefinition[];
 const stackDefinitionsById = new Map<StackId, StackDefinition>(stackDefinitions.map((definition) => [definition.id, definition]));
 export function findStackDefinition(stackId: string): StackDefinition | undefined { return stackDefinitionsById.get(stackId as StackId); }
 export function listStackIds(): string[] { return stackDefinitions.map(({ id }) => id).sort(); }
