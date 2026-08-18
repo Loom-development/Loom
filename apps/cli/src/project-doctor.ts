@@ -1,9 +1,9 @@
 import { constants } from "node:fs";
 import { access, lstat, readdir } from "node:fs/promises";
 import { createServer } from "node:net";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import type { LoomConfig } from "@loom/config";
-import { detectPodmanCapabilities, type PodmanCapabilities } from "@loom/runtime-podman";
+import { detectPodmanCapabilities, listProjectContainers, type PodmanCapabilities } from "@loom/runtime-podman";
 import type { LoadedProjectManifest } from "./project-manifest.js";
 import type { StackDefinition } from "./stacks.js";
 
@@ -14,6 +14,7 @@ export interface DoctorProbes {
   architecture(): NodeJS.Architecture;
   pathState(path: string): Promise<{ exists: boolean; uid?: number; writable: boolean }>;
   portAvailable(port: number): Promise<boolean>;
+  runningContainers(projectName: string): Promise<readonly string[]>;
   hostsWritable(): Promise<boolean>;
 }
 
@@ -38,16 +39,21 @@ function result(id: string, status: DoctorStatus, summary: string, detail?: stri
   return { id, status, summary, ...(detail ? { detail } : {}) };
 }
 
-async function fileNames(projectRoot: string, excluded: readonly string[]): Promise<Set<string>> {
-  const found = new Set<string>();
+async function dependencyFiles(projectRoot: string, excluded: readonly string[]): Promise<Map<string, Set<string>>> {
+  const found = new Map<string, Set<string>>();
   const excludedPaths = new Set([".loom", ...excluded]);
   async function walk(directory: string, relativeDirectory: string, depth: number): Promise<void> {
     let entries;
     try { entries = await readdir(directory, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
       if (entry.isSymbolicLink()) continue;
-      if (entry.isFile() && (dependencyManifests.has(entry.name) || lockfileFamilies.some(({ locks }) => locks.includes(entry.name as never)))) found.add(entry.name);
       const relativePath = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
+      if (entry.isFile() && (dependencyManifests.has(entry.name) || lockfileFamilies.some(({ locks }) => locks.includes(entry.name as never)))) {
+        const directory = dirname(relativePath) === "." ? "" : dirname(relativePath);
+        const names = found.get(directory) ?? new Set<string>();
+        names.add(entry.name);
+        found.set(directory, names);
+      }
       if (entry.isDirectory() && depth < 4 && !excludedPaths.has(relativePath)) await walk(resolve(directory, entry.name), relativePath, depth + 1);
     }
   }
@@ -94,13 +100,16 @@ function architectureCheck(stack: StackDefinition | undefined, probes: DoctorPro
 }
 
 async function lockfilesCheck(projectRoot: string, stack: StackDefinition | undefined): Promise<DoctorResult> {
-  const names = await fileNames(projectRoot, stack?.generatedPaths.map(({ path }) => path) ?? []);
+  const directories = await dependencyFiles(projectRoot, stack?.generatedPaths.map(({ path }) => path) ?? []);
   const problems: string[] = [];
-  for (const family of lockfileFamilies) {
-    if (!names.has(family.manifest)) continue;
-    const present = family.locks.filter((lock) => names.has(lock));
-    if (present.length === 0) problems.push(`${family.manifest}: missing lockfile`);
-    else if (present.length > 1) problems.push(`${family.manifest}: conflicting lockfiles (${present.join(", ")})`);
+  for (const [directory, names] of [...directories].sort(([a], [b]) => a.localeCompare(b))) {
+    for (const family of lockfileFamilies) {
+      if (!names.has(family.manifest)) continue;
+      const present = family.locks.filter((lock) => names.has(lock));
+      const location = directory || ".";
+      if (present.length === 0) problems.push(`${location}/${family.manifest}: missing lockfile`);
+      else if (present.length > 1) problems.push(`${location}/${family.manifest}: conflicting lockfiles (${present.join(", ")})`);
+    }
   }
   if (!problems.length) return result("lockfiles", "pass", "Dependency lockfiles are consistent");
   const conflicts = problems.filter((problem) => problem.includes("conflicting"));
@@ -139,8 +148,14 @@ function parsedServicePorts(config: LoomConfig): { mappings: Map<string, PortMap
 async function portsCheck(config: LoomConfig, probes: DoctorProbes, parsed: ReturnType<typeof parsedServicePorts>): Promise<DoctorResult> {
   if (parsed.errors.length) return result("ports", "failure", "Service port mappings are invalid", parsed.errors.join("; "));
   const ports = [...new Set([...parsed.mappings.values()].flatMap((items) => items.flatMap(({ hostPort }) => hostPort === undefined ? [] : [hostPort])))].sort((a, b) => a - b);
+  const runningContainers = new Set(await probes.runningContainers(config.name));
   const unavailable: number[] = [];
-  for (const port of ports) if (!await probes.portAvailable(port)) unavailable.push(port);
+  for (const port of ports) {
+    if (await probes.portAvailable(port)) continue;
+    const belongsToRunningService = [...parsed.mappings].some(([serviceName, mappings]) =>
+      mappings.some(({ hostPort }) => hostPort === port) && runningContainers.has(`${config.name}-${serviceName}`));
+    if (!belongsToRunningService) unavailable.push(port);
+  }
   return unavailable.length ? result("ports", "failure", "Configured host ports are unavailable", unavailable.join(", ")) : result("ports", "pass", "Configured host ports are available");
 }
 
@@ -187,6 +202,7 @@ export function defaultDoctorProbes(): DoctorProbes {
     architecture: () => process.arch,
     pathState: defaultPathState,
     portAvailable: defaultPortAvailable,
+    runningContainers: async (projectName) => (await listProjectContainers(projectName)).filter(({ running }) => running).map(({ name }) => name),
     hostsWritable: async () => {
       if (process.platform === "win32") return false;
       try { await access("/etc/hosts", constants.W_OK); return true; } catch { return false; }

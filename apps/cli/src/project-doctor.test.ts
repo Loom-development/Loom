@@ -31,6 +31,7 @@ function probes(overrides: Partial<DoctorProbes> = {}): DoctorProbes {
     architecture: () => "x64",
     pathState: async () => ({ exists: false, writable: false }),
     portAvailable: async () => true,
+    runningContainers: async () => [],
     hostsWritable: async () => true,
     ...overrides
   };
@@ -86,6 +87,19 @@ test("reports missing and conflicting lockfiles", async (t) => {
   assert.equal(results.find(({ id }) => id === "lockfiles")!.status, "failure");
 });
 
+test("evaluates Node lockfiles per workspace directory", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "loom-doctor-workspace-locks-")); t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, "api")); await mkdir(join(root, "web"));
+  await writeFile(join(root, "api", "package.json"), "{}\n"); await writeFile(join(root, "api", "package-lock.json"), "{}\n");
+  await writeFile(join(root, "web", "package.json"), "{}\n"); await writeFile(join(root, "web", "pnpm-lock.yaml"), "\n");
+  let results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes() });
+  assert.equal(results.find(({ id }) => id === "lockfiles")!.status, "pass");
+  await writeFile(join(root, "web", "yarn.lock"), "\n");
+  results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes() });
+  const lockfiles = results.find(({ id }) => id === "lockfiles")!;
+  assert.equal(lockfiles.status, "failure"); assert.match(lockfiles.detail!, /web\/package\.json/);
+});
+
 test("reports dependency ownership and writability", async (t) => {
   const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true })); await mkdir(join(root, "node_modules"));
   const results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes({ pathState: async () => ({ exists: true, uid: (process.getuid?.() ?? 0) + 1, writable: false }) }) });
@@ -100,6 +114,16 @@ test("parses host, IP, and TCP port mappings and reports unavailable ports", asy
   const results = await runProjectDoctor({ projectRoot: root, config: mapped, manifest: ready, stack, probes: probes({ portAvailable: async (port) => { checked.push(port); return port !== 4000; } }) });
   assert.deepEqual(checked, [3000, 4000]); assert.equal(results.find(({ id }) => id === "ports")!.status, "failure");
   assert.equal(results.find(({ id }) => id === "routes")!.status, "pass");
+});
+
+test("accepts a bound port owned by this running project and rejects unrelated occupation", async (t) => {
+  const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
+  const healthy = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes({ portAvailable: async () => false, runningContainers: async () => ["demo-app"] }) });
+  assert.equal(healthy.find(({ id }) => id === "ports")!.status, "pass");
+  const stopped = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes({ portAvailable: async () => false, runningContainers: async () => ["demo-app-stale"] }) });
+  assert.equal(stopped.find(({ id }) => id === "ports")!.status, "failure");
+  const otherProject = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes({ portAvailable: async () => false, runningContainers: async () => ["other-app"] }) });
+  assert.equal(otherProject.find(({ id }) => id === "ports")!.status, "failure");
 });
 
 test("rejects malformed mappings and distinguishes route service and port failures", async (t) => {
