@@ -11,6 +11,7 @@ import { formatStartupNotice, LoomOrchestrator } from "@loom/core";
 import { runNamedTask } from "@loom/tasks";
 import { detectInitTemplateSuggestion } from "./init-detect.js";
 import { confirmProjectClean } from "./clean-prompt.js";
+import { doctorExitCode, formatDoctorJson, formatDoctorResults } from "./doctor-output.js";
 import {
   chooseInitDatabases,
   chooseInitImageOverrides,
@@ -23,7 +24,7 @@ import {
 import { prepareInitTarget } from "./init-template.js";
 import { loadProjectManifest, writeProjectManifest } from "./project-manifest.js";
 import { applyProjectClean, planProjectClean, type ProjectCleanPlan } from "./project-clean.js";
-import { defaultDoctorProbes, runProjectDoctor, type DoctorProbes, type DoctorResult } from "./project-doctor.js";
+import { runProjectDoctor } from "./project-doctor.js";
 import { applyProjectUpgrade, planProjectUpgrade, renderPhpDocroot, renderProjectName } from "./project-upgrade.js";
 import { findStackDefinition, listStackIds } from "./stacks.js";
 
@@ -72,33 +73,6 @@ function renderCleanPlan(plan: ProjectCleanPlan): void {
   }
   if (plan.items.length === 0) process.stdout.write("  (none)\n");
   process.stdout.write(`Total: ${formatBytes(plan.totalBytes)}\n`);
-}
-
-function doctorFixtureProbes(): DoctorProbes | undefined {
-  if (process.env.NODE_ENV !== "test" || !process.env.LOOM_TEST_DOCTOR_FIXTURE) return undefined;
-  const fixture = process.env.LOOM_TEST_DOCTOR_FIXTURE;
-  const defaults = defaultDoctorProbes();
-  return {
-    ...defaults,
-    podman: async () => ({
-      available: fixture !== "failure",
-      rootless: true,
-      ...(fixture === "failure" ? {} : { version: "test" }),
-      machine: { supported: false, running: false }
-    }),
-    architecture: () => "x64",
-    pathState: async () => ({ exists: false, writable: false }),
-    portAvailable: async () => true,
-    runningContainers: async () => [],
-    hostsWritable: async () => fixture !== "warning"
-  };
-}
-
-function renderDoctorResults(results: readonly DoctorResult[]): void {
-  const labels = { pass: "PASS", warning: "WARN", failure: "FAIL" } as const;
-  for (const item of results) {
-    process.stdout.write(`[${labels[item.status]}] ${item.id}: ${item.summary}${item.detail ? ` — ${item.detail}` : ""}\n`);
-  }
 }
 
 function withErrorHandling<TArgs extends unknown[]>(fn: (...args: TArgs) => Promise<void>) {
@@ -898,18 +872,16 @@ cli
       const project = await loadLoomProject(configPath);
       const manifest = await loadProjectManifest(project.projectRoot);
       const stack = manifest.kind === "missing" ? undefined : findStackDefinition(manifest.manifest.stack.id);
-      const fixtureProbes = doctorFixtureProbes();
       const results = await runProjectDoctor({
         projectRoot: project.projectRoot,
         config: project.config,
         manifest,
-        stack,
-        ...(fixtureProbes ? { probes: fixtureProbes } : {})
+        stack
       });
 
-      if (options.json) process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
-      else renderDoctorResults(results);
-      if (results.some(({ status }) => status === "failure")) process.exitCode = 1;
+      if (options.json) process.stdout.write(formatDoctorJson(results));
+      else process.stdout.write(formatDoctorResults(results));
+      process.exitCode = doctorExitCode(results);
     })
   );
 

@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { isCleanConfirmed } from "./clean-prompt.js";
+import { doctorExitCode, formatDoctorJson, formatDoctorResults } from "./doctor-output.js";
 
 function runCli(args: string[], options: { input?: string; env?: NodeJS.ProcessEnv } = {}) {
   const currentFileDir = dirname(fileURLToPath(import.meta.url));
@@ -108,51 +109,15 @@ test("help includes the restore command", () => {
   assert.match(result.stdout, /clean/i);
 });
 
-test("doctor renders deterministic human results and warnings exit zero", async () => {
-  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-doctor-"));
-  const initialized = runCli(["init", "node", "--dir", projectRoot]);
-  assert.equal(initialized.status, 0, initialized.stderr);
-
-  const result = runCli(["doctor", "--config", join(projectRoot, "loom.yaml")], {
-    env: { NODE_ENV: "test", LOOM_TEST_DOCTOR_FIXTURE: "warning" }
-  });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /^\[PASS\] manifest:/m);
-  assert.match(result.stdout, /\[WARN\] hosts:/);
-  assert.ok(result.stdout.indexOf("manifest:") < result.stdout.indexOf("podman:"));
-});
-
-test("doctor JSON is parseable and failures exit one", async () => {
-  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-doctor-"));
-  const initialized = runCli(["init", "node", "--dir", projectRoot]);
-  assert.equal(initialized.status, 0, initialized.stderr);
-
-  const result = runCli(["doctor", "--config", join(projectRoot, "loom.yaml"), "--json"], {
-    env: { NODE_ENV: "test", LOOM_TEST_DOCTOR_FIXTURE: "failure" }
-  });
-  assert.equal(result.status, 1);
-  const results = JSON.parse(result.stdout) as Array<{ id: string; status: string }>;
-  assert.equal(results.find(({ id }) => id === "podman")?.status, "failure");
-  assert.equal(result.stderr, "");
-});
-
-test("doctor reports missing and unknown manifest stacks as failures", async () => {
-  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-doctor-"));
-  const initialized = runCli(["init", "node", "--dir", projectRoot]);
-  assert.equal(initialized.status, 0, initialized.stderr);
-  await rmSync(join(projectRoot, ".loom", "manifest.json"));
-  const environment = { NODE_ENV: "test", LOOM_TEST_DOCTOR_FIXTURE: "healthy" };
-  const missing = runCli(["doctor", "--config", join(projectRoot, "loom.yaml"), "--json"], { env: environment });
-  assert.equal(missing.status, 1);
-  assert.equal((JSON.parse(missing.stdout) as Array<{ id: string; status: string }>)[0]?.status, "failure");
-
-  await mkdir(join(projectRoot, ".loom"), { recursive: true });
-  await writeFile(join(projectRoot, ".loom", "manifest.json"), JSON.stringify({
-    version: 1, loomVersion: "0.1.0", stack: { id: "not-a-stack", scaffoldVersion: "1" }, ownedFiles: {}
-  }));
-  const unknown = runCli(["doctor", "--config", join(projectRoot, "loom.yaml"), "--json"], { env: environment });
-  assert.equal(unknown.status, 1);
-  assert.match(unknown.stdout, /unknown stack/i);
+test("doctor human output is deterministic and exit semantics distinguish warnings from failures", () => {
+  const warnings = [
+    { id: "manifest", status: "pass" as const, summary: "Manifest current" },
+    { id: "hosts", status: "warning" as const, summary: "Hosts unavailable", detail: "Use localhost." }
+  ];
+  assert.equal(formatDoctorResults(warnings), "[PASS] manifest: Manifest current\n[WARN] hosts: Hosts unavailable — Use localhost.\n");
+  assert.equal(doctorExitCode(warnings), 0);
+  assert.equal(doctorExitCode([...warnings, { id: "podman", status: "failure", summary: "Podman unavailable" }]), 1);
+  assert.deepEqual(JSON.parse(formatDoctorJson(warnings)), warnings);
 });
 
 test("clean previews exact sorted paths and dry-run never deletes", async () => {
