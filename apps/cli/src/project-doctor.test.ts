@@ -126,6 +126,21 @@ test("accepts a bound port owned by this running project and rejects unrelated o
   assert.equal(otherProject.find(({ id }) => id === "ports")!.status, "failure");
 });
 
+test("rejects duplicate host-port claims across services before probing availability", async (t) => {
+  const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
+  const duplicate: LoomConfig = { ...config, services: {
+    api: { type: "node", image: "node", ports: ["127.0.0.1:3000:4000/tcp"] },
+    web: { type: "node", image: "node", ports: ["3000:3000"] }
+  }, routes: [] };
+  let availabilityCalls = 0;
+  const results = await runProjectDoctor({ projectRoot: root, config: duplicate, manifest: ready, stack, probes: probes({
+    portAvailable: async () => { availabilityCalls++; return true; }, runningContainers: async () => ["demo-api"]
+  }) });
+  const ports = results.find(({ id }) => id === "ports")!;
+  assert.equal(ports.status, "failure"); assert.equal(availabilityCalls, 0);
+  assert.equal(ports.detail, "3000: api (127.0.0.1:3000:4000/tcp), web (3000:3000)");
+});
+
 test("rejects malformed mappings and distinguishes route service and port failures", async (t) => {
   const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
   const invalid: LoomConfig = { ...config, services: { app: { ...config.services.app!, ports: ["127.0.0.1:bad:3000"] } }, routes: [{ host: "a.local", service: "missing", port: 80 }, { host: "b.local", service: "app", port: 9999 }] };

@@ -61,7 +61,7 @@ async function dependencyFiles(projectRoot: string, excluded: readonly string[])
   return found;
 }
 
-interface PortMapping { hostPort?: number; containerPort: number }
+interface PortMapping { hostPort?: number; containerPort: number; source: string }
 function parsePortMapping(mapping: string): PortMapping | undefined {
   const protocolParts = mapping.split("/");
   if (protocolParts.length > 2 || (protocolParts[1] !== undefined && protocolParts[1] !== "tcp")) return undefined;
@@ -72,7 +72,9 @@ function parsePortMapping(mapping: string): PortMapping | undefined {
   if (!numbers.every((value) => /^\d+$/.test(value))) return undefined;
   const parsed = numbers.map(Number);
   if (parsed.some((port) => port < 1 || port > 65_535)) return undefined;
-  return parsed.length === 1 ? { containerPort: parsed[0]! } : { hostPort: parsed[0]!, containerPort: parsed[1]! };
+  return parsed.length === 1
+    ? { containerPort: parsed[0]!, source: mapping }
+    : { hostPort: parsed[0]!, containerPort: parsed[1]!, source: mapping };
 }
 
 async function manifestCheck(options: RunProjectDoctorOptions): Promise<DoctorResult> {
@@ -147,6 +149,20 @@ function parsedServicePorts(config: LoomConfig): { mappings: Map<string, PortMap
 
 async function portsCheck(config: LoomConfig, probes: DoctorProbes, parsed: ReturnType<typeof parsedServicePorts>): Promise<DoctorResult> {
   if (parsed.errors.length) return result("ports", "failure", "Service port mappings are invalid", parsed.errors.join("; "));
+  const claims = new Map<number, string[]>();
+  for (const [serviceName, mappings] of parsed.mappings) {
+    for (const mapping of mappings) {
+      if (mapping.hostPort === undefined) continue;
+      const existing = claims.get(mapping.hostPort) ?? [];
+      existing.push(`${serviceName} (${mapping.source})`);
+      claims.set(mapping.hostPort, existing);
+    }
+  }
+  const duplicateClaims = [...claims].filter(([, claimants]) => claimants.length > 1).sort(([a], [b]) => a - b);
+  if (duplicateClaims.length) {
+    return result("ports", "failure", "Configured host ports have conflicting claims",
+      duplicateClaims.map(([port, claimants]) => `${port}: ${claimants.join(", ")}`).join("; "));
+  }
   const ports = [...new Set([...parsed.mappings.values()].flatMap((items) => items.flatMap(({ hostPort }) => hostPort === undefined ? [] : [hostPort])))].sort((a, b) => a - b);
   const runningContainers = new Set(await probes.runningContainers(config.name));
   const unavailable: number[] = [];
