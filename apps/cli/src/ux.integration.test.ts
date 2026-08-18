@@ -120,6 +120,30 @@ test("doctor human output is deterministic and exit semantics distinguish warnin
   assert.deepEqual(JSON.parse(formatDoctorJson(warnings)), warnings);
 });
 
+test("doctor CLI emits all ordered checks as JSON and matching human output", async () => {
+  const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-doctor-"));
+  const initialized = runCli(["init", "node", "--dir", projectRoot]);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  const command = ["doctor", "--config", join(projectRoot, "loom.yaml")];
+
+  const jsonResult = runCli([...command, "--json"]);
+  assert.equal(jsonResult.stderr, "");
+  const results = JSON.parse(jsonResult.stdout) as Array<{ id: string; status: "pass" | "warning" | "failure" }>;
+  assert.deepEqual(results.map(({ id }) => id), [
+    "manifest", "podman", "architecture", "lockfiles", "dependencies", "ports", "routes", "hosts"
+  ]);
+  assert.equal(jsonResult.status, results.some(({ status }) => status === "failure") ? 1 : 0);
+
+  const humanResult = runCli(command);
+  assert.equal(humanResult.stderr, "");
+  const lines = humanResult.stdout.trimEnd().split("\n");
+  assert.equal(lines.length, results.length);
+  const label = { pass: "PASS", warning: "WARN", failure: "FAIL" } as const;
+  for (const [index, result] of results.entries()) {
+    assert.match(lines[index]!, new RegExp(`^\\[${label[result.status]}\\] ${result.id}:`));
+  }
+});
+
 test("clean previews exact sorted paths and dry-run never deletes", async () => {
   const projectRoot = await mkdtemp(join(tmpdir(), "loom-cli-clean-"));
   const initialized = runCli(["init", "node", "--dir", projectRoot]);

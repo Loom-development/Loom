@@ -207,7 +207,10 @@ async function defaultPortAvailable(port: number): Promise<boolean> {
   return await new Promise<boolean>((resolveResult, reject) => {
     const server = createServer();
     server.unref();
-    server.once("error", (error: NodeJS.ErrnoException) => error.code === "EADDRINUSE" || error.code === "EACCES" ? resolveResult(false) : reject(error));
+    server.once("error", (error: NodeJS.ErrnoException) =>
+      error.code === "EADDRINUSE" || error.code === "EACCES" || error.code === "EPERM"
+        ? resolveResult(false)
+        : reject(error));
     server.listen({ host: "127.0.0.1", port, exclusive: true }, () => server.close((error) => error ? reject(error) : resolveResult(true)));
   });
 }
@@ -218,7 +221,15 @@ export function defaultDoctorProbes(): DoctorProbes {
     architecture: () => process.arch,
     pathState: defaultPathState,
     portAvailable: defaultPortAvailable,
-    runningContainers: async (projectName) => (await listProjectContainers(projectName)).filter(({ running }) => running).map(({ name }) => name),
+    runningContainers: async (projectName) => {
+      try {
+        return (await listProjectContainers(projectName)).filter(({ running }) => running).map(({ name }) => name);
+      } catch {
+        // Podman availability is reported by the dedicated check; absence must not
+        // prevent the remaining diagnostics or JSON output from being rendered.
+        return [];
+      }
+    },
     hostsWritable: async () => {
       if (process.platform === "win32") return false;
       try { await access("/etc/hosts", constants.W_OK); return true; } catch { return false; }
