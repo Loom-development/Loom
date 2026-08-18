@@ -121,16 +121,12 @@ async function inspectTree(
   fs: ProjectCleanDependencies
 ): Promise<number> {
   if (initialStats.isSymbolicLink()) throw new Error(`Generated path '${relativePath}' contains a symlink`);
-  if (initialStats.isFile()) {
-    if (isKnownProtectedFile(relativePath)) throw new Error(`Generated path contains protected file '${relativePath}'`);
-    return initialStats.size;
-  }
+  if (initialStats.isFile()) return initialStats.size;
   if (!initialStats.isDirectory()) return 0;
   let bytes = 0;
   const entries = (await fs.readdir(absolutePath, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
   for (const entry of entries) {
     const childRelative = `${relativePath}/${entry.name}`;
-    if (isKnownProtectedFile(childRelative)) throw new Error(`Generated path contains protected file '${childRelative}'`);
     const childAbsolute = resolve(absolutePath, entry.name);
     const stats = await fs.lstat(childAbsolute);
     if (stats.isSymbolicLink()) throw new Error(`Generated path '${relativePath}' contains a symlink at '${childRelative}'`);
@@ -139,11 +135,45 @@ async function inspectTree(
   return bytes;
 }
 
-function getProtectedPaths(stack: StackDefinition, manifest: LoomProjectManifestV2): string[] {
+async function discoverProjectManifests(
+  projectRoot: string,
+  generatedPaths: readonly string[],
+  fs: ProjectCleanDependencies
+): Promise<string[]> {
+  const found: string[] = [];
+  async function walk(directory: string, directoryRelative: string): Promise<void> {
+    const entries = (await fs.readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const childRelative = directoryRelative ? `${directoryRelative}/${entry.name}` : entry.name;
+      if (childRelative === ".loom" || childRelative.startsWith(".loom/") || childRelative === ".git" ||
+          generatedPaths.some((generatedPath) => childRelative === generatedPath || childRelative.startsWith(`${generatedPath}/`))) {
+        continue;
+      }
+      const childAbsolute = resolve(directory, entry.name);
+      const stats = await fs.lstat(childAbsolute);
+      // Project discovery never follows symlinks. Generated-path validation separately rejects
+      // a symlink in any target or target parent.
+      if (stats.isSymbolicLink()) continue;
+      if (stats.isDirectory()) await walk(childAbsolute, childRelative);
+      else if (stats.isFile() && isKnownProtectedFile(childRelative)) found.push(childRelative);
+    }
+  }
+  await walk(projectRoot, "");
+  return found;
+}
+
+async function getProtectedPaths(
+  projectRoot: string,
+  stack: StackDefinition,
+  manifest: LoomProjectManifestV2,
+  fs: ProjectCleanDependencies
+): Promise<string[]> {
+  const discovered = await discoverProjectManifests(projectRoot, stack.generatedPaths.map(({ path }) => path), fs);
   return [...new Set([
     ...fixedProtectedPaths,
     ...stack.protectedPaths,
-    ...Object.keys(manifest.ownedFiles)
+    ...Object.keys(manifest.ownedFiles),
+    ...discovered
   ])].sort();
 }
 
@@ -163,10 +193,12 @@ function validateAllDeclarations(items: readonly Pick<ProjectCleanItem, "path" |
 export async function planProjectClean(options: PlanProjectCleanOptions): Promise<ProjectCleanPlan> {
   const fs = dependencies(options.dependencies);
   const projectRoot = await fs.realpath(options.projectRoot);
-  const protectedPaths = getProtectedPaths(options.stack, options.manifest);
   const declarations = options.stack.generatedPaths.map(({ path, category }) => ({ path, category }));
 
-  // Deny the complete operation before filesystem inspection begins.
+  // Reject intrinsically unsafe declarations before walking any filesystem content.
+  const initialProtectedPaths = [...fixedProtectedPaths, ...options.stack.protectedPaths, ...Object.keys(options.manifest.ownedFiles)].sort();
+  validateAllDeclarations(declarations, initialProtectedPaths);
+  const protectedPaths = await getProtectedPaths(projectRoot, options.stack, options.manifest, fs);
   validateAllDeclarations(declarations, protectedPaths);
 
   const items: ProjectCleanItem[] = [];

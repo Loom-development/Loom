@@ -55,7 +55,8 @@ test("planner returns an empty plan for stacks without generated paths", async (
   const value = await fixture([]);
   try {
     assert.deepEqual(await planProjectClean(value), {
-      projectRoot: value.projectRoot, items: [], totalBytes: 0, protectedPaths: [".env", "loom.yaml", "src"]
+      projectRoot: value.projectRoot, items: [], totalBytes: 0,
+      protectedPaths: [".env", "loom.yaml", "package.json", "pnpm-lock.yaml", "src"]
     });
   } finally { await rm(value.root, { recursive: true, force: true }); }
 });
@@ -89,15 +90,37 @@ test("planner rejects symlinked targets, parents, and entries encountered during
   }
 });
 
-test("planner rejects dependency manifests and lockfiles nested within a generated target", async () => {
-  for (const file of ["package.json", "nested/Gemfile.lock"]) {
-    const value = await fixture([{ path: "output", category: "build" }]);
-    try {
-      await mkdir(join(value.projectRoot, "output", "nested"), { recursive: true });
-      await writeFile(join(value.projectRoot, "output", file), "protected\n");
-      await assert.rejects(planProjectClean(value), /protected/i);
-    } finally { await rm(value.root, { recursive: true, force: true }); }
-  }
+test("planner permits dependency manifests nested within a declared generated target", async () => {
+  const value = await fixture();
+  try {
+    await mkdir(join(value.projectRoot, "node_modules", "dependency"), { recursive: true });
+    await writeFile(join(value.projectRoot, "node_modules", "dependency", "package.json"), "{\"name\":\"dependency\"}\n");
+    await writeFile(join(value.projectRoot, "node_modules", "dependency", "Gemfile.lock"), "dependency lock\n");
+    const plan = await planProjectClean(value);
+    assert.equal(plan.items.find((item) => item.path === "node_modules")?.exists, true);
+    assert.deepEqual(await applyProjectClean(plan), { removed: ["node_modules"], missing: ["dist"] });
+  } finally { await rm(value.root, { recursive: true, force: true }); }
+});
+
+test("planner discovers and protects project and workspace manifests outside generated roots", async () => {
+  const value = await fixture([{ path: "api/node_modules", category: "dependency" }]);
+  try {
+    value.stack = { ...value.stack, protectedPaths: ["api/src"] };
+    await mkdir(join(value.projectRoot, "api", "node_modules", "dependency"), { recursive: true });
+    await writeFile(join(value.projectRoot, "api", "package.json"), "{\"name\":\"workspace\"}\n");
+    await writeFile(join(value.projectRoot, "api", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    await writeFile(join(value.projectRoot, "api", "node_modules", "dependency", "package.json"), "{}\n");
+    const plan = await planProjectClean(value);
+    assert.equal(plan.protectedPaths.includes("package.json"), true);
+    assert.equal(plan.protectedPaths.includes("api/package.json"), true);
+    assert.equal(plan.protectedPaths.includes("api/pnpm-lock.yaml"), true);
+    assert.equal(plan.protectedPaths.includes("api/node_modules/dependency/package.json"), false);
+
+    await assert.rejects(
+      planProjectClean({ ...value, stack: { ...value.stack, generatedPaths: [{ path: "api", category: "dependency" }] } }),
+      /protected/i
+    );
+  } finally { await rm(value.root, { recursive: true, force: true }); }
 });
 
 test("executor removes only planned paths, reports missing paths, and preserves protected state", async () => {
