@@ -180,6 +180,15 @@ async function copyTemplateEntriesIfMissing(
   }
 }
 
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function normalizeProjectToken(raw: string): string {
   const normalized = raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   return normalized || "project";
@@ -801,6 +810,47 @@ cli
       await writeProjectManifest(targetDir, packageJson.version, stack);
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
       process.stdout.write(formatStartupNotice());
+      process.stdout.write(`Next: cd ${targetDir} && loom start\n`);
+    })
+  );
+
+cli
+  .command("adopt [stack]", "Configure an existing local project without replacing application files")
+  .option("--dir <path>", "Existing project directory", { default: "." })
+  .action(
+    withErrorHandling(async (requestedStack: string | undefined, options: { dir?: string }) => {
+      const targetDir = resolve(process.cwd(), options.dir ?? ".");
+      const selectedStack = requestedStack ?? await detectInitTemplateSuggestion(targetDir);
+
+      if (!selectedStack) {
+        throw new Error("Unable to detect a stack for this project. Retry with 'loom adopt <stack>'.");
+      }
+
+      const stack = findStackDefinition(selectedStack);
+      if (!stack) {
+        throw new Error(`Unknown stack '${selectedStack}'. Available stacks: ${listStackIds().join(", ")}`);
+      }
+
+      const loomConfigPath = resolve(targetDir, "loom.yaml");
+      if (await fileExists(loomConfigPath)) {
+        throw new Error(`Project already contains '${loomConfigPath}'. Adoption will not overwrite Loom configuration.`);
+      }
+
+      const sourceDir = resolve(templatesRoot, stack.assetPath);
+      const ownedFiles = ["loom.yaml"];
+      await copyFile(resolve(sourceDir, "loom.yaml"), loomConfigPath);
+
+      const sourceEnvExample = resolve(sourceDir, ".env.example");
+      const targetEnvExample = resolve(targetDir, ".env.example");
+      if (!(await fileExists(targetEnvExample)) && await fileExists(sourceEnvExample)) {
+        await copyFile(sourceEnvExample, targetEnvExample);
+        ownedFiles.push(".env.example");
+      }
+
+      await applyProjectName(targetDir);
+      await writeProjectManifest(targetDir, packageJson.version, stack, ownedFiles);
+
+      process.stdout.write(`Adopted '${selectedStack}' in ${targetDir}\n`);
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);
     })
   );

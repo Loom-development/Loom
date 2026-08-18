@@ -9,13 +9,19 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 - Improved cross-platform reliability (Linux, macOS, Windows).
 - A local-first project model where source and dependencies stay visible to the host and IDE.
 
+## Available now
+
+- `loom init <stack>` for creating local projects.
+- `loom adopt [stack]` for configuring existing projects without replacing application files or lockfiles.
+- `.loom/manifest.json` ownership records for newly initialized and adopted projects.
+
 ## What’s next
 
-### 1) New and existing projects as equal workflows
+### 1) Deeper new and existing project support
 
-- Keep `loom init <stack>` focused on creating complete local projects.
-- Add `loom adopt [stack]` to configure existing projects without rewriting application files or lockfiles.
-- Improve detection while requiring an explicit choice when multiple stacks match.
+- Expand stack-specific adoption validation and previews.
+- Improve detection evidence and require an explicit choice when multiple stacks match.
+- Add stack-specific ignore-entry management without overwriting user rules.
 
 ### 2) Reproducible stack definitions
 

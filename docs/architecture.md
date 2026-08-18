@@ -14,6 +14,13 @@ Loom is a runtime coordinator, not a containerized source-code store.
 
 This boundary keeps files visible to editors, Git, debuggers, and host command-line tools while retaining a consistent container runtime.
 
+## Project creation and adoption
+
+- `loom init <stack>` creates a new local project from a stack's bundled assets or upstream bootstrap flow.
+- `loom adopt [stack]` configures an existing project. With no stack argument, Loom detects common project signals; an explicit stack resolves unsupported or ambiguous layouts.
+- Adoption refuses to overwrite an existing `loom.yaml` and does not modify application source, dependency manifests, lockfiles, or an existing `.env.example`.
+- Successful initialization and adoption write `.loom/manifest.json` with the stack identity, scaffold metadata, Loom version, and hashes of files created and owned by Loom.
+
 ## What Loom is doing in the background
 
 When you run `loom start`, Loom:
@@ -144,8 +151,6 @@ Service definitions can now also opt into Podman user mapping through `user` and
 The approved local-first design makes new-project generation and existing-project adoption equal workflows. Planned commands and capabilities include:
 
 - Pinned, release-tested stack definitions for reproducible `loom init` output.
-- `loom adopt` for configuring an existing project without modifying its application files or lockfiles.
-- `.loom/manifest.json` for recording exactly which files Loom owns.
 - A manifest-aware `loom upgrade` that updates Loom-owned files only.
 - `loom doctor` for ownership, runtime, lockfile, port, and compatibility diagnostics.
 - `loom clean` for removing only stack-declared generated paths after confirmation.

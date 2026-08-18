@@ -159,6 +159,46 @@ test("init applies runtime image overrides from --image", async () => {
   assert.equal(manifest.ownedFiles[".env"], undefined);
 });
 
+test("adopt detects an existing Node project and preserves developer-owned files", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-adopt-"));
+  const targetDir = join(tempRoot, "existing-node");
+  await mkdir(targetDir, { recursive: true });
+  const packageJson = '{"name":"existing-app","scripts":{"custom":"keep-me"}}\n';
+  const packageLock = '{"name":"existing-app","lockfileVersion":3}\n';
+  const envExample = "CUSTOM_SETTING=keep-me\n";
+  await writeFile(join(targetDir, "package.json"), packageJson, "utf8");
+  await writeFile(join(targetDir, "package-lock.json"), packageLock, "utf8");
+  await writeFile(join(targetDir, ".env.example"), envExample, "utf8");
+
+  const result = runCli(["adopt", "--dir", targetDir]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Adopted 'node'/);
+
+  assert.equal(await readFile(join(targetDir, "package.json"), "utf8"), packageJson);
+  assert.equal(await readFile(join(targetDir, "package-lock.json"), "utf8"), packageLock);
+  assert.equal(await readFile(join(targetDir, ".env.example"), "utf8"), envExample);
+
+  const manifest = JSON.parse(await readFile(join(targetDir, ".loom", "manifest.json"), "utf8")) as {
+    stack: { id: string };
+    ownedFiles: Record<string, { sha256: string }>;
+  };
+  assert.equal(manifest.stack.id, "node");
+  assert.deepEqual(Object.keys(manifest.ownedFiles), ["loom.yaml"]);
+});
+
+test("adopt refuses to overwrite existing Loom configuration", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-adopt-"));
+  const targetDir = join(tempRoot, "configured-node");
+  await mkdir(targetDir, { recursive: true });
+  await writeFile(join(targetDir, "package.json"), '{"name":"configured"}\n', "utf8");
+  await writeFile(join(targetDir, "loom.yaml"), "user-owned-content\n", "utf8");
+
+  const result = runCli(["adopt", "node", "--dir", targetDir]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /will not overwrite Loom configuration/);
+  assert.equal(await readFile(join(targetDir, "loom.yaml"), "utf8"), "user-owned-content\n");
+});
+
 test("init bootstrap-heavy starters include readiness healthchecks", async () => {
   const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
 

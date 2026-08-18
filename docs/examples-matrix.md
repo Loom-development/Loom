@@ -43,6 +43,15 @@ loom status
 loom stop
 ```
 
+For an existing project, use detection or name the stack explicitly:
+
+```bash
+cd my-existing-project
+loom adopt
+# or: loom adopt <template>
+loom start
+```
+
 ## Recommended templates by goal
 
 | Goal | Template | Why choose it |

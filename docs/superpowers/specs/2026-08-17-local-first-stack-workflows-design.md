@@ -1,8 +1,9 @@
 # Local-First Stack Workflows
 
-> **Status: approved design; not yet implemented.** Commands and repository
-> structures described below are target behavior unless explicitly identified
-> as current behavior.
+> **Status: implementation in progress.** The stack registry, ownership
+> manifest, and initial `loom adopt` workflow are implemented. Remaining
+> commands and repository structures described below are target behavior unless
+> explicitly identified as current behavior.
 
 ## Summary
 

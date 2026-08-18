@@ -52,3 +52,17 @@ test("writeProjectManifest atomically replaces deterministic JSON", async () => 
     await rm(targetDir, { recursive: true, force: true });
   }
 });
+
+test("buildProjectManifest can record only files created during adoption", async () => {
+  const targetDir = await mkdtemp(join(tmpdir(), "loom-manifest-"));
+  try {
+    await writeFile(join(targetDir, "loom.yaml"), "version: 1\n", "utf8");
+    await writeFile(join(targetDir, ".env.example"), "USER_OWNED=true\n", "utf8");
+
+    const manifest = await buildProjectManifest(targetDir, "0.3.4", nodeStack, ["loom.yaml"]);
+
+    assert.deepEqual(Object.keys(manifest.ownedFiles), ["loom.yaml"]);
+  } finally {
+    await rm(targetDir, { recursive: true, force: true });
+  }
+});

@@ -62,6 +62,7 @@ When you're done: `loom stop`.
 
 ```bash
 loom start              # start the project
+loom adopt [stack]      # configure an existing local project
 loom stop               # stop everything
 loom status             # see what's running
 loom logs app           # tail logs for the 'app' service
@@ -105,7 +106,18 @@ loom init node --db postgres   # or whichever template matches
 loom start --recreate
 ```
 
-This narrow workflow updates the Loom configuration without touching source files; it is not a general project-adoption command. A first-class `loom adopt` workflow is planned but not available yet.
+This narrow workflow updates the Loom configuration without touching source files.
+
+To configure an existing project generally, use `loom adopt`. Loom detects common Node, Python, PHP, Rails, Bun, and .NET signals, or you can specify the stack explicitly:
+
+```bash
+cd my-existing-app
+loom adopt              # detect the stack
+# or: loom adopt node
+loom start
+```
+
+Adoption creates `loom.yaml` and records Loom ownership in `.loom/manifest.json`. It preserves application source, manifests, lockfiles, and an existing `.env.example`, and refuses to overwrite an existing `loom.yaml`.
 
 If you run `loom init` without a template, Loom now prompts you to choose one interactively and suggests a default when it recognizes common root files such as `package.json`, `composer.json`, `pyproject.toml`, or `Gemfile`.
 
@@ -136,6 +148,7 @@ RUBY_IMAGE=docker.io/library/ruby:3.3
 ## Daily commands you'll actually use
 
 - `loom start` — start your project services
+- `loom adopt [stack]` — add Loom configuration to an existing local project without replacing application files
 - `loom stop` — stop everything cleanly
 - `loom restart` — stop + start
 - `loom start --recreate` — remove existing project containers and start fresh

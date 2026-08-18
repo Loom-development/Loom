@@ -28,11 +28,12 @@ async function sha256File(path: string): Promise<string | undefined> {
 export async function buildProjectManifest(
   targetDir: string,
   loomVersion: string,
-  stack: StackDefinition
+  stack: StackDefinition,
+  ownedFilePaths: readonly string[] = stack.loomOwnedFiles
 ): Promise<LoomProjectManifest> {
   const ownedFiles: Record<string, { sha256: string }> = {};
 
-  for (const relativePath of stack.loomOwnedFiles) {
+  for (const relativePath of ownedFilePaths) {
     const sha256 = await sha256File(resolve(targetDir, relativePath));
     if (sha256) {
       ownedFiles[relativePath] = { sha256 };
@@ -53,9 +54,10 @@ export async function buildProjectManifest(
 export async function writeProjectManifest(
   targetDir: string,
   loomVersion: string,
-  stack: StackDefinition
+  stack: StackDefinition,
+  ownedFilePaths: readonly string[] = stack.loomOwnedFiles
 ): Promise<string> {
-  const manifest = await buildProjectManifest(targetDir, loomVersion, stack);
+  const manifest = await buildProjectManifest(targetDir, loomVersion, stack, ownedFilePaths);
   const loomDir = resolve(targetDir, ".loom");
   const manifestPath = resolve(loomDir, "manifest.json");
   const temporaryPath = resolve(loomDir, `manifest.json.tmp-${process.pid}`);
