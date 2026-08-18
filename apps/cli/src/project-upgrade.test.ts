@@ -25,7 +25,18 @@ async function fixture() {
   await writeFile(join(projectRoot, "source.ts"), "developer owned\n", "utf8");
   await writeFile(join(projectRoot, ".loom", "baselines", "loom"), oldLoom, "utf8");
   await writeFile(join(projectRoot, ".loom", "baselines", "env"), oldEnv, "utf8");
-  const stack: StackDefinition = { id: "node", assetPath: "node", scaffoldVersion: "2", loomOwnedFiles: ["loom.yaml", ".env.example"] };
+  const stack: StackDefinition = {
+    id: "node",
+    assetPath: "node",
+    scaffoldVersion: "2",
+    loomOwnedFiles: ["loom.yaml", ".env.example"],
+    generatedPaths: [
+      { path: "dist", category: "build" },
+      { path: "node_modules", category: "dependency" }
+    ],
+    protectedPaths: ["src"],
+    compatibility: { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" }
+  };
   const manifest: LoomProjectManifestV2 = {
     version: 2,
     loomVersion: "0.3.4",
