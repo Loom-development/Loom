@@ -20,6 +20,8 @@ import {
   supportedDbTypes
 } from "./init-prompt.js";
 import { prepareInitTarget } from "./init-template.js";
+import { writeProjectManifest } from "./project-manifest.js";
+import { findStackDefinition, listStackIds } from "./stacks.js";
 
 const cli = cac("loom");
 
@@ -39,40 +41,6 @@ function resolveTemplatesRoot(): string {
 }
 
 const templatesRoot = resolveTemplatesRoot();
-
-const templateMap: Record<string, string> = {
-  node: "node",
-  "node-mean": "node/mean",
-  "node-mern": "node/mern",
-  "node-t3": "node/t3",
-  bun: "bun",
-  python: "python",
-  "python-django": "python/django",
-  "python-flask": "python/flask",
-  "python-fastapi": "python/fastapi",
-  php: "php",
-  "php-wordpress": "php/wordpress",
-  "php-drupal": "php/drupal",
-  "php-symfony": "php/symfony",
-  "db-mysql": "databases/mysql",
-  "db-sqlserver": "databases/sqlserver",
-  "db-postgres": "databases/postgres",
-  "db-mongodb": "databases/mongodb",
-  "db-redis": "databases/redis",
-  "db-elasticsearch": "databases/elasticsearch",
-  "db-sqlite": "databases/sqlite",
-  "db-mariadb": "databases/mariadb",
-  "db-all": "databases/all",
-  dotnet: "dotnet",
-  rails7: "rails7",
-  "rails7-hotwire": "rails7-hotwire",
-  jamstack: "jamstack",
-  serverless: "serverless",
-  "spring-react": "spring-react",
-  "spring-boot": "spring-boot",
-  astro: "astro",
-  "django-react": "django-react"
-};
 
 const ignoredTemplateEntries = new Set([
   "node_modules",
@@ -769,9 +737,9 @@ cli
       const selectedTemplate = template ?? (await chooseInitTemplate(
         await detectInitTemplateSuggestion(process.cwd())
       ));
-      const relativeTemplate = templateMap[selectedTemplate];
-      if (!relativeTemplate) {
-        const available = Object.keys(templateMap).sort().join(", ");
+      const stack = findStackDefinition(selectedTemplate);
+      if (!stack) {
+        const available = listStackIds().join(", ");
         throw new Error(`Unknown template '${selectedTemplate}'. Available templates: ${available}`);
       }
 
@@ -780,7 +748,7 @@ cli
       validateInitOptions(selectedTemplate, options.phpDocroot);
       const effectivePhpDocroot = resolvePhpDocrootOption(selectedTemplate, options.phpDocroot);
 
-      const sourceDir = resolve(templatesRoot, relativeTemplate);
+      const sourceDir = resolve(templatesRoot, stack.assetPath);
       const targetDir = resolveInitTargetDir(selectedTemplate, options.dir);
 
       await mkdir(targetDir, { recursive: true });
@@ -830,6 +798,7 @@ cli
       if (dbsToAdd.length > 0 || selectedTemplate.startsWith("db-")) {
         await customizeDbTemplateCredentials(targetDir);
       }
+      await writeProjectManifest(targetDir, packageJson.version, stack);
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
       process.stdout.write(formatStartupNotice());
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);

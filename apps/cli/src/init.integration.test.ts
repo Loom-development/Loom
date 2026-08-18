@@ -140,11 +140,23 @@ test("init applies runtime image overrides from --image", async () => {
 
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
+  const manifest = JSON.parse(await readFile(join(targetDir, ".loom", "manifest.json"), "utf8")) as {
+    version: number;
+    loomVersion: string;
+    stack: { id: string; scaffoldVersion: string };
+    ownedFiles: Record<string, { sha256: string }>;
+  };
 
   assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:24-alpine\}/);
   assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:22-alpine/);
   assert.match(result.stdout, /Configured runtime image selections/);
   assert.match(result.stdout, /Startup may take a few minutes while Loom downloads images and installs dependencies/);
+  assert.equal(manifest.version, 1);
+  assert.equal(manifest.loomVersion, "0.3.4");
+  assert.deepEqual(manifest.stack, { id: "node", scaffoldVersion: "1" });
+  assert.match(manifest.ownedFiles["loom.yaml"]?.sha256 ?? "", /^[a-f0-9]{64}$/);
+  assert.match(manifest.ownedFiles[".env.example"]?.sha256 ?? "", /^[a-f0-9]{64}$/);
+  assert.equal(manifest.ownedFiles[".env"], undefined);
 });
 
 test("init bootstrap-heavy starters include readiness healthchecks", async () => {
