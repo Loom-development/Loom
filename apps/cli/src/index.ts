@@ -3,7 +3,7 @@ import { cac } from "cac";
 import { existsSync } from "node:fs";
 import { access, copyFile, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
-import { basename, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
 import { loadLoomProject } from "@loom/config";
@@ -20,8 +20,8 @@ import {
   supportedDbTypes
 } from "./init-prompt.js";
 import { prepareInitTarget } from "./init-template.js";
-import { writeProjectManifest } from "./project-manifest.js";
-import { renderPhpDocroot, renderProjectName } from "./project-upgrade.js";
+import { loadProjectManifest, writeProjectManifest } from "./project-manifest.js";
+import { applyProjectUpgrade, planProjectUpgrade, renderPhpDocroot, renderProjectName } from "./project-upgrade.js";
 import { findStackDefinition, listStackIds } from "./stacks.js";
 
 const cli = cac("loom");
@@ -785,6 +785,63 @@ cli
 
       process.stdout.write(`Adopted '${selectedStack}' in ${targetDir}\n`);
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);
+    })
+  );
+
+cli
+  .command("upgrade", "Update only Loom-owned project files")
+  .option("--config <path>", "Path to loom config", { default: "loom.yaml" })
+  .option("--force-modified", "Replace locally modified Loom-owned files", { default: false })
+  .option("--initialize-baseline", "Migrate a v1 manifest using current Loom-owned files", { default: false })
+  .action(
+    withErrorHandling(async (options: { config?: string; forceModified?: boolean; initializeBaseline?: boolean }) => {
+      const configPath = resolve(process.cwd(), options.config ?? "loom.yaml");
+      const projectRoot = dirname(configPath);
+      const loaded = await loadProjectManifest(projectRoot);
+
+      if (loaded.kind === "missing") {
+        throw new Error(`No Loom project manifest found in '${projectRoot}'. Run 'loom init' or 'loom adopt' first.`);
+      }
+
+      const stackId = loaded.manifest.stack.id;
+      const stack = findStackDefinition(stackId);
+      if (!stack) {
+        throw new Error(`Unknown stack '${stackId}' in Loom project manifest. Available stacks: ${listStackIds().join(", ")}`);
+      }
+
+      if (loaded.kind === "migration-required") {
+        if (!options.initializeBaseline) {
+          throw new Error("This project uses a v1 Loom manifest. Run 'loom upgrade --initialize-baseline' before upgrading files.");
+        }
+        const loomYaml = await readFile(configPath, "utf8");
+        const projectName = /^name:\s*(.+)$/m.exec(loomYaml)?.[1]?.trim() || deriveProjectName(projectRoot);
+        await writeProjectManifest(projectRoot, packageJson.version, stack, Object.keys(loaded.manifest.ownedFiles), {
+          projectName,
+          databases: [],
+          adopted: false
+        });
+        process.stdout.write(`Initialized upgrade baseline for '${stackId}' in ${projectRoot}. No project files were replaced.\n`);
+        return;
+      }
+
+      if (options.initializeBaseline) {
+        throw new Error("The project already has an upgrade-safe v2 manifest; --initialize-baseline is not needed.");
+      }
+
+      const plan = await planProjectUpgrade({ projectRoot, templatesRoot, manifest: loaded.manifest, stack });
+      for (const file of plan.files) {
+        if (file.state === "modified" && !options.forceModified) {
+          process.stdout.write(`modified ${file.path} -> skipped (use --force-modified to replace)\n`);
+        } else if (file.currentSha256 === file.candidateSha256) {
+          process.stdout.write(`${file.state} ${file.path} -> already current\n`);
+        } else {
+          process.stdout.write(`${file.state} ${file.path} -> update available\n`);
+        }
+      }
+
+      const result = await applyProjectUpgrade(plan, { forceModified: options.forceModified ?? false });
+      process.stdout.write(`Upgrade complete: ${result.updated.length} updated, ${result.skipped.length} skipped.\n`);
+      if (result.skipped.length > 0) process.exitCode = 1;
     })
   );
 
