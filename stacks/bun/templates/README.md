@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${BUN_IMAGE:-docker.io/oven/bun:1.2}`
+  - Runtime: `${BUN_IMAGE:-docker.io/oven/bun:1.2.18}`
   - Port: `3004`
   - Purpose: Bun development server
 

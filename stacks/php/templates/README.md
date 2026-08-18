@@ -13,4 +13,7 @@ loom stop
 
 Pass `--php-docroot <path>` to `loom init php` when the application entrypoint
 is not the project root. The generated `.env` exposes the exact default PHP and
-Memcached image tags and may be edited for an explicit runtime override.
+Memcached image tags and may be edited for an explicit runtime override:
+
+- `${PHP_IMAGE:-docker.io/library/php:8.4.10-apache}`
+- `${MEMCACHED_IMAGE:-docker.io/library/memcached:1.6.39-alpine}`

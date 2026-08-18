@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -67,4 +69,40 @@ test("generated-stack smoke initializes disposable projects by public ID", () =>
   const smoke = readFileSync(resolve(repoDir, "scripts", "smoke-generated-stacks.sh"), "utf8");
   assert.match(smoke, /run_loom init "\$stack_id" --dir "\$project_dir"/);
   assert.doesNotMatch(smoke, /stacks\/[^\s]+\/templates\/loom\.yaml/);
+  const sqliteVerification = smoke.match(/db-sqlite\)([\s\S]*?)\n {6};;/)?.[1] ?? "";
+  const sqliteQuery = sqliteVerification.indexOf("run_loom exec db -- sqlite3 /data/loom.db");
+  const sqliteOwner = sqliteVerification.indexOf("assert_owner data/sqlite/loom.db");
+  const sqliteWritable = sqliteVerification.indexOf("assert_writable data/sqlite/loom.db");
+  assert.ok(sqliteQuery >= 0 && sqliteQuery < sqliteOwner && sqliteOwner < sqliteWritable);
+  assert.match(smoke, /work_root_marker/);
+  assert.match(smoke, /created_projects_file/);
+  assert.doesNotMatch(smoke, /for project_dir in "\$work_root"\/\*/);
+  const cleanupHelper = smoke.match(/force_cleanup_project\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  assert.doesNotMatch(cleanupHelper, /project_name/);
+});
+
+test("generated-stack smoke refuses a pre-existing custom workspace", async () => {
+  const tempRoot = await mkdtemp(resolve(tmpdir(), "loom-smoke-root-test-"));
+  const sharedRoot = resolve(tempRoot, "shared");
+  const sentinel = resolve(sharedRoot, "sentinel.txt");
+  await mkdir(sharedRoot);
+  await writeFile(sentinel, "do not touch\n");
+
+  try {
+    await assert.rejects(
+      executeFile("sh", [resolve(repoDir, "scripts", "smoke-generated-stacks.sh"), "unsupported-stack"], {
+        cwd: repoDir,
+        encoding: "utf8",
+        env: { ...process.env, LOOM_GENERATED_SMOKE_DIR: sharedRoot, LOOM_GENERATED_SMOKE_KEEP: "0" }
+      }),
+      (error: unknown) => {
+        const stderr = String((error as { stderr?: string }).stderr ?? "");
+        assert.match(stderr, /custom smoke workspace.*must not already exist/i);
+        return true;
+      }
+    );
+    assert.equal(await readFile(sentinel, "utf8"), "do not touch\n");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });

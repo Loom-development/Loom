@@ -11,5 +11,6 @@ loom test
 loom stop
 ```
 
-The app serves its health endpoint at `/health`. Change `NODE_IMAGE` in `.env`
-to make an explicit runtime override without editing `loom.yaml`.
+The app serves its health endpoint at `/health`. Its exact default runtime is
+`${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}`. Change `NODE_IMAGE` in
+`.env` to make an explicit runtime override without editing `loom.yaml`.

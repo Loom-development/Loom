@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${DOTNET_IMAGE:-mcr.microsoft.com/dotnet/sdk:8.0}`
+  - Runtime: `${DOTNET_IMAGE:-mcr.microsoft.com/dotnet/sdk:8.0.412}`
   - Port: `5000`
   - Purpose: .NET development server
 

@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { findStackDefinition } from "./index.js";
+import { findStackDefinition, stackDefinitions } from "./index.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const bootstrapIds = ["php-wordpress", "php-drupal", "php-symfony", "rails7", "rails7-hotwire"] as const;
@@ -122,6 +122,30 @@ test("copy stack template image defaults exactly match their definitions", async
     const imagesByEnv = new Map(definition.runtimeImages.map((image) => [image.env, image.reference]));
     assert.deepEqual([...new Set(defaults.map(({ env }) => env))].sort(), [...imagesByEnv.keys()].sort(), `${id} image environments`);
     for (const image of defaults) assert.equal(image.reference, imagesByEnv.get(image.env), `${id} ${image.env}`);
+  }
+});
+
+test("packaged stack READMEs document only their exact definition runtime pins", async () => {
+  for (const definition of stackDefinitions) {
+    const readme = await readFile(resolve(root, "..", definition.assetPath, "README.md"), "utf8");
+    const documented = [
+      ...[...readme.matchAll(/\$\{([A-Z][A-Z0-9_]*_IMAGE):-([^}\s`]+)\}/g)].map((match) => ({
+        env: match[1]!, reference: match[2]!
+      })),
+      ...[...readme.matchAll(/\b([A-Z][A-Z0-9_]*_IMAGE)=([^\s`]+)/g)].map((match) => ({
+        env: match[1]!, reference: match[2]!
+      }))
+    ];
+    const uniqueDocumented = [...new Map(documented.map((image) => [`${image.env}\0${image.reference}`, image])).values()]
+      .sort((a, b) => a.env.localeCompare(b.env) || a.reference.localeCompare(b.reference));
+    assert.deepEqual(uniqueDocumented, definition.runtimeImages, definition.id);
+
+    const expectedReferences = new Set(definition.runtimeImages.map(({ reference }) => reference));
+    const imageReferences = [...readme.matchAll(/\b(?:docker\.io|docker\.elastic\.co|mcr\.microsoft\.com)\/[^\s`}),;]+/g)]
+      .map((match) => match[0]!);
+    for (const reference of imageReferences) {
+      assert.ok(expectedReferences.has(reference), `${definition.id} undocumented runtime reference ${reference}`);
+    }
   }
 });
 

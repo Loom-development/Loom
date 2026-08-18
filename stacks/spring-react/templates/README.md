@@ -14,11 +14,11 @@ loom status
 ## Services
 
 - `backend`
-  - Runtime: `${JAVA_IMAGE:-docker.io/library/maven:3.9-eclipse-temurin-21}`
+  - Runtime: `${JAVA_IMAGE:-docker.io/library/maven:3.9.11-eclipse-temurin-21}`
   - Port: `8081`
   - Purpose: Spring Boot API
 - `web`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:22-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:22.17.1-alpine}`
   - Port: `5175`
   - Purpose: built React frontend served locally with `/api` proxied to Spring Boot
 

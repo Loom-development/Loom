@@ -36,21 +36,32 @@ resolve_loom_bin() {
 }
 
 require_command node
-require_command podman
-require_command perl
-resolve_loom_bin
 
-uid="$(id -u)"
-gid="$(id -g)"
+run_id="$(node -e 'process.stdout.write(require("node:crypto").randomUUID().replaceAll("-", ""))')"
+work_root_owner="loom-generated-smoke:$run_id"
 
 if [ -n "${LOOM_GENERATED_SMOKE_DIR:-}" ]; then
-  work_root="$LOOM_GENERATED_SMOKE_DIR"
-  mkdir -p "$work_root"
+  requested_work_root="$LOOM_GENERATED_SMOKE_DIR"
+  if [ -e "$requested_work_root" ] || [ -L "$requested_work_root" ]; then
+    echo "Custom smoke workspace '$requested_work_root' must not already exist; refusing to reuse it." >&2
+    exit 1
+  fi
+  if ! mkdir -m 700 -- "$requested_work_root"; then
+    echo "Unable to create custom smoke workspace '$requested_work_root'. Its parent must exist and be writable." >&2
+    exit 1
+  fi
+  work_root="$(CDPATH= cd -- "$requested_work_root" && pwd)"
   KEEP_WORK_ROOT=1
 else
   work_root="$(mktemp -d "${TMPDIR:-/tmp}/loom-generated-smoke-XXXXXX")"
 fi
-smoke_token="$(basename "$work_root" | tr -c '[:alnum:]' '_')"
+
+work_root_marker="$work_root/.loom-generated-smoke-owner"
+created_projects_file="$work_root/.loom-generated-smoke-projects"
+printf '%s\n' "$work_root_owner" > "$work_root_marker"
+: > "$created_projects_file"
+chmod 600 "$work_root_marker" "$created_projects_file"
+smoke_token="$run_id"
 
 set_env_value() {
   file="$1"
@@ -91,6 +102,33 @@ EOF
   fi
 }
 
+valid_project_scope() {
+  value="$1"
+  [ -n "$value" ] && case "$value" in
+    *[!A-Za-z0-9_-]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+record_created_project() {
+  project_key="$1"
+  name="$2"
+  project_dir="$3"
+  if ! valid_project_scope "$project_key" || ! valid_project_scope "$name"; then
+    echo "Unsafe generated smoke project scope: '$project_key' / '$name'" >&2
+    return 1
+  fi
+  project_owner_marker="$project_dir/.loom/generated-smoke-owner"
+  printf '%s\n' "$work_root_owner" > "$project_owner_marker"
+  chmod 600 "$project_owner_marker"
+  printf '%s\t%s\n' "$project_key" "$name" >> "$created_projects_file"
+}
+
+owns_work_root() {
+  [ -f "$work_root_marker" ] && [ -f "$created_projects_file" ] &&
+    [ "$(sed -n '1p' "$work_root_marker")" = "$work_root_owner" ]
+}
+
 stop_project() {
   project_dir="$1"
   [ -d "$project_dir" ] || return 0
@@ -102,17 +140,32 @@ stop_project() {
 
 force_cleanup_project() {
   project_dir="$1"
+  name="$2"
   [ -d "$project_dir" ] || return 0
+  project_owner_marker="$project_dir/.loom/generated-smoke-owner"
+  if [ ! -f "$project_owner_marker" ] || [ "$(sed -n '1p' "$project_owner_marker")" != "$work_root_owner" ]; then
+    echo "Skipping unowned smoke project during cleanup: $project_dir" >&2
+    return 0
+  fi
   stop_project "$project_dir" >/dev/null 2>&1 || true
-  name="$(project_name "$project_dir" 2>/dev/null || true)"
-  [ -n "$name" ] || return 0
   remove_scoped_containers "$name"
 }
 
 cleanup() {
-  for project_dir in "$work_root"/*; do
-    [ -d "$project_dir" ] && force_cleanup_project "$project_dir"
-  done
+  if ! owns_work_root; then
+    echo "Preserving smoke workspace because its ownership marker is missing or changed: $work_root" >&2
+    return 0
+  fi
+
+  tab="$(printf '\t')"
+  while IFS="$tab" read -r project_key name; do
+    if valid_project_scope "$project_key" && valid_project_scope "$name"; then
+      force_cleanup_project "$work_root/$project_key" "$name"
+    else
+      echo "Skipping unsafe smoke cleanup scope: '$project_key' / '$name'" >&2
+    fi
+  done < "$created_projects_file"
+
   if [ "$KEEP_WORK_ROOT" = "0" ]; then
     if ! rm -rf "$work_root" 2>/dev/null; then
       podman unshare rm -rf "$work_root" 2>/dev/null || true
@@ -122,6 +175,13 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+require_command podman
+require_command perl
+resolve_loom_bin
+
+uid="$(id -u)"
+gid="$(id -g)"
 
 developer_digest() {
   node -e '
@@ -173,6 +233,14 @@ assert_owner() {
   fi
 }
 
+assert_writable() {
+  path="$1"
+  if [ ! -f "$path" ] || [ ! -w "$path" ]; then
+    echo "Expected a host-writable file at $path" >&2
+    return 1
+  fi
+}
+
 init_stack() {
   stack_id="$1"
   project_dir="$2"
@@ -204,6 +272,8 @@ verify_stack() {
       ;;
     db-sqlite)
       run_loom exec db -- sqlite3 /data/loom.db "select 1;" || return 1
+      assert_owner data/sqlite/loom.db || return 1
+      assert_writable data/sqlite/loom.db || return 1
       ;;
     php-wordpress)
       run_loom exec app -- php -r "exit((int)!@fsockopen('127.0.0.1', 80));" || return 1
@@ -219,11 +289,18 @@ verify_stack() {
 
 smoke_stack() {
   stack_id="$1"
-  project_dir="$work_root/${stack_id}-${smoke_token}"
+  project_key="${stack_id}-${smoke_token}"
+  project_dir="$work_root/$project_key"
   echo "===== GENERATED STACK SMOKE: $stack_id ====="
 
   if ! init_stack "$stack_id" "$project_dir"; then
     echo "===== FAIL: $stack_id (init) =====" >&2
+    return 1
+  fi
+
+  name="$(project_name "$project_dir")"
+  if ! record_created_project "$project_key" "$name" "$project_dir"; then
+    echo "===== FAIL: $stack_id (scope) =====" >&2
     return 1
   fi
 
@@ -246,7 +323,6 @@ smoke_stack() {
     return 1
   fi
 
-  name="$(project_name "$project_dir")"
   if ! stop_project "$project_dir"; then
     echo "===== FAIL: $stack_id (stop) =====" >&2
     return 1

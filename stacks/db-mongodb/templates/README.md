@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${MONGO_IMAGE:-docker.io/library/mongo:7}`
+  - Runtime: `${MONGO_IMAGE:-docker.io/library/mongo:7.0.21}`
   - Port: `27017`
 
 ## Route

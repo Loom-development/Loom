@@ -14,10 +14,9 @@ loom status
 ## Services
 
 - `db`
-  - Runtime: `${POSTGRES_IMAGE:-docker.io/library/postgres:16-alpine}`
   - Port: `5434`
 - `app`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}`
   - Port: `3003`
   - Purpose: Next.js app server
 
@@ -28,4 +27,3 @@ loom status
 ## Image overrides
 
 - `NODE_IMAGE`
-- `POSTGRES_IMAGE`

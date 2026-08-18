@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${SQLITE_IMAGE:-docker.io/library/alpine:3.20}`
+  - Runtime: `${SQLITE_IMAGE:-docker.io/library/alpine:3.20.7}`
   - Port: none
   - Purpose: create and expose the SQLite database file under the project data directory
 
