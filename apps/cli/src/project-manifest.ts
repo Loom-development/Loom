@@ -85,8 +85,8 @@ async function sha256File(path: string): Promise<string | undefined> {
   }
 }
 
-function getBaselinePath(relativePath: string): string {
-  return `.loom/baselines/${encodeURIComponent(relativePath)}`;
+function getBaselinePath(relativePath: string, sha256: string): string {
+  return `.loom/baselines/${sha256}-${encodeURIComponent(relativePath)}`;
 }
 
 export async function buildProjectManifest(
@@ -100,7 +100,7 @@ export async function buildProjectManifest(
   for (const relativePath of ownedFilePaths) {
     assertSafeRelativePath(relativePath, "owned file path");
     const sha256 = await sha256File(resolve(targetDir, relativePath));
-    if (sha256) ownedFiles[relativePath] = { sha256, baselinePath: getBaselinePath(relativePath) };
+    if (sha256) ownedFiles[relativePath] = { sha256, baselinePath: getBaselinePath(relativePath, sha256) };
   }
   return {
     version: 2,

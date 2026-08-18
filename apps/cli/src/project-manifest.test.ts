@@ -25,14 +25,15 @@ test("buildProjectManifest records v2 render inputs and baseline paths", async (
 
     const manifest = await buildProjectManifest(targetDir, "0.3.4", nodeStack, nodeStack.loomOwnedFiles, renderInputs);
 
+    const sha256 = createHash("sha256").update("version: 1\n").digest("hex");
     assert.deepEqual(manifest, {
       version: 2,
       loomVersion: "0.3.4",
       stack: { id: "node", scaffoldVersion: "1" },
       ownedFiles: {
         "loom.yaml": {
-          sha256: createHash("sha256").update("version: 1\n").digest("hex"),
-          baselinePath: ".loom/baselines/loom.yaml"
+          sha256,
+          baselinePath: `.loom/baselines/${sha256}-loom.yaml`
         }
       },
       renderInputs: {
@@ -73,6 +74,32 @@ test("writeProjectManifest atomically replaces deterministic JSON", async () => 
       await readFile(join(targetDir, loaded.manifest.ownedFiles["loom.yaml"].baselinePath), "utf8"),
       await readFile(join(targetDir, "loom.yaml"), "utf8")
     );
+  } finally {
+    await rm(targetDir, { recursive: true, force: true });
+  }
+});
+
+test("a later baseline failure cannot alter content referenced by the previous manifest", async () => {
+  const targetDir = await mkdtemp(join(tmpdir(), "loom-manifest-"));
+  try {
+    await writeFile(join(targetDir, "loom.yaml"), "old loom\n", "utf8");
+    await writeFile(join(targetDir, ".env.example"), "OLD_ENV=true\n", "utf8");
+    await writeProjectManifest(targetDir, "0.3.4", nodeStack, nodeStack.loomOwnedFiles, renderInputs);
+    const previous = await loadProjectManifest(targetDir);
+    assert.equal(previous.kind, "ready");
+    if (previous.kind !== "ready") throw new Error("expected ready manifest");
+    const previousBaseline = previous.manifest.ownedFiles["loom.yaml"].baselinePath;
+
+    await writeFile(join(targetDir, "loom.yaml"), "new loom\n", "utf8");
+    await writeFile(join(targetDir, ".env.example"), "NEW_ENV=true\n", "utf8");
+    const envSha = createHash("sha256").update("NEW_ENV=true\n").digest("hex");
+    await mkdir(join(targetDir, ".loom", "baselines", `${envSha}-.env.example.tmp-${process.pid}`));
+
+    await assert.rejects(
+      writeProjectManifest(targetDir, "0.3.5", nodeStack, nodeStack.loomOwnedFiles, renderInputs)
+    );
+    assert.equal(await readFile(join(targetDir, previousBaseline), "utf8"), "old loom\n");
+    assert.deepEqual(await loadProjectManifest(targetDir), previous);
   } finally {
     await rm(targetDir, { recursive: true, force: true });
   }
