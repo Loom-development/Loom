@@ -107,21 +107,21 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function formatBootstrapError(context: string, image: string, error: unknown): Error {
+function formatBootstrapError(stackId: StackDefinition["id"], context: string, image: string, error: unknown): Error {
   const detail = errorMessage(error).trim() || "unknown error";
   if (isRegistryAuthError(detail)) {
     return new Error(
-      `Failed to initialize ${context} because image '${image}' requires registry access or authentication: ${detail}${buildRegistryLoginHint(image)}`
+      `Failed to initialize '${stackId}' (${context}) because image '${image}' requires registry access or authentication: ${detail}${buildRegistryLoginHint(image)}`
     );
   }
 
   if (isImageUnavailableError(detail)) {
     return new Error(
-      `Failed to initialize ${context} because image '${image}' is not available or could not be pulled: ${detail}`
+      `Failed to initialize '${stackId}' (${context}) because image '${image}' is not available or could not be pulled: ${detail}`
     );
   }
 
-  return new Error(`Failed to initialize ${context}: ${detail}`);
+  return new Error(`Failed to initialize '${stackId}' (${context}): ${detail}`);
 }
 
 function requiredStackDefinition(id: string): StackDefinition {
@@ -176,7 +176,12 @@ export async function runStackGeneratorWithDependencies(
       );
     }
 
-    throw formatBootstrapError(bootstrapContexts[definition.id] ?? `${definition.id} project with Podman`, definition.generator.image, error);
+    throw formatBootstrapError(
+      definition.id,
+      bootstrapContexts[definition.id] ?? `${definition.id} project with Podman`,
+      definition.generator.image,
+      error
+    );
   }
 }
 

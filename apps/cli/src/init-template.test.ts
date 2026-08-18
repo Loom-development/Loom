@@ -534,6 +534,46 @@ test("runSymfonyCreateProjectWithDependencies reports unavailable images clearly
   );
 });
 
+test("classified bootstrap errors identify every public stack ID", async () => {
+  const cases = [
+    { id: "php-drupal", context: "Drupal project with Podman Composer", image: "docker.io/library/composer:2.8.10" },
+    { id: "php-symfony", context: "Symfony project with Podman Composer", image: "docker.io/library/composer:2.8.10" },
+    { id: "php-wordpress", context: "WordPress project with Podman", image: "docker.io/library/wordpress:6.8.2-php8.3-apache" },
+    { id: "rails7", context: "Rails 7 project with Podman", image: "docker.io/library/ruby:3.3.8" },
+    { id: "rails7-hotwire", context: "Rails 7 + Hotwire project with Podman", image: "docker.io/library/ruby:3.3.8" }
+  ] as const;
+
+  for (const testCase of cases) {
+    const definition = findStackDefinition(testCase.id)!;
+    await assert.rejects(
+      () => runStackGeneratorWithDependencies(definition, `/workspace/${testCase.id}`, {
+        runCommand: async () => { throw new Error("manifest unknown: manifest unknown"); }
+      }),
+      (error: Error) => {
+        assert.match(error.message, new RegExp(`'${testCase.id}'`), `${testCase.id} unavailable ID`);
+        assert.match(error.message, new RegExp(testCase.context.replaceAll("+", "\\+")), `${testCase.id} unavailable context`);
+        assert.ok(error.message.includes(`image '${testCase.image}'`), `${testCase.id} unavailable image`);
+        assert.match(error.message, /not available or could not be pulled/i, `${testCase.id} unavailable classification`);
+        return true;
+      }
+    );
+
+    await assert.rejects(
+      () => runStackGeneratorWithDependencies(definition, `/workspace/${testCase.id}`, {
+        runCommand: async () => { throw new Error("authentication required"); }
+      }),
+      (error: Error) => {
+        assert.match(error.message, new RegExp(`'${testCase.id}'`), `${testCase.id} auth ID`);
+        assert.match(error.message, new RegExp(testCase.context.replaceAll("+", "\\+")), `${testCase.id} auth context`);
+        assert.ok(error.message.includes(`image '${testCase.image}'`), `${testCase.id} auth image`);
+        assert.match(error.message, /requires registry access or authentication/i, `${testCase.id} auth classification`);
+        assert.match(error.message, /podman login (?:docker\.io|[^\s]+)/i, `${testCase.id} auth registry hint`);
+        return true;
+      }
+    );
+  }
+});
+
 test("bootstrap command rendering consumes only the selected definition pins", async () => {
   const base = findStackDefinition("php-drupal")!;
   const selected = {
