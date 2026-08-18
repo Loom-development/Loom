@@ -27,8 +27,7 @@ export interface ProjectUpgradePlan {
 
 export interface PlanProjectUpgradeOptions {
   projectRoot: string;
-  templatesRoot: string;
-  assetRoot?: string;
+  stacksRoot: string;
   manifest: LoomProjectManifestV2;
   stack: StackDefinition;
 }
@@ -146,7 +145,7 @@ export function renderDatabaseService(loomYaml: string, db: DbType): string {
 }
 
 async function renderCandidates(options: PlanProjectUpgradeOptions, candidateRoot: string): Promise<void> {
-  const assetRoot = options.assetRoot ?? resolve(options.templatesRoot, options.stack.assetPath);
+  const assetRoot = resolveContained(options.stacksRoot, options.stack.assetPath, "stack asset path");
   for (const path of options.stack.loomOwnedFiles) {
     const source = resolveContained(assetRoot, path, "Loom-owned asset path");
     try { await access(source); } catch { throw new Error(`Missing Loom-owned asset '${path}' for stack '${options.stack.id}'`); }

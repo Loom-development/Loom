@@ -13,8 +13,8 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "loom-upgrade-"));
   const projectRoot = join(root, "project");
-  const templatesRoot = join(root, "templates");
-  const assetRoot = join(templatesRoot, "node");
+  const stacksRoot = join(root, "stacks");
+  const assetRoot = join(stacksRoot, "node", "templates");
   await mkdir(join(projectRoot, ".loom", "baselines"), { recursive: true });
   await mkdir(assetRoot, { recursive: true });
   await writeFile(join(assetRoot, "loom.yaml"), "name: template\nservices:\n  app:\n    type: node\n", "utf8");
@@ -27,7 +27,7 @@ async function fixture() {
   await writeFile(join(projectRoot, ".loom", "baselines", "env"), oldEnv, "utf8");
   const stack: StackDefinition = {
     id: "node",
-    assetPath: "node",
+    assetPath: "node/templates",
     scaffoldVersion: "2",
     definitionVersion: 1, legacyScaffoldVersions: [], generator: { kind: "none" }, runtimeImages: [], install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
     loomOwnedFiles: ["loom.yaml", ".env.example"],
@@ -48,7 +48,7 @@ async function fixture() {
     },
     renderInputs: { projectName: "loom-demo", databases: [], adopted: false }
   };
-  return { root, projectRoot, templatesRoot, stack, manifest };
+  return { root, projectRoot, stacksRoot, stack, manifest };
 }
 
 test("planner classifies only manifest-owned files and renders candidates", async () => {
@@ -90,7 +90,11 @@ test("planner rejects forged traversal and missing owned template assets", async
     forged.ownedFiles["../outside"] = { sha256: "a".repeat(64), baselinePath: ".loom/baselines/outside" };
     await assert.rejects(planProjectUpgrade({ ...value, manifest: forged }), /unsafe owned file path/i);
 
-    await rm(join(value.templatesRoot, "node", ".env.example"));
+    value.stack = { ...value.stack, assetPath: "../outside" };
+    await assert.rejects(planProjectUpgrade(value), /unsafe stack asset path/i);
+    value.stack = { ...value.stack, assetPath: "node/templates" };
+
+    await rm(join(value.stacksRoot, "node", "templates", ".env.example"));
     await assert.rejects(planProjectUpgrade(value), /missing Loom-owned asset.*\.env\.example/i);
   } finally {
     await rm(value.root, { recursive: true, force: true });
@@ -100,13 +104,13 @@ test("planner rejects forged traversal and missing owned template assets", async
 test("planner replays stored PHP docroot and database additions", async () => {
   const value = await fixture();
   try {
-    value.stack = { ...value.stack, id: "php", assetPath: "node" };
+    value.stack = { ...value.stack, id: "php", assetPath: "node/templates" };
     value.manifest = {
       ...value.manifest,
       stack: { id: "php", scaffoldVersion: "1" },
       renderInputs: { projectName: "loom-php", phpDocroot: "public", databases: ["redis"], adopted: false }
     };
-    await writeFile(join(value.templatesRoot, "node", "loom.yaml"), [
+    await writeFile(join(value.stacksRoot, "node", "templates", "loom.yaml"), [
       "name: template", "services:", "  app:", "    type: php", "    command: |", "      old", "    volumes:", "      - ./:/app", ""
     ].join("\n"), "utf8");
     const plan = await planProjectUpgrade(value);
@@ -180,8 +184,8 @@ test("applier rejects symlinked owned files and parent directories that escape t
       const path = parentSymlink ? "owned/loom.yaml" : "loom.yaml";
       value.stack = { ...value.stack, loomOwnedFiles: [path] };
       value.manifest = { ...value.manifest, ownedFiles: { [path]: value.manifest.ownedFiles["loom.yaml"] } };
-      await mkdir(join(value.templatesRoot, "node", "owned"), { recursive: true });
-      await writeFile(join(value.templatesRoot, "node", path), "name: template\n", "utf8");
+      await mkdir(join(value.stacksRoot, "node", "templates", "owned"), { recursive: true });
+      await writeFile(join(value.stacksRoot, "node", "templates", path), "name: template\n", "utf8");
       if (parentSymlink) await symlink(outside, join(value.projectRoot, "owned"));
       else {
         await rm(join(value.projectRoot, "loom.yaml"));

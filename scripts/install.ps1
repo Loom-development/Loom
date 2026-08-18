@@ -39,6 +39,7 @@ if ($Version -eq "latest") {
 }
 
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("loom-install-" + [guid]::NewGuid().ToString("N"))
+$stagedStacks = $null
 
 try {
   New-Item -ItemType Directory -Path $tmp | Out-Null
@@ -48,11 +49,24 @@ try {
   Write-Host "Downloading $url"
   Invoke-WebRequest -Uri $url -OutFile $zip
   Expand-Archive -Path $zip -DestinationPath $tmp -Force
+  $archiveStacks = Join-Path $tmp "stacks"
+  if (-not (Test-Path $archiveStacks -PathType Container)) {
+    throw "Release archive is missing required stack assets"
+  }
+
+  $stagedStacks = Join-Path $InstallDir (".loom-stacks-new-" + [guid]::NewGuid().ToString("N"))
+  Copy-Item -Path $archiveStacks -Destination $stagedStacks -Recurse
   Copy-Item -Path (Join-Path $tmp "loom.cmd") -Destination (Join-Path $InstallDir "loom.cmd") -Force
   Copy-Item -Path (Join-Path $tmp "loom.mjs") -Destination (Join-Path $InstallDir "loom.mjs") -Force
-  $examplesDir = Join-Path $tmp "examples"
-  if (Test-Path $examplesDir) {
-    Copy-Item -Path $examplesDir -Destination (Join-Path $InstallDir "examples") -Recurse -Force
+  $installedStacks = Join-Path $InstallDir "stacks"
+  if (Test-Path $installedStacks) {
+    Remove-Item -Path $installedStacks -Recurse -Force
+  }
+  Move-Item -Path $stagedStacks -Destination $installedStacks
+  $stagedStacks = $null
+  $installedExamples = Join-Path $InstallDir "examples"
+  if (Test-Path $installedExamples) {
+    Remove-Item -Path $installedExamples -Recurse -Force
   }
 
   $pathUser = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -65,6 +79,9 @@ try {
   Write-Host "Open a new terminal and run: loom --help"
 }
 finally {
+  if ($stagedStacks -and (Test-Path $stagedStacks)) {
+    Remove-Item -Path $stagedStacks -Recurse -Force -ErrorAction SilentlyContinue
+  }
   if (Test-Path $tmp) {
     Remove-Item -Path $tmp -Recurse -Force -ErrorAction SilentlyContinue
   }

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
+import { copyPublishableStackAssets } from "./copy-publishable-stack-assets.mjs";
 
 const rootDir = process.cwd();
 const releaseDir = resolve(rootDir, "dist", "release");
@@ -9,41 +10,7 @@ const stageDir = resolve(releaseDir, ".stage");
 const unixStageDir = resolve(stageDir, "unix");
 const windowsStageDir = resolve(stageDir, "windows");
 const bundledCliPath = resolve(releaseDir, "loom.mjs");
-const releaseExamplesDir = resolve(releaseDir, "examples");
-const ignoredExampleEntries = new Set([
-  "node_modules",
-  ".pnpm-store",
-  ".turbo",
-  ".loom",
-  "data",
-  "dist",
-  ".next",
-  ".angular",
-  "target",
-  "build",
-  "vendor",
-  "__pycache__",
-  ".venv",
-  ".pytest_cache",
-  "obj",
-  "bin"
-]);
-const ignoredExampleFileNames = new Set(["db.sqlite3", ".DS_Store"]);
-const ignoredExampleFileSuffixes = [".pyc", ".tsbuildinfo"];
-
-function shouldCopyExamplePath(sourcePath) {
-  const segments = sourcePath.split(/[\\/]+/);
-  const entryName = segments.at(-1) ?? "";
-  if (segments.some((segment) => ignoredExampleEntries.has(segment))) {
-    return false;
-  }
-
-  if (ignoredExampleFileNames.has(entryName)) {
-    return false;
-  }
-
-  return !ignoredExampleFileSuffixes.some((suffix) => entryName.endsWith(suffix));
-}
+const releaseStacksDir = resolve(releaseDir, "stacks");
 
 const unixWrapper = `#!/usr/bin/env sh
 set -eu
@@ -72,10 +39,8 @@ function run(command, args) {
 await rm(releaseDir, { recursive: true, force: true });
 await mkdir(unixStageDir, { recursive: true });
 await mkdir(windowsStageDir, { recursive: true });
-await cp(resolve(rootDir, "examples"), releaseExamplesDir, {
-  recursive: true,
-  filter: shouldCopyExamplePath
-});
+run("pnpm", ["--filter", "@loom/stacks", "build"]);
+await copyPublishableStackAssets(resolve(rootDir, "stacks"), releaseStacksDir);
 
 run("pnpm", [
   "exec",
@@ -99,7 +64,7 @@ for (const asset of unixAssets) {
     "-C",
     releaseDir,
     "loom.mjs",
-    "examples",
+    "stacks",
     "-C",
     unixStageDir,
     "loom"
@@ -113,7 +78,7 @@ for (const asset of windowsAssets) {
     resolve(releaseDir, asset),
     resolve(releaseDir, "loom.mjs"),
     resolve(windowsStageDir, "loom.cmd"),
-    releaseExamplesDir
+    releaseStacksDir
   ]);
 }
 

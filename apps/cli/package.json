@@ -38,14 +38,14 @@
     "dist/index.js",
     "dist/index.js.map",
     "dist/index.d.ts",
-    "dist/examples",
+    "dist/stacks",
     "package.json",
     "README.md"
   ],
   "scripts": {
     "build": "pnpm exec tsc -b tsconfig.json && node ../../scripts/build-cli-package-assets.mjs",
     "typecheck": "pnpm exec tsc -b tsconfig.json",
-    "test": "node --test dist/**/*.test.js",
+    "test": "node ../../scripts/build-cli-package-assets.mjs && node --test dist/**/*.test.js",
     "dev": "tsx src/index.ts",
     "lint": "echo 'No lint rules configured'"
   },

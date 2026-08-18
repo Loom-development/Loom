@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { cp, rm } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import { copyPublishableStackAssets } from "./copy-publishable-stack-assets.mjs";
 
 const repoDir = fileURLToPath(new URL("..", import.meta.url));
 const cliDir = resolve(repoDir, "apps", "cli");
 const distDir = resolve(cliDir, "dist");
 const distExamplesDir = resolve(distDir, "examples");
-const sourceExamplesDir = resolve(repoDir, "examples");
+const distStacksDir = resolve(distDir, "stacks");
+const sourceStacksDir = resolve(repoDir, "stacks");
 const workspacePackageAliases = {
   "@loom/config": resolve(repoDir, "packages", "config", "src", "index.ts"),
   "@loom/core": resolve(repoDir, "packages", "core", "src", "index.ts"),
@@ -17,41 +19,6 @@ const workspacePackageAliases = {
   "@loom/runtime-podman": resolve(repoDir, "packages", "runtime-podman", "src", "index.ts"),
   "@loom/tasks": resolve(repoDir, "packages", "tasks", "src", "index.ts")
 };
-const ignoredExampleEntries = new Set([
-  "node_modules",
-  ".pnpm-store",
-  ".turbo",
-  ".loom",
-  "data",
-  "dist",
-  ".next",
-  ".angular",
-  "target",
-  "build",
-  "vendor",
-  "__pycache__",
-  ".venv",
-  ".pytest_cache",
-  "obj",
-  "bin"
-]);
-const ignoredExampleFileNames = new Set(["db.sqlite3", ".DS_Store"]);
-const ignoredExampleFileSuffixes = [".pyc", ".tsbuildinfo"];
-
-function shouldCopyExamplePath(sourcePath) {
-  const segments = sourcePath.split(/[\\/]+/);
-  const entryName = segments.at(-1) ?? "";
-  if (segments.some((segment) => ignoredExampleEntries.has(segment))) {
-    return false;
-  }
-
-  if (ignoredExampleFileNames.has(entryName)) {
-    return false;
-  }
-
-  return !ignoredExampleFileSuffixes.some((suffix) => entryName.endsWith(suffix));
-}
-
 function run(command, args, cwd) {
   execFileSync(command, args, { cwd, stdio: "inherit" });
 }
@@ -75,7 +42,4 @@ run(
   cliDir
 );
 
-await cp(sourceExamplesDir, distExamplesDir, {
-  recursive: true,
-  filter: shouldCopyExamplePath
-});
+await copyPublishableStackAssets(sourceStacksDir, distStacksDir);

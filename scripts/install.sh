@@ -57,7 +57,14 @@ else
 fi
 
 tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir"' EXIT
+staged_stacks=""
+cleanup() {
+  rm -rf "$tmp_dir"
+  if [ -n "$staged_stacks" ] && [ -d "$staged_stacks" ]; then
+    rm -rf "$staged_stacks"
+  fi
+}
+trap cleanup EXIT
 
 mkdir -p "$INSTALL_DIR"
 
@@ -72,12 +79,19 @@ else
 fi
 
 tar -xzf "$tmp_dir/loom.tar.gz" -C "$tmp_dir"
+if [ ! -d "$tmp_dir/stacks" ]; then
+  echo "Release archive is missing required stack assets" >&2
+  exit 1
+fi
+
+staged_stacks="$(mktemp -d "$INSTALL_DIR/.loom-stacks-new.XXXXXX")"
+cp -R "$tmp_dir/stacks/." "$staged_stacks/"
 install -m 0755 "$tmp_dir/loom" "$INSTALL_DIR/loom"
 install -m 0644 "$tmp_dir/loom.mjs" "$INSTALL_DIR/loom.mjs"
+rm -rf "$INSTALL_DIR/stacks"
+mv "$staged_stacks" "$INSTALL_DIR/stacks"
+staged_stacks=""
 rm -rf "$INSTALL_DIR/examples"
-if [ -d "$tmp_dir/examples" ]; then
-  cp -R "$tmp_dir/examples" "$INSTALL_DIR/examples"
-fi
 
 echo "Installed loom to $INSTALL_DIR/loom"
 case ":$PATH:" in

@@ -3,7 +3,7 @@ import { cac } from "cac";
 import { existsSync } from "node:fs";
 import { access, copyFile, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
-import { basename, dirname, resolve } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import packageJson from "../package.json" with { type: "json" };
 import { loadLoomProject } from "@loom/config";
@@ -30,10 +30,10 @@ import { findStackDefinition, listStackIds, type StackDefinition } from "./stack
 
 const cli = cac("loom");
 
-function resolveTemplatesRoot(): string {
+function resolveStacksRoot(): string {
   const candidates = [
-    resolve(fileURLToPath(new URL("./examples", import.meta.url))),
-    resolve(fileURLToPath(new URL("../../../examples", import.meta.url)))
+    resolve(fileURLToPath(new URL("./stacks", import.meta.url))),
+    resolve(fileURLToPath(new URL("../../../stacks", import.meta.url)))
   ];
 
   for (const candidate of candidates) {
@@ -42,31 +42,18 @@ function resolveTemplatesRoot(): string {
     }
   }
 
-  throw new Error("Loom template examples directory not found. Ensure the 'examples/' directory exists and is readable.");
+  throw new Error("Loom stack assets directory not found. Ensure the 'stacks/' directory exists and is readable.");
 }
 
-const templatesRoot = resolveTemplatesRoot();
-const canonicalStackRoots = [
-  resolve(fileURLToPath(new URL("./stacks", import.meta.url))),
-  resolve(fileURLToPath(new URL("../../../stacks", import.meta.url)))
-];
-const legacyAssetPaths: Record<string, string> = {
-  "node-mean": "node/mean", "node-mern": "node/mern", "node-t3": "node/t3",
-  "python-django": "python/django", "python-flask": "python/flask", "python-fastapi": "python/fastapi",
-  "php-wordpress": "php/wordpress", "php-drupal": "php/drupal", "php-symfony": "php/symfony",
-  "db-mysql": "databases/mysql", "db-sqlserver": "databases/sqlserver", "db-postgres": "databases/postgres",
-  "db-mongodb": "databases/mongodb", "db-redis": "databases/redis", "db-elasticsearch": "databases/elasticsearch",
-  "db-sqlite": "databases/sqlite", "db-mariadb": "databases/mariadb", "db-all": "databases/all"
-};
+const stacksRoot = resolveStacksRoot();
 
 function resolveStackSourceDir(stack: StackDefinition): string {
-  for (const root of canonicalStackRoots) {
-    const candidate = resolve(root, stack.assetPath);
-    if (existsSync(candidate)) return candidate;
+  const sourceDir = resolve(stacksRoot, stack.assetPath);
+  const fromRoot = relative(stacksRoot, sourceDir);
+  if (!fromRoot || fromRoot === ".." || fromRoot.startsWith("../") || fromRoot.startsWith("..\\") || isAbsolute(fromRoot)) {
+    throw new Error(`Unsafe stack asset path '${stack.assetPath}' for '${stack.id}'.`);
   }
-  const legacyPath = legacyAssetPaths[stack.id] ?? stack.id;
-  const legacy = resolve(templatesRoot, legacyPath);
-  if (existsSync(legacy)) return legacy;
+  if (existsSync(sourceDir)) return sourceDir;
   throw new Error(`Loom stack assets for '${stack.id}' were not found.`);
 }
 
@@ -868,7 +855,7 @@ cli
         throw new Error("The project already has an upgrade-safe v2 manifest; --initialize-baseline is not needed.");
       }
 
-      const plan = await planProjectUpgrade({ projectRoot, templatesRoot, assetRoot: resolveStackSourceDir(stack), manifest: loaded.manifest, stack });
+      const plan = await planProjectUpgrade({ projectRoot, stacksRoot, manifest: loaded.manifest, stack });
       for (const file of plan.files) {
         if (file.state === "modified" && !options.forceModified) {
           process.stdout.write(`modified ${file.path} -> skipped (use --force-modified to replace)\n`);
