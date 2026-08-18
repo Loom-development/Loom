@@ -87,15 +87,30 @@ test("reports missing and conflicting lockfiles", async (t) => {
   assert.equal(results.find(({ id }) => id === "lockfiles")!.status, "failure");
 });
 
+test("ignores dependency manifests outside the stack's declared dependency roots", async (t) => {
+  const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, "t3", "apps", "web"), { recursive: true });
+  await writeFile(join(root, "t3", "apps", "web", "package.json"), "{}\n");
+  const results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes() });
+  assert.equal(results.find(({ id }) => id === "lockfiles")!.status, "pass");
+});
+
 test("evaluates Node lockfiles per workspace directory", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "loom-doctor-workspace-locks-")); t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(join(root, "api")); await mkdir(join(root, "web"));
   await writeFile(join(root, "api", "package.json"), "{}\n"); await writeFile(join(root, "api", "package-lock.json"), "{}\n");
   await writeFile(join(root, "web", "package.json"), "{}\n"); await writeFile(join(root, "web", "pnpm-lock.yaml"), "\n");
-  let results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes() });
+  const workspaceStack: StackDefinition = {
+    ...stack,
+    generatedPaths: [
+      { path: "api/node_modules", category: "dependency" },
+      { path: "web/node_modules", category: "dependency" }
+    ]
+  };
+  let results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack: workspaceStack, probes: probes() });
   assert.equal(results.find(({ id }) => id === "lockfiles")!.status, "pass");
   await writeFile(join(root, "web", "yarn.lock"), "\n");
-  results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes() });
+  results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack: workspaceStack, probes: probes() });
   const lockfiles = results.find(({ id }) => id === "lockfiles")!;
   assert.equal(lockfiles.status, "failure"); assert.match(lockfiles.detail!, /web\/package\.json/);
 });

@@ -26,7 +26,6 @@ export interface RunProjectDoctorOptions {
   probes?: DoctorProbes;
 }
 
-const dependencyManifests = new Set(["package.json", "composer.json", "pyproject.toml", "requirements.txt", "Gemfile", "pom.xml", "build.gradle", "build.gradle.kts"]);
 const lockfileFamilies = [
   { manifest: "package.json", locks: ["bun.lock", "bun.lockb", "npm-shrinkwrap.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"] },
   { manifest: "composer.json", locks: ["composer.lock"] },
@@ -39,25 +38,31 @@ function result(id: string, status: DoctorStatus, summary: string, detail?: stri
   return { id, status, summary, ...(detail ? { detail } : {}) };
 }
 
-async function dependencyFiles(projectRoot: string, excluded: readonly string[]): Promise<Map<string, Set<string>>> {
+function dependencyRoots(stack: StackDefinition | undefined): string[] {
+  if (!stack) return [];
+  return [...new Set(stack.generatedPaths
+    .filter(({ category }) => category === "dependency")
+    .map(({ path }) => {
+      const railsBundleSuffix = "vendor/bundle";
+      if (path === railsBundleSuffix) return "";
+      if (path.endsWith(`/${railsBundleSuffix}`)) return path.slice(0, -railsBundleSuffix.length - 1);
+      const parent = dirname(path);
+      return parent === "." ? "" : parent;
+    }))].sort();
+}
+
+async function dependencyFiles(projectRoot: string, roots: readonly string[]): Promise<Map<string, Set<string>>> {
   const found = new Map<string, Set<string>>();
-  const excludedPaths = new Set([".loom", ...excluded]);
-  async function walk(directory: string, relativeDirectory: string, depth: number): Promise<void> {
+  for (const relativeDirectory of roots) {
+    const directory = resolve(projectRoot, relativeDirectory);
     let entries;
-    try { entries = await readdir(directory, { withFileTypes: true }); } catch { return; }
+    try { entries = await readdir(directory, { withFileTypes: true }); } catch { continue; }
+    const names = new Set<string>();
     for (const entry of entries) {
-      if (entry.isSymbolicLink()) continue;
-      const relativePath = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
-      if (entry.isFile() && (dependencyManifests.has(entry.name) || lockfileFamilies.some(({ locks }) => locks.includes(entry.name as never)))) {
-        const directory = dirname(relativePath) === "." ? "" : dirname(relativePath);
-        const names = found.get(directory) ?? new Set<string>();
-        names.add(entry.name);
-        found.set(directory, names);
-      }
-      if (entry.isDirectory() && depth < 4 && !excludedPaths.has(relativePath)) await walk(resolve(directory, entry.name), relativePath, depth + 1);
+      if (entry.isFile()) names.add(entry.name);
     }
+    found.set(relativeDirectory, names);
   }
-  await walk(projectRoot, "", 0);
   return found;
 }
 
@@ -102,7 +107,7 @@ function architectureCheck(stack: StackDefinition | undefined, probes: DoctorPro
 }
 
 async function lockfilesCheck(projectRoot: string, stack: StackDefinition | undefined): Promise<DoctorResult> {
-  const directories = await dependencyFiles(projectRoot, stack?.generatedPaths.map(({ path }) => path) ?? []);
+  const directories = await dependencyFiles(projectRoot, dependencyRoots(stack));
   const problems: string[] = [];
   for (const [directory, names] of [...directories].sort(([a], [b]) => a.localeCompare(b))) {
     for (const family of lockfileFamilies) {
