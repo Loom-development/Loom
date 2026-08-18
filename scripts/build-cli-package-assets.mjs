@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { copyPublishableStackAssets } from "./copy-publishable-stack-assets.mjs";
@@ -8,7 +7,6 @@ import { copyPublishableStackAssets } from "./copy-publishable-stack-assets.mjs"
 const repoDir = fileURLToPath(new URL("..", import.meta.url));
 const cliDir = resolve(repoDir, "apps", "cli");
 const distDir = resolve(cliDir, "dist");
-const distExamplesDir = resolve(distDir, "examples");
 const distStacksDir = resolve(distDir, "stacks");
 const sourceStacksDir = resolve(repoDir, "stacks");
 const workspacePackageAliases = {
@@ -22,8 +20,6 @@ const workspacePackageAliases = {
 function run(command, args, cwd) {
   execFileSync(command, args, { cwd, stdio: "inherit" });
 }
-
-await rm(distExamplesDir, { recursive: true, force: true });
 
 run(
   "pnpm",

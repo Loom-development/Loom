@@ -1,18 +1,15 @@
-# Python framework examples
+# Python starter
 
-Run examples directly with the installed `loom` command.
+This project was generated from Loom's versioned `python` stack package. Its
+source remains in the host project and is bind-mounted into the runtime.
 
-## Django
+```bash
+loom start
+loom status
+loom exec app -- python --version
+loom stop
+```
 
-- Config: `examples/python/django/loom.yaml`
-- Run: `loom start --config examples/python/django/loom.yaml`
-
-## Flask
-
-- Config: `examples/python/flask/loom.yaml`
-- Run: `loom start --config examples/python/flask/loom.yaml`
-
-## FastAPI
-
-- Config: `examples/python/fastapi/loom.yaml`
-- Run: `loom start --config examples/python/fastapi/loom.yaml`
+Change `PYTHON_IMAGE` in `.env` to make an explicit runtime override without
+editing `loom.yaml`. Use `python-django`, `python-flask`, or `python-fastapi`
+when starting one of those frameworks.

@@ -6,9 +6,11 @@ Use this page to pick a template quickly and run it with the installed `loom` co
 
 The supported user workflow for every catalog entry is `loom init <template>`. Loom copies starter files or runs the framework's generator into a local project directory, then layers `loom.yaml` and environment defaults on top.
 
-Directories under the repository's `examples/` tree are currently source assets for template generation. Direct execution is not the supported or consistently tested interface. Bootstrap-heavy entries such as Rails, Drupal, Symfony, and WordPress require `loom init` so their framework source exists first.
+The canonical source for all 31 entries is `stacks/<id>/`: a typed definition with an integer definition version and current scaffold identifier, plus initialization templates and private fixtures. Definitions pin generator packages and default runtime image tags exactly. Existing manifest scaffold identifiers remain supported through explicit legacy aliases.
 
-The planned repository layout will separate complete direct-run examples from stack definitions. Until then, use the initialization pattern below rather than starting a directory inside `examples/` directly.
+`examples/runnable/` is reserved for complete projects that pass a separate direct-start readiness, host-ownership, and scoped-stop release test. It intentionally contains no runnable project today. Never start a stack template directory in place; initialize a disposable or local project by public stack ID first.
+
+The npm CLI and standalone release archives contain a filtered `stacks/` asset tree and do not contain the removed generator-example tree. Representative generated lifecycle smoke exists today; the complete 31-stack lifecycle matrix remains planned for the verification-harness subproject.
 
 Templates that expose runtime image tags do so through `.env.example` files. After `loom init`, edit the generated `.env` to switch to a different LTS or runtime image tag without changing `loom.yaml`.
 
@@ -18,19 +20,19 @@ Quick examples:
 
 ```bash
 # Node templates
-NODE_IMAGE=docker.io/library/node:22-alpine
+NODE_IMAGE=docker.io/library/node:22.17.1-alpine
 
 # .NET template
-DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
+DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0.412
 
 # Rails template
-RUBY_IMAGE=docker.io/library/ruby:3.3
+RUBY_IMAGE=docker.io/library/ruby:3.3.8
 
 # PHP templates
-PHP_IMAGE=docker.io/library/php:8.4-apache
+PHP_IMAGE=docker.io/library/php:8.4.10-apache
 
 # Spring Boot templates
-JAVA_IMAGE=docker.io/library/maven:3.9-eclipse-temurin-21
+JAVA_IMAGE=docker.io/library/maven:3.9.11-eclipse-temurin-21
 ```
 
 ## One command pattern for all templates

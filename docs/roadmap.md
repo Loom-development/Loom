@@ -18,6 +18,9 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 - One-time migration of v1 manifests with `loom upgrade --initialize-baseline`, which records current baselines without replacing project files.
 - `loom doctor` with human-readable and JSON diagnostics for project ownership, rootless Podman, lockfiles, ports, routes, architecture, and host integration. Warnings exit 0; failures exit 1.
 - `loom clean` with an exact preview and stack-declared dependency, cache, and build paths. It preserves source, configuration, lockfiles, `.loom/`, and database state; `--force` bypasses confirmation only.
+- Canonical `stacks/<id>/` packages for all 31 public IDs, with integer definition versions, exact generator versions, exact default runtime image tags, and explicit aliases for older manifest scaffold identifiers.
+- Self-contained npm and standalone release assets that ship filtered `stacks/` content without the removed generator-example tree.
+- A verified-only `examples/runnable/` boundary and representative generated-project smoke for Node, base PHP, Python, SQLite, and bootstrap-heavy WordPress.
 
 ## What’s next
 
@@ -27,11 +30,11 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 - Improve detection evidence and require an explicit choice when multiple stacks match.
 - Add stack-specific ignore-entry management without overwriting user rules.
 
-### 2) Reproducible stack definitions
+### 2) Complete generated-stack release verification
 
-- Pin generator and runtime versions to each Loom release.
-- Record install, start, health-check, ownership, and generated-path behavior in versioned stack definitions.
-- Gate releases on generated-project startup and host-ownership checks for every published stack.
+- Build the registry-driven lifecycle harness and structured JSON/Markdown reports.
+- Run init, start, readiness, verification, host-write ownership, stop, and scoped cleanup for all 31 published stacks.
+- Make the complete main-branch matrix a required release gate while reporting host-integration limitations as warnings.
 
 ### 3) Broader safe configuration lifecycle
 
@@ -45,10 +48,9 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 - Expand release smoke coverage for stack-declared generated paths and preservation boundaries.
 - Report failures by phase: generator, image pull, dependency install, process launch, readiness, routes, or host integration.
 
-### 5) Clear examples
+### 5) Verified runnable examples
 
-- Separate verified generated-project fixtures from stack generator assets, and label any intentionally hand-runnable example explicitly.
-- Test bootstrap-heavy frameworks through `loom init`, not by starting incomplete generator fixtures in place.
+- Admit a direct-start project to `examples/runnable/` only after its dedicated release test passes.
 - Publish a per-release stack verification report.
 
 Detailed design: [Local-First Stack Workflows](superpowers/specs/2026-08-17-local-first-stack-workflows-design.md).

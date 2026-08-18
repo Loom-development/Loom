@@ -21,6 +21,30 @@ This boundary keeps files visible to editors, Git, debuggers, and host command-l
 - Adoption refuses to overwrite an existing `loom.yaml` and does not modify application source, dependency manifests, lockfiles, or an existing `.env.example`.
 - Successful initialization and adoption write an upgrade-safe v2 `.loom/manifest.json` with the stack identity, scaffold metadata, render inputs, Loom version, and baselines for files created and owned by Loom.
 
+## Canonical stack packages
+
+All 31 public stack IDs resolve through the typed registry under `stacks/`.
+Each `stacks/<id>/stack.ts` declares an integer definition version, a current
+scaffold identifier, exact generator and default runtime image versions,
+readiness and verification commands, ownership metadata, and
+generated/protected paths. Existing scaffold identifiers remain explicit legacy
+aliases so older manifests continue to resolve; new manifests record the
+current scaffold identifier.
+
+`stacks/<id>/templates/` contains only initialization assets, while private
+fixtures stay outside generated projects. The npm CLI ships a filtered copy at
+`dist/stacks/`, and standalone release archives ship the same self-contained
+asset tree. Source checkouts, installed packages, and release archives no longer
+resolve generator files through the removed example-family layout.
+
+Optional database services injected during init and replayed during upgrade
+resolve their exact default image from the corresponding standalone database
+definition, rather than maintaining a second set of renderer-local tags.
+
+`examples/runnable/` has a different contract: it may contain only complete
+projects with a direct-start readiness, host-ownership, and scoped-stop release
+test. It intentionally has no runnable project today.
+
 ## Safe configuration upgrades
 
 `loom upgrade` operates only on paths declared as Loom-owned in the project manifest. It renders candidates from the installed Loom release without running a framework generator, then compares each current file with its recorded baseline.
@@ -168,11 +192,9 @@ Service definitions can now also opt into Podman user mapping through `user` and
 
 ## Stack lifecycle direction
 
-The approved local-first design makes new-project generation and existing-project adoption equal workflows. The stack registry, ownership manifest, adoption, manifest-aware upgrade, structured diagnostics, and safe generated-path cleanup are available now. Remaining planned capabilities include:
+The approved local-first design makes new-project generation and existing-project adoption equal workflows. The stack registry, exact version pins, canonical packaged assets, ownership manifest, adoption, manifest-aware upgrade, structured diagnostics, and safe generated-path cleanup are available now. A representative generated-project smoke covers Node, base PHP, Python, SQLite, and bootstrap-heavy WordPress.
 
-- Pinned, release-tested stack definitions for reproducible `loom init` output.
-
-Pinned generator coverage remains planned. The complete approved design is documented in [Local-First Stack Workflows](superpowers/specs/2026-08-17-local-first-stack-workflows-design.md).
+The complete 31-stack lifecycle harness, structured reports, CI matrix, and mandatory release gate remain planned as the second implementation subproject. The complete approved design is documented in [Local-First Stack Workflows](superpowers/specs/2026-08-17-local-first-stack-workflows-design.md).
 
 ### Why the split matters
 

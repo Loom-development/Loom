@@ -1,24 +1,15 @@
-# JavaScript runtime examples
+# Node starter
 
-Run examples directly with the installed `loom` command.
+This project was generated from Loom's versioned `node` stack package. Its
+application source and lockfile belong to you; Loom owns only the paths listed
+in `.loom/manifest.json`.
 
-## Node runtime examples
+```bash
+loom start
+loom status
+loom test
+loom stop
+```
 
-### Base Node
-
-- Config: `examples/node/loom.yaml`
-- Start: `loom start --config examples/node/loom.yaml`
-- Stop: `loom stop --config examples/node/loom.yaml`
-
-### MEAN
-
-- Config: `examples/node/mean/loom.yaml`
-- Start: `loom start --config examples/node/mean/loom.yaml`
-- Stop: `loom stop --config examples/node/mean/loom.yaml`
-- Notes: Express API + MongoDB backend with a real Angular frontend in `examples/node/mean/web`
-
-### MERN
-
-- Config: `examples/node/mern/loom.yaml`
-- Start: `loom start --config examples/node/mern/loom.yaml`
-- Stop: `loom stop --config examples/node/mern/loom.yaml`
+The app serves its health endpoint at `/health`. Change `NODE_IMAGE` in `.env`
+to make an explicit runtime override without editing `loom.yaml`.

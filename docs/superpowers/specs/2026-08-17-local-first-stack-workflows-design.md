@@ -1,10 +1,10 @@
 # Local-First Stack Workflows
 
-> **Status: implementation in progress.** The stack registry, upgrade-safe v2
-> ownership manifest, `loom adopt`, manifest-aware `loom upgrade`, diagnostics,
-> and safe generated-path cleanup are implemented. Pinned generators, repository restructuring,
-> and the complete release matrix remain target behavior unless explicitly
-> identified as current behavior.
+> **Status: implementation in progress.** The versioned stack registry, exact
+> generator/runtime pins, canonical repository and packaged assets, upgrade-safe
+> v2 ownership manifest, `loom adopt`, manifest-aware `loom upgrade`, diagnostics,
+> and safe generated-path cleanup are implemented. The complete 31-stack
+> lifecycle harness, reports, CI matrix, and release gate remain target behavior.
 
 ## Summary
 
@@ -15,10 +15,13 @@ may also keep installed dependency directories in the bind-mounted project for
 IDE indexing and reuse. Containers provide runtimes, operating-system packages,
 and services, but do not own or embed application source.
 
-Each Loom release pins and tests the scaffold generator and runtime versions
-for every published stack. Given the same Loom release and inputs, `loom init`
-must produce a predictable project. Framework upgrades remain under the
-developer's control; `loom upgrade` changes only Loom-owned files.
+Each published definition pins its scaffold generator and default runtime image
+versions exactly. Static validation, migration comparisons, package tests, and
+a representative generated lifecycle smoke enforce that boundary today. The
+planned complete matrix will lifecycle-test every stack for each release. Given
+the same Loom release and inputs, `loom init` must produce a predictable
+project. Framework upgrades remain under the developer's control; `loom
+upgrade` changes only Loom-owned files.
 
 ## Ownership Model
 
@@ -71,9 +74,23 @@ A versioned stack definition shipped with a Loom release declares:
 Definitions are data-driven where possible. Stack-specific code is limited to
 cases that cannot be represented safely by the definition format.
 
-## Planned New-Project Workflow
+The current registry contains all 31 public stack IDs under `stacks/<id>/`.
+Definitions use integer definition versions and current scaffold identifiers;
+explicit legacy scaffold aliases keep existing manifests compatible. The npm
+package copies filtered assets to `dist/stacks/`, and standalone release
+archives contain the same self-contained tree.
 
-`loom init <stack>` will perform these steps:
+Optional database additions and their upgrade replay resolve the exact default
+image from the matching standalone database definition. They do not maintain
+independent renderer-local version literals.
+
+## New-Project Workflow
+
+`loom init <stack>` currently resolves the installed definition, runs its exact
+generator when one is declared, copies canonical template assets, renders
+project-specific configuration, and writes the v2 ownership manifest. Further
+preflight coverage and transactional failure cleanup remain planned. The target
+sequence is:
 
 1. Resolve the stack definition shipped with the installed Loom release.
 2. Validate Podman, host architecture, disk space, target-directory state, and
@@ -90,9 +107,9 @@ image. If initialization fails before committing output, Loom removes its
 temporary workspace. If cleanup is unsafe or diagnostics are valuable, Loom
 preserves the workspace and prints its location and an exact retry command.
 
-## Planned Existing-Project Workflow
+## Existing-Project Workflow
 
-`loom adopt [stack]` will treat the current project as developer-owned:
+`loom adopt [stack]` treats the current project as developer-owned:
 
 1. Detect signals such as `package.json`, `Gemfile`, `composer.json`,
    `pyproject.toml`, framework configuration, lockfiles, and conventional
@@ -171,13 +188,13 @@ including host-integration limitations, exit 0; any failure exits 1.
 Errors identify the failed phase: generator, image pull, dependency install,
 process launch, readiness, route proxy, or host integration.
 
-## Target Examples and Repository Structure
+## Examples and Repository Structure
 
-The repository will separate verified generated-project fixtures from generator
-assets and explicitly label any examples intended for direct execution:
+The repository separates verification fixtures from generator assets and
+explicitly labels examples intended for direct execution:
 
-- a dedicated runnable-example area will contain only complete projects verified
-  to support direct `loom start`;
+- `examples/runnable/` may contain only complete projects verified to support
+  direct `loom start`; it intentionally contains no runnable project today;
 - `stacks/` contains stack definitions, Loom-owned templates, generator
   metadata, and test fixtures.
 
@@ -186,6 +203,13 @@ stacks such as Rails, Drupal, Symfony, and WordPress are tested through their
 generated output rather than by starting generator assets in place.
 
 ## Verification and Release Gate
+
+Static validation and packaging tests cover all definitions today. A
+representative generated-project smoke covers Node, base PHP, Python,
+SQLite, and bootstrap-heavy WordPress, including manifest/developer hashes,
+readiness, host ownership, and scoped stop cleanup. The registry-driven harness,
+structured reports, complete 31-stack CI matrix, and mandatory release gate are
+the planned second implementation subproject.
 
 Every published stack must pass:
 
@@ -207,16 +231,18 @@ edit `/etc/hosts`.
 
 ## Migration
 
-Migration should proceed in bounded phases:
+Migration proceeds in bounded phases:
 
 1. Introduce stack definitions and the ownership manifest without changing
-   existing command behavior.
-2. Add `loom adopt` and manifest-aware safe writes.
-3. Move bootstrap-heavy templates to pinned generator definitions.
+   existing command behavior (complete).
+2. Add `loom adopt` and manifest-aware safe writes (complete).
+3. Move bootstrap-heavy templates to pinned generator definitions (complete).
 4. Add manifest-driven `loom upgrade`, `loom doctor`, and `loom clean`
    (complete).
-5. Split repository examples into runnable projects and stack assets.
-6. Require the complete generated-stack matrix as a release gate.
+5. Split repository examples into runnable projects and stack assets
+   (complete; the verified-only runnable area is intentionally empty).
+6. Require the complete generated-stack matrix as a release gate (planned
+   second subproject).
 
 Existing projects without a manifest remain supported by existing runtime
 commands, but `loom upgrade` requires initialization or adoption first. Projects

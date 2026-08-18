@@ -73,10 +73,15 @@ function assertCanonicalStackAssets(paths: readonly string[], stacksPrefix: stri
   }
 }
 
+function hasLegacyExampleAssets(paths: readonly string[], parent = ""): boolean {
+  const directory = [parent, "examples"].filter(Boolean).join("/");
+  return paths.some((path) => path === directory || path.startsWith(`${directory}/`));
+}
+
 test("npm package publishes canonical stack assets without legacy examples", async () => {
   const paths = await npmPackageFiles();
   assertCanonicalStackAssets(paths, "dist/stacks/");
-  assert.equal(paths.some((path) => path === "dist/examples" || path.startsWith("dist/examples/")), false);
+  assert.equal(hasLegacyExampleAssets(paths, "dist"), false);
 });
 
 async function isolatedCliFixture(projectDirName: string) {
@@ -156,7 +161,7 @@ test("release archives publish canonical stack assets without legacy examples", 
     assert.ok(paths.includes("loom"), `${archive} is missing the Unix launcher`);
     assert.ok(paths.includes("loom.mjs"), `${archive} is missing the CLI bundle`);
     assertCanonicalStackAssets(paths, "stacks/");
-    assert.equal(paths.some((path) => path === "examples" || path.startsWith("examples/")), false);
+    assert.equal(hasLegacyExampleAssets(paths), false);
   }
 
   for (const archive of ["loom-windows-x64.zip", "loom-windows-arm64.zip"]) {
@@ -169,6 +174,6 @@ test("release archives publish canonical stack assets without legacy examples", 
     assert.ok(paths.includes("loom.cmd"), `${archive} is missing the Windows launcher`);
     assert.ok(paths.includes("loom.mjs"), `${archive} is missing the CLI bundle`);
     assertCanonicalStackAssets(paths, "stacks/");
-    assert.equal(paths.some((path) => path === "examples" || path.startsWith("examples/")), false);
+    assert.equal(hasLegacyExampleAssets(paths), false);
   }
 });

@@ -9,8 +9,7 @@ export default [
       "**/node_modules/**",
       "**/dist/**",
       "**/coverage/**",
-      "**/.loom/**",
-      "examples/**"
+      "**/.loom/**"
     ]
   },
   js.configs.recommended,

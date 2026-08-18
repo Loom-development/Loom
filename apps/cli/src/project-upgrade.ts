@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { access, copyFile, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
+import { buildDatabaseServiceBlock } from "./database-service.js";
 import type { DbType } from "./init-prompt.js";
 import type { LoomProjectManifestV2 } from "./project-manifest.js";
 import type { StackDefinition } from "./stacks.js";
@@ -120,19 +121,8 @@ export function renderPhpDocroot(loomYaml: string, template: string, phpDocrootR
     .replace(/(\s+<Directory\s+)\/app\/[^\s>]+(>)/, `$1/app/${phpDocroot}$2`);
 }
 
-function dbServiceBlock(db: DbType): { serviceName: string; serviceYaml: string } {
-  const definitions: Record<DbType, { serviceName: string; serviceYaml: string }> = {
-    postgres: { serviceName: "postgres", serviceYaml: "  postgres:\n    type: postgres\n    image: ${POSTGRES_IMAGE:-docker.io/library/postgres:16-alpine}\n    env:\n      POSTGRES_USER: app\n      POSTGRES_PASSWORD: app\n      POSTGRES_DB: app\n    ports:\n      - \"5432:5432\"\n    volumes:\n      - ./data/postgres:/var/lib/postgresql/data\n    healthcheck:\n      command: pg_isready -U app\n      intervalSeconds: 3\n      timeoutSeconds: 3\n      retries: 30\n      startPeriodSeconds: 5" },
-    mysql: { serviceName: "mysql", serviceYaml: "  mysql:\n    type: mysql\n    image: ${MYSQL_IMAGE:-docker.io/library/mysql:8.4}\n    env:\n      MYSQL_ROOT_PASSWORD: root\n      MYSQL_DATABASE: app\n      MYSQL_USER: app\n      MYSQL_PASSWORD: app\n    ports:\n      - \"3306:3306\"\n    volumes:\n      - ./data/mysql:/var/lib/mysql\n    healthcheck:\n      command: mysqladmin ping -h 127.0.0.1 -proot\n      intervalSeconds: 3\n      timeoutSeconds: 3\n      retries: 30\n      startPeriodSeconds: 10" },
-    mariadb: { serviceName: "mariadb", serviceYaml: "  mariadb:\n    type: mariadb\n    image: ${MARIADB_IMAGE:-docker.io/library/mariadb:11}\n    env:\n      MARIADB_ROOT_PASSWORD: root\n      MARIADB_DATABASE: app\n      MARIADB_USER: app\n      MARIADB_PASSWORD: app\n    ports:\n      - \"3307:3306\"\n    volumes:\n      - ./data/mariadb:/var/lib/mysql\n    healthcheck:\n      command: mariadb-admin ping -h 127.0.0.1 -uroot -proot\n      intervalSeconds: 3\n      timeoutSeconds: 3\n      retries: 30\n      startPeriodSeconds: 10" },
-    mongodb: { serviceName: "mongodb", serviceYaml: "  mongodb:\n    type: mongodb\n    image: ${MONGO_IMAGE:-docker.io/library/mongo:7}\n    env:\n      MONGO_INITDB_ROOT_USERNAME: app\n      MONGO_INITDB_ROOT_PASSWORD: app\n      MONGO_INITDB_DATABASE: app\n    ports:\n      - \"27017:27017\"\n    volumes:\n      - ./data/mongodb:/data/db" },
-    redis: { serviceName: "redis", serviceYaml: "  redis:\n    type: redis\n    image: ${REDIS_IMAGE:-docker.io/library/redis:7-alpine}\n    command: redis-server --appendonly yes\n    ports:\n      - \"6379:6379\"\n    volumes:\n      - ./data/redis:/data\n    healthcheck:\n      command: redis-cli ping | grep PONG\n      intervalSeconds: 3\n      timeoutSeconds: 3\n      retries: 30\n      startPeriodSeconds: 2" }
-  };
-  return definitions[db];
-}
-
 export function renderDatabaseService(loomYaml: string, db: DbType): string {
-  const { serviceName, serviceYaml } = dbServiceBlock(db);
+  const { serviceName, serviceYaml } = buildDatabaseServiceBlock(db);
   if (new RegExp(`^ {2}${serviceName}:`, "m").test(loomYaml)) return loomYaml;
   const insertion = /^(routes:|tasks:)/m.test(loomYaml)
     ? loomYaml.replace(/^(routes:|tasks:)/m, `${serviceYaml}\n$1`)

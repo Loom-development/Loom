@@ -7,7 +7,7 @@ Loom is a local development CLI that gives you a ready-to-run app stack in minut
 
 ## Why Loom
 
-- **Templates that work**: 30+ starter templates — Node, Python, PHP, Ruby, Java, .NET, Astro, and more. Framework setups for Django, Rails, Symfony, Spring Boot, and other common stacks. Loom's generated-stack release suite covers its core templates and is expanding toward full-matrix CI coverage.
+- **Templates that work**: 31 versioned stack packages — Node, Python, PHP, Ruby, Java, .NET, Astro, databases, and more. Framework setups for Django, Rails, Symfony, Spring Boot, and other common stacks use exact generator versions and exact default runtime image tags.
 - **Databases without the pain**: `--db postgres` adds a database, generates credentials, wires the connection, and waits for it to be ready.
 - **Automatic HTTPS**: projects with configured routes get a local TLS cert and a hostname like `https://myapp.loom.local`.
 - **Health-checked startup**: Loom waits for dependencies to actually be ready, not just "container started."
@@ -172,20 +172,18 @@ Examples:
 
 ```bash
 # Node templates
-NODE_IMAGE=docker.io/library/node:22-alpine
+NODE_IMAGE=docker.io/library/node:22.17.1-alpine
 # or
-NODE_IMAGE=docker.io/library/node:24-alpine
+NODE_IMAGE=docker.io/library/node:24.4.1-alpine
 
 # during init
-loom init node --image NODE_IMAGE=docker.io/library/node:22-alpine
+loom init node --image NODE_IMAGE=docker.io/library/node:22.17.1-alpine
 
 # .NET template
-DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
-# or
-DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
+DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0.412
 
 # Rails template base image
-RUBY_IMAGE=docker.io/library/ruby:3.3
+RUBY_IMAGE=docker.io/library/ruby:3.3.8
 ```
 
 ## Daily commands you'll actually use
@@ -220,6 +218,7 @@ Local equivalents:
 ```bash
 pnpm verify
 pnpm verify:coverage
+pnpm smoke:generated # representative generated-project lifecycle smoke
 ```
 
 ## Popular templates
@@ -231,16 +230,42 @@ pnpm verify:coverage
 
 Examples matrix with domains, ports, and usage: [docs/examples-matrix.md](docs/examples-matrix.md)
 
+## Versioned stack packages
+
+`stacks/<id>/` is the canonical source for every published stack. Each package
+contains a typed definition, initialization templates, and private migration
+fixtures. Definitions declare an integer definition version, a current scaffold
+identifier, exact generator and runtime versions, readiness behavior, ownership
+metadata, and safe generated paths. Explicit legacy scaffold aliases keep
+existing project manifests compatible while new projects record the current
+scaffold identifier.
+
+The npm package copies these assets to `dist/stacks/`; standalone release
+archives include the same filtered `stacks/` tree. Neither distribution depends
+on the removed generator-example layout. `examples/runnable/` is reserved for
+complete projects that pass a direct-start release test, and is intentionally
+empty today.
+
+Optional database services added by `loom init --db` resolve their default
+image from the matching standalone database definition. Upgrade rendering
+replays the same definition-backed value, so generated `loom.yaml` and `.env`
+files do not carry a separate floating database-image default.
+
+The repository includes a representative generated-project smoke covering
+Node, base PHP, Python, SQLite, and bootstrap-heavy WordPress. The complete
+31-stack lifecycle report and release gate remain planned as the second
+verification-harness subproject.
+
 ## What happens on `loom init` for bootstrap-heavy templates
 
 Templates like `php-drupal`, `php-symfony`, `rails7`, and `rails7-hotwire` bootstrap their project structure during `loom init` by running the upstream tool in a temporary container. For example:
 
-- `php-symfony` runs `composer create-project symfony/skeleton` in a `composer:2` container.
-- `php-drupal` runs `composer create-project drupal/recommended-project` in a `composer:2` container.
-- `rails7` and `rails7-hotwire` run `rails new` in the configured Ruby image.
-- `php-wordpress` copies WordPress from the official WordPress image.
+- `php-symfony` installs `symfony/skeleton:7.3.99` and `symfony/webapp-pack:1.3.0` with `docker.io/library/composer:2.8.10`.
+- `php-drupal` installs `drupal/recommended-project:11.2.2` with `docker.io/library/composer:2.8.10`.
+- `rails7` and `rails7-hotwire` install Rails `7.1.5` and Bundler `2.6.9` with `docker.io/library/ruby:3.3.8`.
+- `php-wordpress` copies WordPress `6.8.2` from `docker.io/library/wordpress:6.8.2-php8.3-apache`.
 
-This means the project files are generated locally during `loom init`—just like running `composer create-project` or `rails new` yourself—rather than being hidden inside the long-running application container. A temporary bootstrap image may supply source to a generator, as the official WordPress image does, but the resulting project is written to the host. Generator versions are not yet pinned consistently across every template; deterministic, release-pinned stack definitions are planned.
+This means the project files are generated locally during `loom init`—just like running `composer create-project` or `rails new` yourself—rather than being hidden inside the long-running application container. A temporary bootstrap image may supply source to a generator, as the official WordPress image does, but the resulting project is written to the host. The stack definition pins the generator package and temporary image exactly, and generated runtime configuration uses exact default image tags.
 
 Loom project files (`loom.yaml`, `.env.example`, `README.md`) are layered on top. The only project file Loom modifies after bootstrap is `wp-config.php` for WordPress (to inject DB credentials from environment variables), or when a connection URL needs adjustment.
 
@@ -270,7 +295,7 @@ Example:
 services:
 	app:
 		type: node
-		image: ${NODE_IMAGE:-docker.io/library/node:24-alpine}
+		image: ${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}
 		userns: keep-id
 		user: ${HOST_UID:-1000}:${HOST_GID:-1000}
 		volumes:
@@ -287,7 +312,7 @@ For root-bootstrap templates that must start as `root` and then drop privileges 
 services:
 	app:
 		type: node
-		image: ${NODE_IMAGE:-docker.io/library/node:24-alpine}
+		image: ${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}
 		user: root
 		userns: keep-id
 		execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
@@ -358,6 +383,8 @@ Loom is organized as a small monorepo with a thin CLI layer on top of focused pa
 - `packages/https`: local certificate management for HTTPS routes.
 - `packages/config`: `loom.yaml` loading and validation.
 - `packages/tasks`: task execution helpers layered on top of orchestration.
+- `stacks`: canonical typed definitions, initialization templates, and private verification fixtures for all 31 public stack IDs.
+- `examples/runnable`: verified-only direct-start projects; currently documentation-only because no project has passed that separate admission gate yet.
 
 ## Internal module boundaries
 

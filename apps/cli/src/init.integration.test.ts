@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { findStackDefinition } from "./stacks.js";
 
 function runCli(args: string[], options: { env?: NodeJS.ProcessEnv; input?: string } = {}) {
   const currentFileDir = dirname(fileURLToPath(import.meta.url));
@@ -601,6 +602,31 @@ test("init db-all emits every exact database image pin", async () => {
   for (const [env, reference] of Object.entries(pins)) {
     assert.ok(generatedConfig.includes(`image: \${${env}:-${reference}}`), `${env} loom.yaml`);
     assert.ok(generatedEnv.includes(`${env}=${reference}`), `${env} .env`);
+  }
+});
+
+test("init --db injects the exact standalone database definition pin", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const cases = [
+    { db: "postgres", stackId: "db-postgres", env: "POSTGRES_IMAGE" },
+    { db: "mysql", stackId: "db-mysql", env: "MYSQL_IMAGE" },
+    { db: "mariadb", stackId: "db-mariadb", env: "MARIADB_IMAGE" },
+    { db: "mongodb", stackId: "db-mongodb", env: "MONGO_IMAGE" },
+    { db: "redis", stackId: "db-redis", env: "REDIS_IMAGE" }
+  ] as const;
+
+  for (const testCase of cases) {
+    const targetDir = join(tempRoot, `node-${testCase.db}`);
+    const result = runCli(["init", "node", "--dir", targetDir, "--db", testCase.db]);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const definition = findStackDefinition(testCase.stackId)!;
+    const reference = definition.runtimeImages.find(({ env }) => env === testCase.env)?.reference;
+    assert.ok(reference, `${testCase.stackId} ${testCase.env}`);
+    const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
+    const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
+    assert.ok(generatedConfig.includes(`image: \${${testCase.env}:-${reference}}`), `${testCase.db} loom.yaml`);
+    assert.ok(generatedEnv.includes(`${testCase.env}=${reference}`), `${testCase.db} .env`);
   }
 });
 

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LoomProjectManifestV2 } from "./project-manifest.js";
 import { applyProjectUpgrade, planProjectUpgrade } from "./project-upgrade.js";
-import type { StackDefinition } from "./stacks.js";
+import { findStackDefinition, type StackDefinition } from "./stacks.js";
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -101,14 +101,14 @@ test("planner rejects forged traversal and missing owned template assets", async
   }
 });
 
-test("planner replays stored PHP docroot and database additions", async () => {
+test("planner replays PHP docroot and exact database definition pins", async () => {
   const value = await fixture();
   try {
     value.stack = { ...value.stack, id: "php", assetPath: "node/templates" };
     value.manifest = {
       ...value.manifest,
       stack: { id: "php", scaffoldVersion: "1" },
-      renderInputs: { projectName: "loom-php", phpDocroot: "public", databases: ["redis"], adopted: false }
+      renderInputs: { projectName: "loom-php", phpDocroot: "public", databases: ["postgres", "mysql", "mariadb", "mongodb", "redis"], adopted: false }
     };
     await writeFile(join(value.stacksRoot, "node", "templates", "loom.yaml"), [
       "name: template", "services:", "  app:", "    type: php", "    command: |", "      old", "    volumes:", "      - ./:/app", ""
@@ -117,7 +117,20 @@ test("planner replays stored PHP docroot and database additions", async () => {
     const candidate = await readFile(plan.files.find((file) => file.path === "loom.yaml")!.candidatePath, "utf8");
     assert.match(candidate, /^name: loom-php$/m);
     assert.match(candidate, /DocumentRoot \/app\/public/);
-    assert.match(candidate, /^ {2}redis:$/m);
+    const cases = [
+      { db: "postgres", stackId: "db-postgres", env: "POSTGRES_IMAGE" },
+      { db: "mysql", stackId: "db-mysql", env: "MYSQL_IMAGE" },
+      { db: "mariadb", stackId: "db-mariadb", env: "MARIADB_IMAGE" },
+      { db: "mongodb", stackId: "db-mongodb", env: "MONGO_IMAGE" },
+      { db: "redis", stackId: "db-redis", env: "REDIS_IMAGE" }
+    ] as const;
+    for (const testCase of cases) {
+      const definition = findStackDefinition(testCase.stackId)!;
+      const reference = definition.runtimeImages.find(({ env }) => env === testCase.env)?.reference;
+      assert.ok(reference, `${testCase.stackId} ${testCase.env}`);
+      assert.match(candidate, new RegExp(`^ {2}${testCase.db}:$`, "m"));
+      assert.ok(candidate.includes(`image: \${${testCase.env}:-${reference}}`), `${testCase.db} loom.yaml`);
+    }
   } finally {
     await rm(value.root, { recursive: true, force: true });
   }
