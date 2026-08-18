@@ -9,6 +9,15 @@ import { nodeMernStack } from "./node-mern/stack.js";
 import { nodeT3Stack } from "./node-t3/stack.js";
 import { serverlessStack } from "./serverless/stack.js";
 import { djangoReactStack } from "./django-react/stack.js";
+import { dbAllStack } from "./db-all/stack.js";
+import { dbElasticsearchStack } from "./db-elasticsearch/stack.js";
+import { dbMariadbStack } from "./db-mariadb/stack.js";
+import { dbMongodbStack } from "./db-mongodb/stack.js";
+import { dbMysqlStack } from "./db-mysql/stack.js";
+import { dbPostgresStack } from "./db-postgres/stack.js";
+import { dbRedisStack } from "./db-redis/stack.js";
+import { dbSqliteStack } from "./db-sqlite/stack.js";
+import { dbSqlserverStack } from "./db-sqlserver/stack.js";
 import { dotnetStack } from "./dotnet/stack.js";
 import { phpStack } from "./php/stack.js";
 import { pythonStack } from "./python/stack.js";
@@ -65,7 +74,8 @@ function compatibilityDefinition(id: Exclude<StackId, "node">): StackDefinition 
 const migratedDefinitions = new Map<StackId, StackDefinition>([
   nodeStack, nodeMeanStack, nodeMernStack, nodeT3Stack, bunStack, pythonStack, pythonDjangoStack, pythonFlaskStack,
   pythonFastapiStack, phpStack, dotnetStack, jamstackStack, serverlessStack, springReactStack, springBootStack,
-  astroStack, djangoReactStack
+  astroStack, djangoReactStack, dbMysqlStack, dbSqlserverStack, dbPostgresStack, dbMongodbStack, dbRedisStack,
+  dbElasticsearchStack, dbSqliteStack, dbMariadbStack, dbAllStack
 ].map((definition) => [definition.id, definition]));
 export const stackDefinitions = stackIds.map((id) => migratedDefinitions.get(id) ?? compatibilityDefinition(id as Exclude<StackId, "node">)) as readonly StackDefinition[];
 const stackDefinitionsById = new Map<StackId, StackDefinition>(stackDefinitions.map((definition) => [definition.id, definition]));

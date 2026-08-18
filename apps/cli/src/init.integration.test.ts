@@ -571,10 +571,36 @@ test("init db template defaults to ./db and creates .env", async () => {
     const generatedConfig = await readFile(join(tempRoot, "db", "loom.yaml"), "utf8");
     const generatedEnv = await readFile(join(tempRoot, "db", ".env"), "utf8");
     assert.match(generatedConfig, /name:\s*loom-loom_cli_init_/i);
+    assert.match(generatedConfig, /image:\s*\$\{POSTGRES_IMAGE:-docker\.io\/library\/postgres:16\.9-alpine\}/);
     assert.match(generatedEnv, /POSTGRES_USER=/);
+    assert.match(generatedEnv, /POSTGRES_IMAGE=docker\.io\/library\/postgres:16\.9-alpine/);
     assert.match(result.stdout, /Initialized 'db-postgres' in .*\/db/);
   } finally {
     process.chdir(previousCwd);
+  }
+});
+
+test("init db-all emits every exact database image pin", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
+  const targetDir = join(tempRoot, "all-databases");
+  const result = runCli(["init", "db-all", "--dir", targetDir]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
+  const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
+  const pins = {
+    ELASTICSEARCH_IMAGE: "docker.elastic.co/elasticsearch/elasticsearch:8.17.10",
+    MARIADB_IMAGE: "docker.io/library/mariadb:11.8.2",
+    MONGO_IMAGE: "docker.io/library/mongo:7.0.21",
+    MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04",
+    MYSQL_IMAGE: "docker.io/library/mysql:8.4.6",
+    POSTGRES_IMAGE: "docker.io/library/postgres:16.9-alpine",
+    REDIS_IMAGE: "docker.io/library/redis:7.4.5-alpine",
+    SQLITE_IMAGE: "docker.io/library/alpine:3.20.7"
+  };
+  for (const [env, reference] of Object.entries(pins)) {
+    assert.ok(generatedConfig.includes(`image: \${${env}:-${reference}}`), `${env} loom.yaml`);
+    assert.ok(generatedEnv.includes(`${env}=${reference}`), `${env} .env`);
   }
 });
 

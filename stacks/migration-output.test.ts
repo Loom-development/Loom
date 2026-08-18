@@ -10,17 +10,24 @@ const root = dirname(fileURLToPath(import.meta.url));
 const ids = [
   "node-mean", "node-mern", "node-t3", "bun", "jamstack", "serverless", "astro",
   "python", "python-django", "python-flask", "python-fastapi", "php", "dotnet", "spring-react", "spring-boot",
-  "django-react"
+  "django-react", "db-mysql", "db-sqlserver", "db-postgres", "db-mongodb", "db-redis", "db-elasticsearch",
+  "db-sqlite", "db-mariadb", "db-all"
 ] as const;
 const languageIds = [
   "python", "python-django", "python-flask", "python-fastapi", "php", "dotnet", "spring-react", "spring-boot",
   "django-react"
 ] as const;
+const databaseIds = [
+  "db-mysql", "db-sqlserver", "db-postgres", "db-mongodb", "db-redis", "db-elasticsearch", "db-sqlite",
+  "db-mariadb", "db-all"
+] as const;
+const environmentPinIds = [...languageIds, ...databaseIds] as const;
 
-function normalizeImageDefaults(yaml: string): string {
+function normalizeImageDefaults(yaml: string, imageEnvs: readonly string[]): string {
+  const declared = new Set(imageEnvs);
   return yaml.replace(
     /(^\s*image:\s*)\$\{([A-Z][A-Z0-9_]*):-.*?\}/gm,
-    (_match, prefix: string, env: string) => `${prefix}\${${env}:-<IMAGE>}`
+    (match, prefix: string, env: string) => declared.has(env) ? `${prefix}\${${env}:-<IMAGE>}` : match
   );
 }
 
@@ -52,7 +59,7 @@ test("copy stack migration preserves every non-image template byte", async () =>
     const digest = createHash("sha256");
     for (const path of files) {
       let bytes = await readFile(resolve(templateRoot, path));
-      if (path === ".env.example" && languageIds.includes(id as typeof languageIds[number])) {
+      if (path === ".env.example" && environmentPinIds.includes(id as typeof environmentPinIds[number])) {
         bytes = Buffer.from(normalizeEnvironmentImageDefaults(bytes.toString("utf8"), definition.runtimeImages.map(({ env }) => env)));
       }
       digest.update(path).update("\0").update(bytes);
@@ -60,19 +67,29 @@ test("copy stack migration preserves every non-image template byte", async () =>
     assert.equal(files.length, fixture.fileCount, `${id} inventory`);
     assert.equal(digest.digest("hex"), fixture.sourceDigest, `${id} source bytes`);
     const yaml = await readFile(resolve(templateRoot, "loom.yaml"), "utf8");
-    const normalizedYaml = normalizeImageDefaults(yaml);
+    const normalizedYaml = normalizeImageDefaults(yaml, definition.runtimeImages.map(({ env }) => env));
     assert.equal(createHash("sha256").update(normalizedYaml).digest("hex"), fixture.loomDigest, `${id} Loom configuration`);
   }
 });
 
 test("migration normalization preserves non-image environment defaults", async () => {
   const yaml = await readFile(resolve(root, "..", "node-mean/templates/loom.yaml"), "utf8");
+  const imageEnvs = findStackDefinition("node-mean")!.runtimeImages.map(({ env }) => env);
   const changed = yaml.replace("${HOST_UID:-1000}", "${HOST_UID:-1001}");
   assert.notEqual(changed, yaml, "fixture must contain a non-image default");
   assert.notEqual(
-    createHash("sha256").update(normalizeImageDefaults(changed)).digest("hex"),
-    createHash("sha256").update(normalizeImageDefaults(yaml)).digest("hex")
+    createHash("sha256").update(normalizeImageDefaults(changed, imageEnvs)).digest("hex"),
+    createHash("sha256").update(normalizeImageDefaults(yaml, imageEnvs)).digest("hex")
   );
+});
+
+test("YAML migration normalization permits declared image pins only", async () => {
+  const definition = findStackDefinition("db-mysql")!;
+  const yaml = await readFile(resolve(root, "..", definition.assetPath, "loom.yaml"), "utf8");
+  const imageEnvs = definition.runtimeImages.map(({ env }) => env);
+  const normalized = normalizeImageDefaults(yaml, imageEnvs);
+  assert.equal(normalizeImageDefaults(yaml.replace("mysql:8.4.6", "mysql:8.4.99"), imageEnvs), normalized);
+  assert.notEqual(normalizeImageDefaults(yaml.replace("MYSQL_IMAGE", "UNDECLARED_IMAGE"), imageEnvs), normalized);
 });
 
 test("environment migration normalization permits declared image pins only", async () => {
@@ -107,12 +124,21 @@ test("copy stack template image defaults exactly match their definitions", async
   }
 });
 
-test("language stack environment image defaults exactly match their definitions", async () => {
-  for (const id of languageIds) {
+test("migrated stack environment image defaults exactly match their definitions", async () => {
+  for (const id of environmentPinIds) {
     const definition = findStackDefinition(id)!;
     const env = await readFile(resolve(root, "..", definition.assetPath, ".env.example"), "utf8");
     const defaults = [...env.matchAll(/^([A-Z][A-Z0-9_]*_IMAGE)=(.+)$/gm)].map((match) => ({ env: match[1]!, reference: match[2]! }));
     assert.deepEqual(defaults.sort((a, b) => a.env.localeCompare(b.env)), definition.runtimeImages, id);
+  }
+});
+
+test("database data and runtime state are never maintenance targets", () => {
+  for (const id of databaseIds) {
+    const definition = findStackDefinition(id)!;
+    assert.deepEqual(definition.hostWrites, [], `${id} host writes`);
+    assert.deepEqual(definition.generatedPaths, [], `${id} generated paths`);
+    assert.deepEqual(definition.protectedPaths, [], `${id} protected paths`);
   }
 });
 

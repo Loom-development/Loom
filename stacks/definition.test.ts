@@ -66,6 +66,88 @@ test("language application stacks publish exact versioned package definitions", 
   assert.deepEqual(findStackDefinition("php")!.generatedPaths, [{ path: "vendor", category: "dependency" }]);
 });
 
+test("database stacks publish exact versioned package definitions and lifecycle metadata", () => {
+  const expected = {
+    "db-mysql": {
+      runtimeImages: [{ env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.6" }],
+      start: [], readiness: { kind: "command", value: "mysqladmin ping -h 127.0.0.1 -uroot -ploomroot", timeoutSeconds: 100 },
+      verification: ["mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-ploomroot"]
+    },
+    "db-sqlserver": {
+      runtimeImages: [{ env: "MSSQL_IMAGE", reference: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04" }],
+      start: [], readiness: { kind: "port", value: "127.0.0.1:1433", timeoutSeconds: 300 },
+      verification: ["/opt/mssql-tools18/bin/sqlcmd", "-S", "127.0.0.1", "-U", "sa", "-P", "LoomDev!Passw0rd", "-C", "-Q", "SELECT 1"]
+    },
+    "db-postgres": {
+      runtimeImages: [{ env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.9-alpine" }],
+      start: [], readiness: { kind: "command", value: "pg_isready -U loom", timeoutSeconds: 95 },
+      verification: ["pg_isready", "-U", "loom"]
+    },
+    "db-mongodb": {
+      runtimeImages: [{ env: "MONGO_IMAGE", reference: "docker.io/library/mongo:7.0.21" }],
+      start: [], readiness: { kind: "port", value: "127.0.0.1:27017", timeoutSeconds: 120 },
+      verification: ["mongosh", "--quiet", "--username", "loom", "--password", "loom", "--authenticationDatabase", "admin", "--eval", "quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)"]
+    },
+    "db-redis": {
+      runtimeImages: [{ env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.5-alpine" }],
+      start: ["redis-server --appendonly yes"], readiness: { kind: "command", value: "redis-cli ping | grep PONG", timeoutSeconds: 92 },
+      verification: ["redis-cli", "ping"]
+    },
+    "db-elasticsearch": {
+      runtimeImages: [{ env: "ELASTICSEARCH_IMAGE", reference: "docker.elastic.co/elasticsearch/elasticsearch:8.17.10" }],
+      start: [], readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },
+      verification: ["curl", "--fail", "http://127.0.0.1:9200/_cluster/health"]
+    },
+    "db-sqlite": {
+      runtimeImages: [{ env: "SQLITE_IMAGE", reference: "docker.io/library/alpine:3.20.7" }],
+      start: ["sh -c \"apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
+      readiness: { kind: "command", value: "sqlite3 /data/loom.db 'select 1;'", timeoutSeconds: 60 },
+      verification: ["sqlite3", "/data/loom.db", "select 1;"]
+    },
+    "db-mariadb": {
+      runtimeImages: [{ env: "MARIADB_IMAGE", reference: "docker.io/library/mariadb:11.8.2" }],
+      start: [], readiness: { kind: "command", value: "mariadb-admin ping -h 127.0.0.1 -uroot -ploomroot", timeoutSeconds: 100 },
+      verification: ["mariadb-admin", "ping", "-h", "127.0.0.1", "-uroot", "-ploomroot"]
+    },
+    "db-all": {
+      runtimeImages: [
+        { env: "ELASTICSEARCH_IMAGE", reference: "docker.elastic.co/elasticsearch/elasticsearch:8.17.10" },
+        { env: "MARIADB_IMAGE", reference: "docker.io/library/mariadb:11.8.2" },
+        { env: "MONGO_IMAGE", reference: "docker.io/library/mongo:7.0.21" },
+        { env: "MSSQL_IMAGE", reference: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04" },
+        { env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.6" },
+        { env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.9-alpine" },
+        { env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.5-alpine" },
+        { env: "SQLITE_IMAGE", reference: "docker.io/library/alpine:3.20.7" }
+      ],
+      start: ["redis-server --appendonly yes", "sh -c \"apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
+      readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },
+      verification: ["loom", "status"]
+    }
+  } as const;
+
+  for (const [id, metadata] of Object.entries(expected)) {
+    const definition = findStackDefinition(id)!;
+    assert.equal(definition.definitionVersion, 2, id);
+    assert.deepEqual(definition.legacyScaffoldVersions, ["1"], id);
+    assert.equal(definition.assetPath, `${id}/templates`, id);
+    assert.deepEqual(definition.generator, { kind: "none" }, id);
+    assert.deepEqual(definition.runtimeImages, metadata.runtimeImages, `${id} images`);
+    assert.deepEqual(definition.install, [], `${id} install`);
+    assert.deepEqual(definition.start, metadata.start, `${id} start`);
+    assert.deepEqual(definition.readiness, metadata.readiness, `${id} readiness`);
+    assert.deepEqual(definition.verification, metadata.verification, `${id} verification`);
+    assert.deepEqual(definition.hostWrites, [], `${id} host writes`);
+    assert.deepEqual(definition.generatedPaths, [], `${id} generated paths`);
+    assert.deepEqual(definition.protectedPaths, [], `${id} protected paths`);
+  }
+
+  assert.deepEqual(
+    stackDefinitions.filter(({ definitionVersion }) => definitionVersion === 1).map(({ id }) => id),
+    ["php-wordpress", "php-drupal", "php-symfony", "rails7", "rails7-hotwire"]
+  );
+});
+
 test("Node template inventory and bytes match the approved migration fixture", async () => {
   const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..", "node");
   const expected = JSON.parse(await readFile(resolve(root, "fixtures/expected.json"), "utf8")) as Record<string, string>;
