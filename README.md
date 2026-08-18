@@ -63,6 +63,7 @@ When you're done: `loom stop`.
 ```bash
 loom start              # start the project
 loom adopt [stack]      # configure an existing local project
+loom upgrade            # update safe, Loom-owned project files
 loom stop               # stop everything
 loom status             # see what's running
 loom logs app           # tail logs for the 'app' service
@@ -119,6 +120,26 @@ loom start
 
 Adoption creates `loom.yaml` and records Loom ownership in `.loom/manifest.json`. It preserves application source, manifests, lockfiles, and an existing `.env.example`, and refuses to overwrite an existing `loom.yaml`.
 
+## Upgrade Loom-owned configuration safely
+
+`loom upgrade` renders the current stack's Loom-owned files and compares them with the baselines recorded in `.loom/manifest.json`. It updates missing or unchanged Loom-owned files, but skips locally modified ones and exits with status 1. Application source, dependency manifests, lockfiles, `.env`, and every path not listed in the manifest are outside the upgrade boundary.
+
+```bash
+loom upgrade
+
+# Deliberately replace locally modified Loom-owned files too
+loom upgrade --force-modified
+```
+
+Projects with the older v1 manifest format need a one-time baseline migration. This records their current Loom-owned files without replacing project files; run `loom upgrade` again afterward to evaluate updates.
+
+```bash
+loom upgrade --initialize-baseline
+loom upgrade
+```
+
+Use `--config path/to/loom.yaml` when the project configuration is not in the current directory. `--initialize-baseline` is refused for projects that already have an upgrade-safe v2 manifest.
+
 If you run `loom init` without a template, Loom now prompts you to choose one interactively and suggests a default when it recognizes common root files such as `package.json`, `composer.json`, `pyproject.toml`, or `Gemfile`.
 
 Initialized templates now copy `.env.example` to `.env` when present. For templates that expose image tags, you can switch to a different LTS or runtime version by editing the `*_IMAGE` values in `.env` instead of changing `loom.yaml` directly.
@@ -149,6 +170,7 @@ RUBY_IMAGE=docker.io/library/ruby:3.3
 
 - `loom start` — start your project services
 - `loom adopt [stack]` — add Loom configuration to an existing local project without replacing application files
+- `loom upgrade` — update missing or unchanged Loom-owned files; use `--force-modified` only when you intend to replace local Loom configuration changes
 - `loom stop` — stop everything cleanly
 - `loom restart` — stop + start
 - `loom start --recreate` — remove existing project containers and start fresh
@@ -206,7 +228,7 @@ Loom project files (`loom.yaml`, `.env.example`, `README.md`) are layered on top
 - Loom validates readiness (healthcheck or port reachability).
 - Loom prepares local route proxy + HTTPS certs when routes are configured.
 
-Dependencies are installed at container startup from the project's manifests and lockfiles; they are not pre-bundled into runtime images. When a template places dependency directories inside the bind-mounted workspace, those directories remain local beside the source for IDE indexing and reuse across recreated containers.
+Dependencies are installed at container startup from the project's manifests and lockfiles; they are not pre-bundled into runtime images. For templates configured with dependency directories inside the bind-mounted workspace, those directories remain local beside the source for IDE indexing and reuse across recreated containers. Other stacks may use container-managed cache locations while keeping source, manifests, and lockfiles local.
 
 > **Note:** A cold `loom start` may take a few minutes while the container installs project dependencies (`npm install`, `pip install`, `bundle install`, `composer install`, etc.). Later starts are usually faster because dependencies and caches are reused from the local project where the template supports it.
 

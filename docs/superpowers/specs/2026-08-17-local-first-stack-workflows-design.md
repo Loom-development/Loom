@@ -1,17 +1,19 @@
 # Local-First Stack Workflows
 
-> **Status: implementation in progress.** The stack registry, ownership
-> manifest, and initial `loom adopt` workflow are implemented. Remaining
-> commands and repository structures described below are target behavior unless
-> explicitly identified as current behavior.
+> **Status: implementation in progress.** The stack registry, upgrade-safe v2
+> ownership manifest, `loom adopt`, and manifest-aware `loom upgrade` are
+> implemented. Pinned generators, diagnostics, cleanup, repository restructuring,
+> and the complete release matrix remain target behavior unless explicitly
+> identified as current behavior.
 
 ## Summary
 
-Loom will support creating new projects and adopting existing projects as
-equally important workflows. Application source and dependencies live on the
-host for normal editing, Git use, IDE indexing, and debugging. Containers
-provide pinned runtimes, operating-system packages, and services, but do not
-own or embed application source.
+Loom supports creating new projects and adopting existing projects as equally
+important workflows. Application source, dependency manifests, and lockfiles
+live on the host for normal editing, Git use, and debugging. Stack definitions
+may also keep installed dependency directories in the bind-mounted project for
+IDE indexing and reuse. Containers provide runtimes, operating-system packages,
+and services, but do not own or embed application source.
 
 Each Loom release pins and tests the scaffold generator and runtime versions
 for every published stack. Given the same Loom release and inputs, `loom init`
@@ -37,7 +39,7 @@ them during adoption or upgrade.
 - `.env.example`
 - Explicitly generated Loom helper scripts
 - `.loom/manifest.json`, which records the selected stack, scaffold version,
-  Loom version, and hashes of Loom-owned files
+  Loom version, render inputs, and baselines for Loom-owned files
 
 The manifest is authoritative: files not declared there are never changed by
 `loom upgrade`.
@@ -105,25 +107,35 @@ Adoption never modifies application source, dependency manifests, or lockfiles.
 Tests enforce this by comparing these files byte for byte before and after the
 operation.
 
-## Planned Upgrade Workflow
+## Upgrade Workflow
 
-`loom upgrade` will update only manifest-declared Loom-owned files:
+`loom upgrade` updates only manifest-declared Loom-owned files:
 
 1. Read the ownership manifest and target Loom version.
 2. Render updated files into a temporary directory.
 3. Compare current hashes with the manifest and show a concise diff.
 4. Replace unchanged Loom-owned files automatically.
-5. Require confirmation before replacing a locally modified Loom-owned file.
+5. Skip a locally modified Loom-owned file unless `--force-modified` explicitly
+   authorizes replacement; a skip causes a nonzero exit.
 6. Update the manifest after successful replacement.
 
 It never invokes a framework generator or edits application source,
 dependencies, manifests, or lockfiles. Native framework tooling remains the
 supported path for framework upgrades.
 
+The command is non-interactive and accepts `--config <path>`. Projects with a
+v1 manifest must first run `loom upgrade --initialize-baseline`. That migration
+records the current manifest-declared files as v2 baselines and exits without
+replacing project files. Running `--initialize-baseline` against an existing v2
+manifest is refused.
+
 ## Runtime and Dependency Behavior
 
 Project source is bind-mounted at a consistent path such as `/workspace`.
-Dependency directories remain beside the local source for IDE visibility.
+Stack definitions may place dependency directories beside the local source for
+IDE visibility and reuse. Other stacks may use container-managed cache paths;
+in either case, application source, dependency manifests, and lockfiles remain
+in the bind-mounted local project.
 Containers perform installation and application startup as the host UID/GID;
 root is used only for narrowly scoped operating-system setup before privileges
 are dropped.
@@ -152,10 +164,11 @@ process launch, readiness, route proxy, or host integration.
 
 ## Target Examples and Repository Structure
 
-The repository will separate complete runnable projects from generator assets:
+The repository will separate verified generated-project fixtures from generator
+assets and explicitly label any examples intended for direct execution:
 
-- `examples/runnable/` contains complete projects that support direct
-  `loom start`.
+- a dedicated runnable-example area will contain only complete projects verified
+  to support direct `loom start`;
 - `stacks/` contains stack definitions, Loom-owned templates, generator
   metadata, and test fixtures.
 
@@ -191,11 +204,13 @@ Migration should proceed in bounded phases:
    existing command behavior.
 2. Add `loom adopt` and manifest-aware safe writes.
 3. Move bootstrap-heavy templates to pinned generator definitions.
-4. Add manifest-driven `loom upgrade`, `loom doctor`, and `loom clean`.
+4. Add manifest-driven `loom upgrade` (complete), then `loom doctor` and
+   `loom clean`.
 5. Split repository examples into runnable projects and stack assets.
 6. Require the complete generated-stack matrix as a release gate.
 
-Existing projects without a manifest remain supported. Their first
-manifest-aware operation inventories current Loom-owned files and asks for
-confirmation before recording ownership; it does not overwrite files during
-that migration.
+Existing projects without a manifest remain supported by existing runtime
+commands, but `loom upgrade` requires initialization or adoption first. Projects
+with a v1 manifest migrate with `loom upgrade --initialize-baseline`; the command
+records current manifest-declared files without replacing them, and a later
+`loom upgrade` performs the normal comparison.

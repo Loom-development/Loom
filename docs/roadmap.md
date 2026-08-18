@@ -13,7 +13,9 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 
 - `loom init <stack>` for creating local projects.
 - `loom adopt [stack]` for configuring existing projects without replacing application files or lockfiles.
-- `.loom/manifest.json` ownership records for newly initialized and adopted projects.
+- Upgrade-safe v2 `.loom/manifest.json` ownership records and baselines for newly initialized and adopted projects.
+- `loom upgrade` for updating only manifest-declared Loom files. Missing and unchanged files update automatically; locally modified Loom files require `--force-modified`.
+- One-time migration of v1 manifests with `loom upgrade --initialize-baseline`, which records current baselines without replacing project files.
 
 ## What’s next
 
@@ -29,11 +31,11 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 - Record install, start, health-check, ownership, and generated-path behavior in versioned stack definitions.
 - Gate releases on generated-project startup and host-ownership checks for every published stack.
 
-### 3) Safe Loom-owned configuration
+### 3) Broader safe configuration lifecycle
 
-- Add `.loom/manifest.json` to identify Loom-owned files precisely.
-- Add `loom upgrade` for Loom-owned files only; framework and application upgrades remain developer-controlled.
-- Preserve and show diffs for locally modified Loom configuration.
+- Expand stack-version migration coverage while retaining the manifest ownership boundary.
+- Improve upgrade previews for locally modified Loom configuration.
+- Keep framework and application upgrades developer-controlled.
 
 ### 4) Faster diagnosis and cleanup
 
@@ -43,7 +45,7 @@ This roadmap focuses on what users will feel and gain as Loom evolves.
 
 ### 5) Clear examples
 
-- Separate complete directly runnable examples from stack generator assets.
+- Separate verified generated-project fixtures from stack generator assets, and label any intentionally hand-runnable example explicitly.
 - Test bootstrap-heavy frameworks through `loom init`, not by starting incomplete generator fixtures in place.
 - Publish a per-release stack verification report.
 

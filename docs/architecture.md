@@ -19,7 +19,19 @@ This boundary keeps files visible to editors, Git, debuggers, and host command-l
 - `loom init <stack>` creates a new local project from a stack's bundled assets or upstream bootstrap flow.
 - `loom adopt [stack]` configures an existing project. With no stack argument, Loom detects common project signals; an explicit stack resolves unsupported or ambiguous layouts.
 - Adoption refuses to overwrite an existing `loom.yaml` and does not modify application source, dependency manifests, lockfiles, or an existing `.env.example`.
-- Successful initialization and adoption write `.loom/manifest.json` with the stack identity, scaffold metadata, Loom version, and hashes of files created and owned by Loom.
+- Successful initialization and adoption write an upgrade-safe v2 `.loom/manifest.json` with the stack identity, scaffold metadata, render inputs, Loom version, and baselines for files created and owned by Loom.
+
+## Safe configuration upgrades
+
+`loom upgrade` operates only on paths declared as Loom-owned in the project manifest. It renders candidates from the installed Loom release without running a framework generator, then compares each current file with its recorded baseline.
+
+- Missing and baseline-unchanged Loom files are updated automatically.
+- Locally modified Loom files are skipped unless `--force-modified` is supplied; skipped files make the command exit with status 1.
+- Application source, dependency manifests, lockfiles, `.env`, and unlisted paths are never upgrade targets.
+- Successful writes refresh the recorded baselines. Candidate or staging failures leave the prior manifest and baseline metadata intact.
+- A v1 manifest is migration-only. `loom upgrade --initialize-baseline` records the current owned files as v2 baselines and exits without replacing project files; a subsequent `loom upgrade` evaluates updates.
+
+The command also accepts `--config <path>` to locate a project outside the current directory. It is non-interactive: replacement of modified Loom-owned files always requires the explicit `--force-modified` flag.
 
 ## What Loom is doing in the background
 
@@ -146,16 +158,15 @@ The main runtime and orchestration packages are now split into smaller modules s
 
 Service definitions can now also opt into Podman user mapping through `user` and `userns: keep-id` when a bind-mounted workspace needs host-aligned write ownership.
 
-## Planned stack lifecycle
+## Stack lifecycle direction
 
-The approved local-first design makes new-project generation and existing-project adoption equal workflows. Planned commands and capabilities include:
+The approved local-first design makes new-project generation and existing-project adoption equal workflows. The stack registry, ownership manifest, adoption, and manifest-aware upgrade are available now. Remaining planned capabilities include:
 
 - Pinned, release-tested stack definitions for reproducible `loom init` output.
-- A manifest-aware `loom upgrade` that updates Loom-owned files only.
 - `loom doctor` for ownership, runtime, lockfile, port, and compatibility diagnostics.
 - `loom clean` for removing only stack-declared generated paths after confirmation.
 
-These capabilities are planned and are not all available in the current CLI. The complete approved design is documented in [Local-First Stack Workflows](superpowers/specs/2026-08-17-local-first-stack-workflows-design.md).
+Pinned generator coverage and the diagnostic and cleanup commands remain planned. The complete approved design is documented in [Local-First Stack Workflows](superpowers/specs/2026-08-17-local-first-stack-workflows-design.md).
 
 ### Why the split matters
 
