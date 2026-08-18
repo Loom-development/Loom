@@ -120,7 +120,10 @@ async function inspectTree(
   initialStats: Stats,
   fs: ProjectCleanDependencies
 ): Promise<number> {
-  if (initialStats.isSymbolicLink()) throw new Error(`Generated path '${relativePath}' contains a symlink`);
+  // Package managers routinely create links inside generated dependency trees
+  // (for example node_modules/.bin). Do not follow or count them. Safety for
+  // the declared target and each of its parents is enforced by validatePathChain.
+  if (initialStats.isSymbolicLink()) return 0;
   if (initialStats.isFile()) return initialStats.size;
   if (!initialStats.isDirectory()) return 0;
   let bytes = 0;
@@ -129,7 +132,6 @@ async function inspectTree(
     const childRelative = `${relativePath}/${entry.name}`;
     const childAbsolute = resolve(absolutePath, entry.name);
     const stats = await fs.lstat(childAbsolute);
-    if (stats.isSymbolicLink()) throw new Error(`Generated path '${relativePath}' contains a symlink at '${childRelative}'`);
     bytes += await inspectTree(childAbsolute, childRelative, stats, fs);
   }
   return bytes;
@@ -230,7 +232,8 @@ export async function applyProjectClean(
       continue;
     }
     if (!item.exists) throw new Error(`Generated path '${item.path}' appeared after cleanup planning`);
-    // Rewalk immediately before removal to reject newly introduced symlinks or protected files.
+    // Rewalk immediately before removal. Nested links are never followed;
+    // validatePathChain above rejects links in the target path itself.
     await inspectTree(target, item.path, stats, fs);
     await fs.rm(target, { recursive: true, force: false });
     removed.push(item.path);

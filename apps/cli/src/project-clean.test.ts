@@ -72,8 +72,8 @@ test("planner rejects unsafe and protected declarations before returning a plan"
   }
 });
 
-test("planner rejects symlinked targets, parents, and entries encountered during size walking", async () => {
-  for (const kind of ["target", "parent", "child"] as const) {
+test("planner rejects symlinked targets and parents", async () => {
+  for (const kind of ["target", "parent"] as const) {
     const path = kind === "parent" ? "cache/generated" : "cache";
     const value = await fixture([{ path, category: "cache" }]);
     try {
@@ -81,13 +81,26 @@ test("planner rejects symlinked targets, parents, and entries encountered during
       await mkdir(outside);
       if (kind === "target") await symlink(outside, join(value.projectRoot, "cache"));
       if (kind === "parent") await symlink(outside, join(value.projectRoot, "cache"));
-      if (kind === "child") {
-        await mkdir(join(value.projectRoot, "cache"));
-        await symlink(outside, join(value.projectRoot, "cache", "linked"));
-      }
       await assert.rejects(planProjectClean(value), /symlink/i);
     } finally { await rm(value.root, { recursive: true, force: true }); }
   }
+});
+
+test("planner does not follow package-manager symlinks inside a generated tree", async () => {
+  const value = await fixture([{ path: "node_modules", category: "dependency" }]);
+  try {
+    const outside = join(value.root, "outside");
+    await mkdir(join(value.projectRoot, "node_modules", ".bin"), { recursive: true });
+    await mkdir(outside);
+    await writeFile(join(outside, "tool"), "outside data\n");
+    await writeFile(join(value.projectRoot, "node_modules", "package.js"), "dependency\n");
+    await symlink(join(outside, "tool"), join(value.projectRoot, "node_modules", ".bin", "tool"));
+
+    const plan = await planProjectClean(value);
+    assert.equal(plan.totalBytes, Buffer.byteLength("dependency\n"));
+    assert.deepEqual(await applyProjectClean(plan), { removed: ["node_modules"], missing: [] });
+    assert.equal(await readFile(join(outside, "tool"), "utf8"), "outside data\n");
+  } finally { await rm(value.root, { recursive: true, force: true }); }
 });
 
 test("planner permits dependency manifests nested within a declared generated target", async () => {
