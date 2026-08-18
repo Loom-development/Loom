@@ -807,7 +807,12 @@ cli
       if (dbsToAdd.length > 0 || selectedTemplate.startsWith("db-")) {
         await customizeDbTemplateCredentials(targetDir);
       }
-      await writeProjectManifest(targetDir, packageJson.version, stack);
+      await writeProjectManifest(targetDir, packageJson.version, stack, stack.loomOwnedFiles, {
+        projectName: deriveProjectName(targetDir),
+        ...(effectivePhpDocroot === undefined ? {} : { phpDocroot: effectivePhpDocroot }),
+        databases: [...dbsToAdd].sort(),
+        adopted: false
+      });
       process.stdout.write(`Initialized '${selectedTemplate}' in ${targetDir}\n`);
       process.stdout.write(formatStartupNotice());
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);
@@ -848,7 +853,11 @@ cli
       }
 
       await applyProjectName(targetDir);
-      await writeProjectManifest(targetDir, packageJson.version, stack, ownedFiles);
+      await writeProjectManifest(targetDir, packageJson.version, stack, ownedFiles, {
+        projectName: deriveProjectName(targetDir),
+        databases: [],
+        adopted: true
+      });
 
       process.stdout.write(`Adopted '${selectedStack}' in ${targetDir}\n`);
       process.stdout.write(`Next: cd ${targetDir} && loom start\n`);

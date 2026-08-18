@@ -102,6 +102,11 @@ test("init php with --db adds database service", async () => {
   assert.match(generatedConfig, /- mariadb/);
   assert.match(generatedEnv, /MARIADB_IMAGE=/);
   assert.match(generatedEnv, /MARIADB_URL=/);
+  const manifest = JSON.parse(await readFile(join(targetDir, ".loom", "manifest.json"), "utf8")) as {
+    renderInputs: { phpDocroot?: string; databases: string[] };
+  };
+  assert.equal(manifest.renderInputs.phpDocroot, ".");
+  assert.deepEqual(manifest.renderInputs.databases, ["mariadb"]);
 });
 
 test("init python does not include a database service by default", async () => {
@@ -144,19 +149,29 @@ test("init applies runtime image overrides from --image", async () => {
     version: number;
     loomVersion: string;
     stack: { id: string; scaffoldVersion: string };
-    ownedFiles: Record<string, { sha256: string }>;
+    ownedFiles: Record<string, { sha256: string; baselinePath: string }>;
+    renderInputs: { projectName: string; databases: string[]; adopted: boolean };
   };
 
   assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:24-alpine\}/);
   assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:22-alpine/);
   assert.match(result.stdout, /Configured runtime image selections/);
   assert.match(result.stdout, /Startup may take a few minutes while Loom downloads images and installs dependencies/);
-  assert.equal(manifest.version, 1);
+  assert.equal(manifest.version, 2);
   assert.equal(manifest.loomVersion, "0.3.4");
   assert.deepEqual(manifest.stack, { id: "node", scaffoldVersion: "1" });
   assert.match(manifest.ownedFiles["loom.yaml"]?.sha256 ?? "", /^[a-f0-9]{64}$/);
   assert.match(manifest.ownedFiles[".env.example"]?.sha256 ?? "", /^[a-f0-9]{64}$/);
   assert.equal(manifest.ownedFiles[".env"], undefined);
+  assert.deepEqual(manifest.renderInputs, {
+    projectName: "loom-node_lts",
+    databases: [],
+    adopted: false
+  });
+  assert.equal(
+    await readFile(join(targetDir, manifest.ownedFiles["loom.yaml"].baselinePath), "utf8"),
+    generatedConfig
+  );
 });
 
 test("adopt detects an existing Node project and preserves developer-owned files", async () => {
@@ -180,10 +195,16 @@ test("adopt detects an existing Node project and preserves developer-owned files
 
   const manifest = JSON.parse(await readFile(join(targetDir, ".loom", "manifest.json"), "utf8")) as {
     stack: { id: string };
-    ownedFiles: Record<string, { sha256: string }>;
+    ownedFiles: Record<string, { sha256: string; baselinePath: string }>;
+    renderInputs: { projectName: string; databases: string[]; adopted: boolean };
   };
   assert.equal(manifest.stack.id, "node");
   assert.deepEqual(Object.keys(manifest.ownedFiles), ["loom.yaml"]);
+  assert.deepEqual(manifest.renderInputs, {
+    projectName: "loom-existing_node",
+    databases: [],
+    adopted: true
+  });
 });
 
 test("adopt refuses to overwrite existing Loom configuration", async () => {
@@ -634,7 +655,7 @@ test("init --db with multiple types adds both services", async () => {
   const tempRoot = await mkdtemp(join(tmpdir(), "loom-cli-init-"));
   const targetDir = join(tempRoot, "node-multi-db");
 
-  const result = runCli(["init", "node", "--dir", targetDir, "--db", "postgres", "--db", "redis"]);
+  const result = runCli(["init", "node", "--dir", targetDir, "--db", "redis", "--db", "postgres"]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
   const loomYaml = await readFile(join(targetDir, "loom.yaml"), "utf8");
@@ -646,6 +667,10 @@ test("init --db with multiple types adds both services", async () => {
   const env = await readFile(join(targetDir, ".env"), "utf8");
   assert.match(env, /POSTGRES_IMAGE=/);
   assert.match(env, /REDIS_IMAGE=/);
+  const manifest = JSON.parse(await readFile(join(targetDir, ".loom", "manifest.json"), "utf8")) as {
+    renderInputs: { databases: string[] };
+  };
+  assert.deepEqual(manifest.renderInputs.databases, ["postgres", "redis"]);
 });
 
 test("init --db rejects unknown db type", async () => {
