@@ -7,6 +7,7 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
+    { "path": "../../stacks" },
     { "path": "../../packages/config" },
     { "path": "../../packages/core" },
     { "path": "../../packages/tasks" }

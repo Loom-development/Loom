@@ -15,7 +15,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ["apps/*/src/**/*.ts", "packages/*/src/**/*.ts"],
+    files: ["apps/*/src/**/*.ts", "packages/*/src/**/*.ts", "stacks/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

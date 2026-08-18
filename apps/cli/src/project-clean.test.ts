@@ -24,6 +24,7 @@ async function fixture(generatedPaths: readonly StackGeneratedPath[] = [
   await writeFile(join(projectRoot, "notes.txt"), "unrelated\n");
   const stack: StackDefinition = {
     id: "node", assetPath: "node", scaffoldVersion: "1", loomOwnedFiles: ["loom.yaml"],
+    definitionVersion: 1, legacyScaffoldVersions: [], generator: { kind: "none" }, runtimeImages: [], install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
     generatedPaths, protectedPaths: ["src"],
     compatibility: { architectures: ["x64"], runtime: "podman-rootless" }
   };

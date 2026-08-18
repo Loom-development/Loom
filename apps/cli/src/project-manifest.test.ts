@@ -29,7 +29,7 @@ test("buildProjectManifest records v2 render inputs and baseline paths", async (
     assert.deepEqual(manifest, {
       version: 2,
       loomVersion: "0.3.4",
-      stack: { id: "node", scaffoldVersion: "1" },
+      stack: { id: "node", scaffoldVersion: "2" },
       ownedFiles: {
         "loom.yaml": {
           sha256,

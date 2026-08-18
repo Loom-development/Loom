@@ -26,7 +26,7 @@ import { loadProjectManifest, writeProjectManifest } from "./project-manifest.js
 import { applyProjectClean, planProjectClean, type ProjectCleanPlan } from "./project-clean.js";
 import { runProjectDoctor } from "./project-doctor.js";
 import { applyProjectUpgrade, planProjectUpgrade, renderPhpDocroot, renderProjectName } from "./project-upgrade.js";
-import { findStackDefinition, listStackIds } from "./stacks.js";
+import { findStackDefinition, listStackIds, type StackDefinition } from "./stacks.js";
 
 const cli = cac("loom");
 
@@ -46,6 +46,29 @@ function resolveTemplatesRoot(): string {
 }
 
 const templatesRoot = resolveTemplatesRoot();
+const canonicalStackRoots = [
+  resolve(fileURLToPath(new URL("./stacks", import.meta.url))),
+  resolve(fileURLToPath(new URL("../../../stacks", import.meta.url)))
+];
+const legacyAssetPaths: Record<string, string> = {
+  "node-mean": "node/mean", "node-mern": "node/mern", "node-t3": "node/t3",
+  "python-django": "python/django", "python-flask": "python/flask", "python-fastapi": "python/fastapi",
+  "php-wordpress": "php/wordpress", "php-drupal": "php/drupal", "php-symfony": "php/symfony",
+  "db-mysql": "databases/mysql", "db-sqlserver": "databases/sqlserver", "db-postgres": "databases/postgres",
+  "db-mongodb": "databases/mongodb", "db-redis": "databases/redis", "db-elasticsearch": "databases/elasticsearch",
+  "db-sqlite": "databases/sqlite", "db-mariadb": "databases/mariadb", "db-all": "databases/all"
+};
+
+function resolveStackSourceDir(stack: StackDefinition): string {
+  for (const root of canonicalStackRoots) {
+    const candidate = resolve(root, stack.assetPath);
+    if (existsSync(candidate)) return candidate;
+  }
+  const legacyPath = legacyAssetPaths[stack.id] ?? stack.id;
+  const legacy = resolve(templatesRoot, legacyPath);
+  if (existsSync(legacy)) return legacy;
+  throw new Error(`Loom stack assets for '${stack.id}' were not found.`);
+}
 
 const ignoredTemplateEntries = new Set([
   "node_modules",
@@ -698,7 +721,7 @@ cli
       validateInitOptions(selectedTemplate, options.phpDocroot);
       const effectivePhpDocroot = resolvePhpDocrootOption(selectedTemplate, options.phpDocroot);
 
-      const sourceDir = resolve(templatesRoot, stack.assetPath);
+      const sourceDir = resolveStackSourceDir(stack);
       const targetDir = resolveInitTargetDir(selectedTemplate, options.dir);
 
       await mkdir(targetDir, { recursive: true });
@@ -782,7 +805,7 @@ cli
         throw new Error(`Project already contains '${loomConfigPath}'. Adoption will not overwrite Loom configuration.`);
       }
 
-      const sourceDir = resolve(templatesRoot, stack.assetPath);
+      const sourceDir = resolveStackSourceDir(stack);
       const ownedFiles = ["loom.yaml"];
       await copyFile(resolve(sourceDir, "loom.yaml"), loomConfigPath);
 
@@ -845,7 +868,7 @@ cli
         throw new Error("The project already has an upgrade-safe v2 manifest; --initialize-baseline is not needed.");
       }
 
-      const plan = await planProjectUpgrade({ projectRoot, templatesRoot, manifest: loaded.manifest, stack });
+      const plan = await planProjectUpgrade({ projectRoot, templatesRoot, assetRoot: resolveStackSourceDir(stack), manifest: loaded.manifest, stack });
       for (const file of plan.files) {
         if (file.state === "modified" && !options.forceModified) {
           process.stdout.write(`modified ${file.path} -> skipped (use --force-modified to replace)\n`);

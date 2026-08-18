@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "stacks" },
     { "path": "packages/config" },
     { "path": "packages/runtime-podman" },
     { "path": "packages/network" },

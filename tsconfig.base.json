@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
+      "@loom/stacks": ["./stacks/index.ts"],
       "@loom/config": ["./packages/config/src/index.ts"],
       "@loom/runtime-podman": ["./packages/runtime-podman/src/index.ts"],
       "@loom/core": ["./packages/core/src/index.ts"],

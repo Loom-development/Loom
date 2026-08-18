@@ -11,6 +11,7 @@ import type { StackDefinition } from "./stacks.js";
 
 const stack: StackDefinition = {
   id: "node", assetPath: "node", scaffoldVersion: "1", loomOwnedFiles: ["loom.yaml"],
+  definitionVersion: 1, legacyScaffoldVersions: [], generator: { kind: "none" }, runtimeImages: [], install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
   generatedPaths: [{ path: "dist", category: "build" }, { path: "node_modules", category: "dependency" }],
   protectedPaths: ["src"], compatibility: { architectures: ["x64"], runtime: "podman-rootless" }
 };

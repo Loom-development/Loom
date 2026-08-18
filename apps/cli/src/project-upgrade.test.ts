@@ -29,6 +29,7 @@ async function fixture() {
     id: "node",
     assetPath: "node",
     scaffoldVersion: "2",
+    definitionVersion: 1, legacyScaffoldVersions: [], generator: { kind: "none" }, runtimeImages: [], install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
     loomOwnedFiles: ["loom.yaml", ".env.example"],
     generatedPaths: [
       { path: "dist", category: "build" },
