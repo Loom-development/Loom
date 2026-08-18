@@ -2,14 +2,14 @@
 
 > One command. Full stack. No Docker Desktop.
 
-Loom is a local development CLI that gives you a ready-to-run app stack in minutes. Pick a template — `loom start` — and you're building. Works on Linux, macOS, and Windows. Powered by Podman.
+Loom is a local development CLI that gives you a ready-to-run app stack in minutes. Initialize a template, run `loom start`, and you're building. Works on Linux, macOS, and Windows. Powered by Podman.
 
 
 ## Why Loom
 
-- **Templates that work**: 30+ starter templates — Node, Python, PHP, Ruby, Java, .NET, Astro, and more. Framework setups for Django, Rails, Symfony, Spring Boot, Next.js. Every template is tested in CI.
+- **Templates that work**: 30+ starter templates — Node, Python, PHP, Ruby, Java, .NET, Astro, and more. Framework setups for Django, Rails, Symfony, Spring Boot, and other common stacks. Loom's generated-stack release suite covers its core templates and is expanding toward full-matrix CI coverage.
 - **Databases without the pain**: `--db postgres` adds a database, generates credentials, wires the connection, and waits for it to be ready.
-- **Automatic HTTPS**: every project gets a local TLS cert and a hostname like `https://myapp.loom.local`.
+- **Automatic HTTPS**: projects with configured routes get a local TLS cert and a hostname like `https://myapp.loom.local`.
 - **Health-checked startup**: Loom waits for dependencies to actually be ready, not just "container started."
 - **Host-aligned permissions**: files written inside containers are owned by you, not root.
 - **Free and open**: Podman handles the runtime — no Docker Desktop license required.
@@ -38,13 +38,15 @@ loom init node --dir my-app
 
 No `Dockerfile`, no `docker-compose.yml`. Loom generates a working project. Run it interactively to pick your template, runtime, and database.
 
+The generated application belongs to you: source files and lockfiles live in the local project directory. Supported templates also keep dependency directories in the bind-mounted project for IDE visibility. Loom's containers provide runtimes and services, then bind-mount the local project so editors, Git, and command-line tools see the same files as the application.
+
 ### 2. Start the stack
 
 ```bash
 cd my-app && loom start
 ```
 
-Loom pulls the image, installs your dependencies, starts your database, waits for everything to be healthy, generates HTTPS certs, and maps a local domain. All automatic.
+Loom pulls the required images, installs dependencies, starts the configured application and backing services, waits for them to become healthy, and prepares HTTPS routes when configured.
 
 ### 3. Open your browser
 
@@ -65,12 +67,12 @@ loom status             # see what's running
 loom logs app           # tail logs for the 'app' service
 loom exec app -- sh     # open a shell inside the container
 loom restart            # stop + start
-loom restart --recreate # clean rebuild (wipes caches, re-installs)
+loom restart --recreate # replace project containers using the current config
 ```
 
 ## Start a project with a database
 
-No template includes a database by default. Add databases during init with the `--db` flag or via the interactive prompt.
+Starter app templates do not add an optional database unless you select one. Full-stack and database-only templates can include databases as part of their defined stack. Add an optional database during init with `--db` or via the interactive prompt.
 
 ```bash
 # Node app + PostgreSQL
@@ -95,7 +97,7 @@ Supported database types: `postgres`, `mysql`, `mariadb`, `mongodb`, `redis`
 
 Loom adds the database service to `loom.yaml`, wires `dependsOn` so the app waits for the database to be ready, and adds the connection variables (`DATABASE_URL`, `REDIS_URL`, etc.) to `.env`.
 
-**Adding a database to an existing project:**
+**Adding a database to an existing Loom project:**
 
 ```bash
 cd my-existing-app
@@ -103,7 +105,7 @@ loom init node --db postgres   # or whichever template matches
 loom start --recreate
 ```
 
-This only writes the database service into `loom.yaml` — your source files are not touched.
+This narrow workflow updates the Loom configuration without touching source files; it is not a general project-adoption command. A first-class `loom adopt` workflow is planned but not available yet.
 
 If you run `loom init` without a template, Loom now prompts you to choose one interactively and suggests a default when it recognizes common root files such as `package.json`, `composer.json`, `pyproject.toml`, or `Gemfile`.
 
@@ -150,7 +152,7 @@ Tip: run `loom <command> --help` for options.
 
 ## Production readiness baseline
 
-- CI validates lint, typecheck, and tests on Node 22 and Node 24 for pushes and pull requests.
+- CI validates lint, typecheck, and tests on Node 24 for pushes and pull requests.
 - Coverage artifacts are generated in CI on Node 24.
 - Release workflows reuse the same verification gates before building distributable assets.
 
@@ -179,7 +181,7 @@ Templates like `php-drupal`, `php-symfony`, `rails7`, and `rails7-hotwire` boots
 - `rails7` and `rails7-hotwire` run `rails new` in the configured Ruby image.
 - `php-wordpress` copies WordPress from the official WordPress image.
 
-This means the project files you get are generated fresh from the upstream release — just like running `composer create-project` or `rails new` yourself.
+This means the project files are generated locally during `loom init`—just like running `composer create-project` or `rails new` yourself—rather than being hidden inside the long-running application container. A temporary bootstrap image may supply source to a generator, as the official WordPress image does, but the resulting project is written to the host. Generator versions are not yet pinned consistently across every template; deterministic, release-pinned stack definitions are planned.
 
 Loom project files (`loom.yaml`, `.env.example`, `README.md`) are layered on top. The only project file Loom modifies after bootstrap is `wp-config.php` for WordPress (to inject DB credentials from environment variables), or when a connection URL needs adjustment.
 
@@ -191,9 +193,9 @@ Loom project files (`loom.yaml`, `.env.example`, `README.md`) are layered on top
 - Loom validates readiness (healthcheck or port reachability).
 - Loom prepares local route proxy + HTTPS certs when routes are configured.
 
-Dependencies are installed at container startup, not pre-bundled in templates. This keeps templates lightweight and ensures every `loom start` uses the latest compatible versions from your lock files.
+Dependencies are installed at container startup from the project's manifests and lockfiles; they are not pre-bundled into runtime images. When a template places dependency directories inside the bind-mounted workspace, those directories remain local beside the source for IDE indexing and reuse across recreated containers.
 
-> **Note:** The first `loom start` after `loom init` may take a few minutes while the container installs all project dependencies from scratch (`npm install`, `pip install`, `bundle install`, `composer install`, etc.). Subsequent starts are fast — the dependency cache lives inside the container and persists across restarts unless you use `loom start --recreate`.
+> **Note:** A cold `loom start` may take a few minutes while the container installs project dependencies (`npm install`, `pip install`, `bundle install`, `composer install`, etc.). Later starts are usually faster because dependencies and caches are reused from the local project where the template supports it.
 
 If existing project containers drift from the current config or you want a clean rebuild of the stack, run `loom start --recreate`.
 
@@ -245,7 +247,7 @@ podman system prune --all --volumes --force
 This removes all stopped containers, unused images, and dangling volumes.
 
 **Before running this command:**
-- Backup any project databases with `loom backup <service> <output-file>` first.
+- Backup any project databases with `loom backup <service> --output <output-file>` first.
 - The command deletes ALL unused volumes — including any database data stored in anonymous or named Docker volumes you may be using outside Loom projects.
 - If a Loom project is currently running, its volumes are protected (in use). Still, stop running projects first to be safe.
 

@@ -1,5 +1,9 @@
 # Local-First Stack Workflows
 
+> **Status: approved design; not yet implemented.** Commands and repository
+> structures described below are target behavior unless explicitly identified
+> as current behavior.
+
 ## Summary
 
 Loom will support creating new projects and adopting existing projects as
@@ -64,9 +68,9 @@ A versioned stack definition shipped with a Loom release declares:
 Definitions are data-driven where possible. Stack-specific code is limited to
 cases that cannot be represented safely by the definition format.
 
-## New-Project Workflow
+## Planned New-Project Workflow
 
-`loom init <stack>` performs these steps:
+`loom init <stack>` will perform these steps:
 
 1. Resolve the stack definition shipped with the installed Loom release.
 2. Validate Podman, host architecture, disk space, target-directory state, and
@@ -83,9 +87,9 @@ image. If initialization fails before committing output, Loom removes its
 temporary workspace. If cleanup is unsafe or diagnostics are valuable, Loom
 preserves the workspace and prints its location and an exact retry command.
 
-## Existing-Project Workflow
+## Planned Existing-Project Workflow
 
-`loom adopt [stack]` treats the current project as developer-owned:
+`loom adopt [stack]` will treat the current project as developer-owned:
 
 1. Detect signals such as `package.json`, `Gemfile`, `composer.json`,
    `pyproject.toml`, framework configuration, lockfiles, and conventional
@@ -100,9 +104,9 @@ Adoption never modifies application source, dependency manifests, or lockfiles.
 Tests enforce this by comparing these files byte for byte before and after the
 operation.
 
-## Upgrade Workflow
+## Planned Upgrade Workflow
 
-`loom upgrade` updates only manifest-declared Loom-owned files:
+`loom upgrade` will update only manifest-declared Loom-owned files:
 
 1. Read the ownership manifest and target Loom version.
 2. Render updated files into a temporary directory.
@@ -128,11 +132,11 @@ silently generate or rewrite lockfiles. Dependency installation can be skipped
 when a fingerprint of the lockfile, runtime image, install command, and relevant
 stack definition has not changed.
 
-`loom clean` lists and removes only generated paths declared by the selected
+The planned `loom clean` command will list and remove only generated paths declared by the selected
 stack. It requires confirmation unless a non-interactive force option is
 explicitly supplied.
 
-`loom doctor` diagnoses at least:
+The planned `loom doctor` command will diagnose at least:
 
 - Incorrect host ownership or permissions
 - Missing, conflicting, or stale lockfiles and dependencies
@@ -145,9 +149,9 @@ explicitly supplied.
 Errors identify the failed phase: generator, image pull, dependency install,
 process launch, readiness, route proxy, or host integration.
 
-## Examples and Repository Structure
+## Target Examples and Repository Structure
 
-The repository separates complete runnable projects from generator assets:
+The repository will separate complete runnable projects from generator assets:
 
 - `examples/runnable/` contains complete projects that support direct
   `loom start`.
