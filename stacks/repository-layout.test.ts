@@ -27,6 +27,7 @@ function isRemovedLayoutProse(path: string, line: string): boolean {
 test("active repository content has no legacy generator-path references", async () => {
   const searchableExtensions = new Set([".js", ".json", ".md", ".mjs", ".ps1", ".sh", ".ts", ".yaml", ".yml"]);
   const historicalMigrationDocs = [
+    ".superpowers/sdd/",
     "docs/superpowers/plans/",
     "docs/superpowers/specs/2026-08-17-versioned-stacks-release-gate-design.md"
   ];

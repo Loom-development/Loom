@@ -33,6 +33,26 @@ const lockfileFamilies = [
   { manifest: "Gemfile", locks: ["Gemfile.lock"] },
   { manifest: "pom.xml", locks: ["gradle.lockfile"] }
 ] as const;
+const runtimeImageServiceTypeByEnv: Readonly<Record<string, string>> = {
+  ALPINE_IMAGE: "alpine",
+  BUN_IMAGE: "node",
+  DOTNET_IMAGE: "dotnet",
+  ELASTICSEARCH_IMAGE: "elasticsearch",
+  JAVA_IMAGE: "java",
+  MARIADB_IMAGE: "mariadb",
+  MEMCACHED_IMAGE: "memcached",
+  MONGO_IMAGE: "mongodb",
+  MSSQL_IMAGE: "sqlserver",
+  MYSQL_IMAGE: "mysql",
+  NODE_IMAGE: "node",
+  PHP_IMAGE: "php",
+  POSTGRES_IMAGE: "postgres",
+  PYTHON_IMAGE: "python",
+  REDIS_IMAGE: "redis",
+  RUBY_IMAGE: "ruby",
+  SQLITE_IMAGE: "sqlite",
+  WORDPRESS_IMAGE: "php"
+};
 
 function result(id: string, status: DoctorStatus, summary: string, detail?: string): DoctorResult {
   return { id, status, summary, ...(detail ? { detail } : {}) };
@@ -96,16 +116,26 @@ async function manifestCheck(options: RunProjectDoctorOptions): Promise<DoctorRe
 
 function imagesCheck(options: RunProjectDoctorOptions): DoctorResult {
   if (!options.stack) return result("images", "failure", "Runtime image pins cannot be checked for an unknown stack");
-  const expected = new Set(options.stack.runtimeImages.map(({ reference }) => reference));
+  const expectedByServiceType = new Map<string, Set<string>>();
+  const addDefinitionImages = (definition: StackDefinition): void => {
+    for (const { env, reference } of definition.runtimeImages) {
+      const serviceType = runtimeImageServiceTypeByEnv[env];
+      if (!serviceType) continue;
+      const references = expectedByServiceType.get(serviceType) ?? new Set<string>();
+      references.add(reference);
+      expectedByServiceType.set(serviceType, references);
+    }
+  };
+  addDefinitionImages(options.stack);
   if (options.manifest.kind === "ready") {
     for (const database of [...new Set(options.manifest.manifest.renderInputs.databases)].sort()) {
       const definition = findStackDefinition(`db-${database}`);
-      for (const image of definition?.runtimeImages ?? []) expected.add(image.reference);
+      if (definition) addDefinitionImages(definition);
     }
   }
   const overrides = Object.entries(options.config.services)
     .sort(([a], [b]) => a.localeCompare(b))
-    .filter(([, service]) => !expected.has(service.image))
+    .filter(([, service]) => expectedByServiceType.get(service.type)?.has(service.image) !== true)
     .map(([serviceName, service]) => `${serviceName}=${service.image}`);
   return overrides.length
     ? result("images", "warning", "Runtime image overrides reduce reproducibility", overrides.join("; "))

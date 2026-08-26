@@ -94,8 +94,8 @@ test("reports deterministic warning-only runtime image overrides including rende
   const overridden: LoomConfig = {
     ...exact,
     services: {
-      app: { ...exact.services.app!, image: "docker.io/library/node:22.17.1-alpine" },
-      database: { ...exact.services.database!, image: "docker.io/library/postgres:16.8-alpine" }
+      app: { ...exact.services.app!, image: "docker.io/library/postgres:16.9-alpine" },
+      database: { ...exact.services.database!, image: "docker.io/library/node:24.4.1-alpine" }
     }
   };
   results = await runProjectDoctor({ projectRoot: root, config: overridden, manifest: { kind: "ready", manifest: withDatabase }, stack, probes: probes() });
@@ -103,7 +103,7 @@ test("reports deterministic warning-only runtime image overrides including rende
     id: "images",
     status: "warning",
     summary: "Runtime image overrides reduce reproducibility",
-    detail: "app=docker.io/library/node:22.17.1-alpine; database=docker.io/library/postgres:16.8-alpine"
+    detail: "app=docker.io/library/postgres:16.9-alpine; database=docker.io/library/node:24.4.1-alpine"
   });
   assert.equal(doctorExitCode(results), 0);
 });
