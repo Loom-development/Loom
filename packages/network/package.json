@@ -1,0 +1,46 @@
+{
+  "name": "@loom/network",
+  "version": "0.1.1",
+  "description": "Route and proxy networking helpers for Loom projects.",
+  "keywords": [
+    "loom",
+    "network",
+    "proxy"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Loom-development/Loom.git",
+    "directory": "packages/network"
+  },
+  "bugs": {
+    "url": "https://github.com/Loom-development/Loom/issues"
+  },
+  "homepage": "https://github.com/Loom-development/Loom#readme",
+  "license": "Elastic-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "pnpm exec tsc -b tsconfig.json",
+    "typecheck": "pnpm exec tsc -b tsconfig.json",
+    "test": "node --test dist/**/*.test.js",
+    "lint": "echo 'No lint rules configured'"
+  },
+  "dependencies": {
+    "@loom/config": "workspace:*",
+    "@loom/https": "workspace:*",
+    "@loom/runtime-podman": "workspace:*"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "name": "@loomdev/cli",
+  "version": "0.3.4",
+  "description": "Command-line interface for Loom local development workflows.",
+  "keywords": [
+    "loom",
+    "cli",
+    "podman"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Loom-development/Loom.git",
+    "directory": "apps/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Loom-development/Loom/issues"
+  },
+  "homepage": "https://github.com/Loom-development/Loom#readme",
+  "license": "Elastic-2.0",
+  "type": "module",
+  "preferGlobal": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "loom": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/index.d.ts",
+    "dist/stacks",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "pnpm exec tsc -b tsconfig.json && node ../../scripts/build-cli-package-assets.mjs",
+    "typecheck": "pnpm exec tsc -b tsconfig.json",
+    "test": "node ../../scripts/build-cli-package-assets.mjs && node --test dist/**/*.test.js",
+    "dev": "tsx src/index.ts",
+    "lint": "echo 'No lint rules configured'"
+  },
+  "devDependencies": {
+    "@loom/stacks": "workspace:*",
+    "cac": "^6.7.14",
+    "@loom/config": "workspace:*",
+    "@loom/core": "workspace:*",
+    "@loom/https": "workspace:*",
+    "@loom/network": "workspace:*",
+    "@loom/runtime-podman": "workspace:*",
+    "@loom/tasks": "workspace:*"
+  }
+}

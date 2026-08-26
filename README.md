@@ -1,0 +1,432 @@
+# Loom
+
+> One command. Full stack. No Docker Desktop.
+
+Loom is a local development CLI that gives you a ready-to-run app stack in minutes. Initialize a template, run `loom start`, and you're building. Works on Linux, macOS, and Windows. Powered by Podman.
+
+
+## Why Loom
+
+- **Templates that work**: 31 versioned stack packages — Node, Python, PHP, Ruby, Java, .NET, Astro, databases, and more. Framework setups for Django, Rails, Symfony, Spring Boot, and other common stacks use exact generator versions and exact default runtime image tags.
+- **Databases without the pain**: `--db postgres` adds a database, generates credentials, wires the connection, and waits for it to be ready.
+- **Automatic HTTPS**: projects with configured routes get a local TLS cert and a hostname like `https://myapp.loom.local`.
+- **Health-checked startup**: Loom waits for dependencies to actually be ready, not just "container started."
+- **Host-aligned permissions**: files written inside containers are owned by you, not root.
+- **Free and open**: Podman handles the runtime — no Docker Desktop license required.
+
+## Install Loom
+
+See the full install guide: [docs/installation.md](docs/installation.md)
+
+Quickest path:
+
+```bash
+# Linux/macOS
+curl -fsSL https://raw.githubusercontent.com/Loom-development/Loom/main/scripts/install.sh | sh
+
+# then verify
+loom --help
+```
+
+## How it works
+
+### 1. Pick a template
+
+```bash
+loom init node --dir my-app
+```
+
+No `Dockerfile`, no `docker-compose.yml`. Loom generates a working project. Run it interactively to pick your template, runtime, and database.
+
+The generated application belongs to you: source files and lockfiles live in the local project directory. Supported templates also keep dependency directories in the bind-mounted project for IDE visibility. Loom's containers provide runtimes and services, then bind-mount the local project so editors, Git, and command-line tools see the same files as the application.
+
+### 2. Start the stack
+
+```bash
+cd my-app && loom start
+```
+
+Loom pulls the required images, installs dependencies, starts the configured application and backing services, waits for them to become healthy, and prepares HTTPS routes when configured.
+
+### 3. Open your browser
+
+```
+https://my-app.loom.local
+```
+
+No `localhost:3000`. No port numbers. No cert warnings. Just your app.
+
+When you're done: `loom stop`.
+
+## Everyday commands
+
+```bash
+loom start              # start the project
+loom adopt [stack]      # configure an existing local project
+loom upgrade            # update safe, Loom-owned project files
+loom doctor             # diagnose project and host compatibility
+loom clean --dry-run    # preview removable generated paths
+loom stop               # stop everything
+loom status             # see what's running
+loom logs app           # tail logs for the 'app' service
+loom exec app -- sh     # open a shell inside the container
+loom restart            # stop + start
+loom restart --recreate # replace project containers using the current config
+```
+
+## Start a project with a database
+
+Starter app templates do not add an optional database unless you select one. Full-stack and database-only templates can include databases as part of their defined stack. Add an optional database during init with `--db` or via the interactive prompt.
+
+```bash
+# Node app + PostgreSQL
+loom init node --dir my-app --db postgres
+cd my-app
+loom start
+
+# Drupal + MySQL
+loom init php-drupal --dir my-drupal --db mysql
+cd my-drupal
+loom start
+
+# Python app + MongoDB + Redis
+loom init python --dir my-python --db mongodb --db redis
+cd my-python
+loom start
+```
+
+When running `loom init` without a `--db` flag in an interactive terminal, Loom prompts you to optionally add a database.
+
+Supported database types: `postgres`, `mysql`, `mariadb`, `mongodb`, `redis`
+
+Loom adds the database service to `loom.yaml`, wires `dependsOn` so the app waits for the database to be ready, and adds the connection variables (`DATABASE_URL`, `REDIS_URL`, etc.) to `.env`.
+
+**Adding a database to an existing Loom project:**
+
+```bash
+cd my-existing-app
+loom init node --db postgres   # or whichever template matches
+loom start --recreate
+```
+
+This narrow workflow updates the Loom configuration without touching source files.
+
+To configure an existing project generally, use `loom adopt`. Loom detects common Node, Python, PHP, Rails, Bun, and .NET signals, or you can specify the stack explicitly:
+
+```bash
+cd my-existing-app
+loom adopt              # detect the stack
+# or: loom adopt node
+loom start
+```
+
+Adoption creates `loom.yaml` and records Loom ownership in `.loom/manifest.json`. It preserves application source, manifests, lockfiles, and an existing `.env.example`, and refuses to overwrite an existing `loom.yaml`.
+
+## Upgrade Loom-owned configuration safely
+
+`loom upgrade` renders the current stack's Loom-owned files and compares them with the baselines recorded in `.loom/manifest.json`. It updates missing or unchanged Loom-owned files, but skips locally modified ones and exits with status 1. Application source, dependency manifests, lockfiles, `.env`, and every path not listed in the manifest are outside the upgrade boundary.
+
+```bash
+loom upgrade
+
+# Deliberately replace locally modified Loom-owned files too
+loom upgrade --force-modified
+```
+
+Projects with the older v1 manifest format need a one-time baseline migration. This records their current Loom-owned files without replacing project files; run `loom upgrade` again afterward to evaluate updates.
+
+```bash
+loom upgrade --initialize-baseline
+loom upgrade
+```
+
+Use `--config path/to/loom.yaml` when the project configuration is not in the current directory. `--initialize-baseline` is refused for projects that already have an upgrade-safe v2 manifest.
+
+## Diagnose and clean a project safely
+
+`loom doctor` checks the project manifest and selected stack, Podman rootless availability, host architecture, lockfiles, dependency ownership, ports, routes, and host integration. Human-readable output labels every check `PASS`, `WARN`, or `FAIL`; `--json` prints the same structured results for automation. Warnings, including an unavailable `/etc/hosts` integration, exit with status 0. Any failure exits with status 1.
+
+```bash
+loom doctor
+loom doctor --json
+loom doctor --config path/to/loom.yaml
+```
+
+`loom clean` previews only the dependency, cache, and build paths declared by the project's stack. Run it interactively to confirm the preview, use `--dry-run` to preview without prompting or deleting, or use `--force` for explicit non-interactive execution.
+
+```bash
+loom clean --dry-run
+loom clean
+loom clean --force
+```
+
+Cleanup never removes `.loom/`, database or runtime state, application source, `loom.yaml`, `.env`, dependency manifests, lockfiles, manifest-declared Loom-owned files, or unlisted paths. Validation cannot be bypassed by `--force`. Deletion is best effort: paths are revalidated immediately before removal, and cleanup stops if a path becomes unsafe or a filesystem operation fails; earlier removals are not rolled back. Missing generated paths are harmless. Use `loom backup` and `loom restore` for database data—`loom clean` is not a database reset command.
+
+If you run `loom init` without a template, Loom now prompts you to choose one interactively and suggests a default when it recognizes common root files such as `package.json`, `composer.json`, `pyproject.toml`, or `Gemfile`.
+
+Initialized templates now copy `.env.example` to `.env` when present. For templates that expose image tags, you can switch to a different LTS or runtime version by editing the `*_IMAGE` values in `.env` instead of changing `loom.yaml` directly.
+
+When `loom init` runs in an interactive terminal, supported templates now prompt for the primary runtime image during init. For scripted or non-interactive use, pass one or more `--image KEY=VALUE` flags.
+
+Examples:
+
+```bash
+# Node templates
+NODE_IMAGE=docker.io/library/node:22.17.1-alpine
+# or
+NODE_IMAGE=docker.io/library/node:24.4.1-alpine
+
+# during init
+loom init node --image NODE_IMAGE=docker.io/library/node:22.17.1-alpine
+
+# .NET template
+DOTNET_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0.412
+
+# Rails template base image
+RUBY_IMAGE=docker.io/library/ruby:3.3.8
+```
+
+## Daily commands you'll actually use
+
+- `loom start` — start your project services
+- `loom adopt [stack]` — add Loom configuration to an existing local project without replacing application files
+- `loom upgrade` — update missing or unchanged Loom-owned files; use `--force-modified` only when you intend to replace local Loom configuration changes
+- `loom doctor` — diagnose project, runtime, compatibility, port, route, and host-integration issues; add `--json` for automation
+- `loom clean --dry-run` — preview stack-declared generated paths; run interactively or add `--force` to remove them
+- `loom stop` — stop everything cleanly
+- `loom restart` — stop + start
+- `loom start --recreate` — remove existing project containers and start fresh
+- `loom status` — see runtime and service state
+- `loom ps` — list project containers
+- `loom logs <service> --no-follow` — quick logs snapshot
+- `loom logs <service> -f` — follow live logs
+- `loom exec <service> -- <command>` — run commands inside a service container (use `--` before the command to avoid flag parsing conflicts)
+- `loom backup <service>` — backup supported database service
+- `loom backup --all` — backup all supported database services
+- `loom restore <service> <input>` — restore a supported database service from a local backup file
+
+Tip: run `loom <command> --help` for options.
+
+## Production readiness baseline
+
+- CI validates lint, typecheck, and tests on Node 24 for pushes and pull requests.
+- Coverage artifacts are generated in CI on Node 24.
+- Release workflows reuse the same verification gates before building distributable assets.
+
+Local equivalents:
+
+```bash
+pnpm verify
+pnpm verify:coverage
+pnpm smoke:generated # representative generated-project lifecycle smoke
+```
+
+## Popular templates
+
+- **Starter apps**: `node`, `python`, `php`, `bun`
+- **Full stacks**: `node-mern`, `node-mean`, `node-t3`, `spring-react`, `django-react`
+- **Framework apps**: `python-django`, `python-flask`, `python-fastapi`, `php-wordpress`, `php-drupal`, `php-symfony`, `rails7`, `rails7-hotwire`, `spring-boot`, `astro`, `dotnet`, `jamstack`, `serverless`
+- **Databases**: `db-postgres`, `db-mysql`, `db-mongodb`, `db-redis`, `db-sqlite`, `db-sqlserver`, `db-mariadb`, `db-elasticsearch`, `db-all`
+
+Examples matrix with domains, ports, and usage: [docs/examples-matrix.md](docs/examples-matrix.md)
+
+## Versioned stack packages
+
+`stacks/<id>/` is the canonical source for every published stack. Each package
+contains a typed definition, initialization templates, and private migration
+fixtures. Definitions declare an integer definition version, a current scaffold
+identifier, exact generator and runtime versions, readiness behavior, ownership
+metadata, and safe generated paths. Explicit legacy scaffold aliases keep
+existing project manifests compatible while new projects record both the
+current scaffold identifier and definition version.
+
+The npm package copies these assets to `dist/stacks/`; standalone release
+archives include the same filtered `stacks/` tree.
+The removed legacy `examples/` generator layout is not a dependency of either
+distribution.
+`examples/runnable/` is reserved for
+complete projects that pass a direct-start release test, and is intentionally
+empty today.
+
+Optional database services added by `loom init --db` resolve their default
+image from the matching standalone database definition. Upgrade rendering
+replays the same definition-backed value, so generated `loom.yaml` and `.env`
+files do not carry a separate floating database-image default.
+
+The repository includes a representative generated-project smoke covering
+Node, base PHP, Python, SQLite, and bootstrap-heavy WordPress. The complete
+31-stack lifecycle report and release gate remain planned as the second
+verification-harness subproject.
+
+## What happens on `loom init` for bootstrap-heavy templates
+
+Templates like `php-drupal`, `php-symfony`, `rails7`, and `rails7-hotwire` bootstrap their project structure during `loom init` by running the upstream tool in a temporary container. For example:
+
+- `php-symfony` installs `symfony/skeleton:7.3.99` and `symfony/webapp-pack:1.3.0` with `docker.io/library/composer:2.8.10`.
+- `php-drupal` installs `drupal/recommended-project:11.2.2` with `docker.io/library/composer:2.8.10`.
+- `rails7` and `rails7-hotwire` install Rails `7.1.5` and Bundler `2.6.9` with `docker.io/library/ruby:3.3.8`.
+- `php-wordpress` copies WordPress `6.8.2` from `docker.io/library/wordpress:6.8.2-php8.3-apache`.
+
+This means the project files are generated locally during `loom init`—just like running `composer create-project` or `rails new` yourself—rather than being hidden inside the long-running application container. A temporary bootstrap image may supply source to a generator, as the official WordPress image does, but the resulting project is written to the host. The stack definition pins the generator package and temporary image exactly, and generated runtime configuration uses exact default image tags.
+
+Loom project files (`loom.yaml`, `.env.example`, `README.md`) are layered on top. The only project file Loom modifies after bootstrap is `wp-config.php` for WordPress (to inject DB credentials from environment variables), or when a connection URL needs adjustment.
+
+## What happens on `loom start`
+
+- Loom checks Podman availability.
+- Loom starts services in dependency order.
+- Each service container installs project dependencies using the configured dependency manager (`npm install`, `composer install`, `pip install`, `bundle install`, etc.) before starting the application.
+- Loom validates readiness (healthcheck or port reachability).
+- Loom prepares local route proxy + HTTPS certs when routes are configured.
+
+Dependencies are installed at container startup from the project's manifests and lockfiles; they are not pre-bundled into runtime images. For templates configured with dependency directories inside the bind-mounted workspace, those directories remain local beside the source for IDE indexing and reuse across recreated containers. Other stacks may use container-managed cache locations while keeping source, manifests, and lockfiles local.
+
+> **Note:** A cold `loom start` may take a few minutes while the container installs project dependencies (`npm install`, `pip install`, `bundle install`, `composer install`, etc.). Later starts are usually faster because dependencies and caches are reused from the local project where the template supports it.
+
+If existing project containers drift from the current config or you want a clean rebuild of the stack, run `loom start --recreate`.
+
+This means fewer "it started but not really" moments.
+
+## Service user mapping
+
+When a service needs to write into a bind-mounted project directory with host-aligned ownership, Loom now supports per-service `user` and `userns` settings in `loom.yaml`.
+
+Example:
+
+```yaml
+services:
+	app:
+		type: node
+		image: ${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}
+		userns: keep-id
+		user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+		volumes:
+			- ./:/workspace
+```
+
+Use `userns: keep-id` for rootless Podman when you want the container process to map cleanly to the host user. Add `user` when the service should run as a specific UID:GID inside the container.
+
+`userns: keep-id` gives the strongest host-aligned ownership behavior on Linux with rootless Podman. On macOS and Windows, Loom still runs through Podman machine and `execUser` still applies to `loom exec` and task runs, but filesystem ownership and performance can differ from native Linux because the project directory is accessed through the Podman VM.
+
+For root-bootstrap templates that must start as `root` and then drop privileges inside the container, Loom also supports `execUser` for `loom exec` and task runs:
+
+```yaml
+services:
+	app:
+		type: node
+		image: ${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}
+		user: root
+		userns: keep-id
+		execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
+```
+
+That keeps startup flexible while making `loom exec app -- sh` and configured tasks enter the container as the same host-aligned user your long-running app process uses.
+
+## Cleaning up Podman disk space
+
+Podman caches images, containers, and volumes over time. To free disk space:
+
+```bash
+podman system prune --all --volumes --force
+```
+
+This removes all stopped containers, unused images, and dangling volumes.
+
+**Before running this command:**
+- Backup any project databases with `loom backup <service> --output <output-file>` first.
+- The command deletes ALL unused volumes — including any database data stored in anonymous or named Docker volumes you may be using outside Loom projects.
+- If a Loom project is currently running, its volumes are protected (in use). Still, stop running projects first to be safe.
+
+To inspect what would be deleted without actually removing anything:
+
+```bash
+podman system prune --all --volumes --dry-run
+```
+
+## Supported DB backup types
+
+`mysql`, `mariadb`, `postgres`, `mongodb`, `redis`, `sqlite`, `sqlserver`
+
+## Supported DB restore types
+
+`mysql`, `mariadb`, `postgres`, `mongodb`, `redis`, `sqlite`
+
+Redis restore stops the service, replaces `dump.rdb`, and starts the service again.
+
+SQL Server restore is not yet supported by `loom restore`; the current backup format is a live `.bak` of `master`, which needs a different restore path than the running-container workflow Loom uses today.
+
+## Database backup and restore
+
+Typical workflow:
+
+```bash
+loom start
+loom backup db
+loom restore db ./.loom/backups/my-project-db-2026-03-15T12-00-00.000Z.sql
+```
+
+Notes:
+
+- Use the service name from `loom.yaml`, such as `db`, `postgres`, `mysql`, or `redis`.
+- `loom backup --all` creates backups for every backup-supported database service in the current project.
+- MySQL, MariaDB, and PostgreSQL restore accept plain SQL dumps and gzip-compressed SQL dumps.
+- Redis restore replaces `dump.rdb` and restarts the Redis service automatically.
+- SQLite restore replaces the mounted database file directly.
+- SQL Server backup is supported, but restore is not yet implemented.
+
+## Repository structure
+
+Loom is organized as a small monorepo with a thin CLI layer on top of focused packages.
+
+- `apps/cli`: command-line entrypoint and user-facing command wiring.
+- `packages/core`: high-level orchestration facade used by the CLI.
+- `packages/runtime-podman`: Podman-specific runtime adapter for lifecycle, readiness, exec, logs, and backups.
+- `packages/network`: project network and local route proxy management.
+- `packages/https`: local certificate management for HTTPS routes.
+- `packages/config`: `loom.yaml` loading and validation.
+- `packages/tasks`: task execution helpers layered on top of orchestration.
+- `stacks`: canonical typed definitions, initialization templates, and private verification fixtures for all 31 public stack IDs.
+- `examples/runnable`: verified-only direct-start projects; currently documentation-only because no project has passed that separate admission gate yet.
+
+## Internal module boundaries
+
+The main orchestration and runtime packages are split into smaller internal helpers while keeping public package APIs stable.
+
+- `@loom/core` keeps `LoomOrchestrator` as the public facade, with internal helpers for runtime readiness, per-service startup, route publishing, backup flows, status assembly, formatting, and stop lifecycle logic.
+- `@loom/runtime-podman` keeps package-root exports stable, with internal helpers for Podman command execution, container metadata, lifecycle flows, readiness checks, backup streaming, and machine detection.
+
+Related documentation:
+
+- [docs/architecture.md](docs/architecture.md) for the high-level flow.
+- [packages/core/README.md](packages/core/README.md) for core module ownership.
+- [packages/runtime-podman/README.md](packages/runtime-podman/README.md) for Podman runtime module ownership.
+
+## How Loom compares
+
+| | Loom | Docker Compose | Laravel Sail | Laragon |
+|---|---|---|---|---|
+| One-command start | Yes | No | No | No |
+| Free / no license | Yes | Yes* | Yes | Yes |
+| Cross-platform | Yes | Yes | Yes | Windows only |
+| Built-in HTTPS | Yes | Manual | Manual | Manual |
+| DB backup/restore | Yes | Manual | Manual | Manual |
+| Health-based startup | Yes | depends_on | No | No |
+| Host file ownership | Yes | Manual | Manual | N/A |
+| Requires Docker Desktop | No | Yes | Yes | N/A |
+
+*Docker Desktop requires a paid license for commercial use in organizations with 250+ employees or \$10M+ revenue.
+
+## Who Loom is for
+
+**Beginners** — you finished a tutorial and want to build something real. You don't want to learn Docker. `loom init` gives you a working project. `loom start` makes it go.
+
+**Experienced devs** — you know Docker but you're tired of writing the same Compose file for the 40th time. Loom handles health checks, permissions, and backups so you don't have to.
+
+**Teams** — new members clone the repo and run `loom start`. No 20-page setup guide. No port conflict issues. Just start building.
+
+## Learn more
+
+- Installation: [docs/installation.md](docs/installation.md)
+- Beginner architecture explanation: [docs/architecture.md](docs/architecture.md)
+- Template and stack command matrix: [docs/examples-matrix.md](docs/examples-matrix.md)
+- Product direction for users: [docs/roadmap.md](docs/roadmap.md)
