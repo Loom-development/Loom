@@ -2,7 +2,7 @@ import { defineStack } from "../definition.js";
 import { runtimeImagePins } from "../pins.js";
 
 export const nodeMernStack = defineStack({
-  id: "node-mern", definitionVersion: 2, legacyScaffoldVersions: ["1"], assetPath: "node-mern/templates", scaffoldVersion: "2",
+  id: "node-mern", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "node-mern/templates", scaffoldVersion: "2",
   generator: { kind: "none" }, runtimeImages: [{ env: "NODE_IMAGE", reference: runtimeImagePins.node24Alpine }],
   install: ["cd api && npm install", "cd web && npm install"], start: ["cd api && npm start", "cd web && npm start"],
   readiness: { kind: "http", value: "http://127.0.0.1:5173", timeoutSeconds: 325 },

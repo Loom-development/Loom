@@ -7,22 +7,25 @@ import type { LoomConfig } from "@loom/config";
 import type { PodmanCapabilities } from "@loom/runtime-podman";
 import type { LoadedProjectManifest, LoomProjectManifestV2 } from "./project-manifest.js";
 import { runProjectDoctor, type DoctorProbes } from "./project-doctor.js";
+import { doctorExitCode } from "./doctor-output.js";
 import type { StackDefinition } from "./stacks.js";
 
 const stack: StackDefinition = {
   id: "node", assetPath: "node", scaffoldVersion: "1", loomOwnedFiles: ["loom.yaml"],
-  definitionVersion: 1, legacyScaffoldVersions: [], generator: { kind: "none" }, runtimeImages: [], install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
+  definitionVersion: 1, legacyScaffoldVersions: ["0"], generator: { kind: "none" },
+  runtimeImages: [{ env: "NODE_IMAGE", reference: "docker.io/library/node:24.4.1-alpine" }],
+  install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
   generatedPaths: [{ path: "dist", category: "build" }, { path: "node_modules", category: "dependency" }],
   protectedPaths: ["src"], compatibility: { architectures: ["x64"], runtime: "podman-rootless" }
 };
 const manifestValue: LoomProjectManifestV2 = {
-  version: 2, loomVersion: "0.3.4", stack: { id: "node", scaffoldVersion: "1" },
+  version: 2, loomVersion: "0.3.4", stack: { id: "node", scaffoldVersion: "1", definitionVersion: 1 },
   ownedFiles: {}, renderInputs: { projectName: "demo", databases: [], adopted: false }
 };
 const ready: LoadedProjectManifest = { kind: "ready", manifest: manifestValue };
 const config: LoomConfig = {
   version: 1, name: "demo", runtime: { engine: "podman", rootless: true },
-  services: { app: { type: "node", image: "node", ports: ["3000:3000"] } },
+  services: { app: { type: "node", image: "docker.io/library/node:24.4.1-alpine", ports: ["3000:3000"] } },
   routes: [{ host: "demo.local", service: "app", port: 3000 }]
 };
 const podman: PodmanCapabilities = { available: true, rootless: true, version: "5", machine: { supported: false, running: false } };
@@ -48,7 +51,7 @@ test("returns checks in stable order with healthy injected probes", async (t) =>
   const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
   const results = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack, probes: probes() });
   assert.deepEqual(results.map(({ id, status }) => ({ id, status })), [
-    { id: "manifest", status: "pass" }, { id: "podman", status: "pass" },
+    { id: "manifest", status: "pass" }, { id: "images", status: "pass" }, { id: "podman", status: "pass" },
     { id: "architecture", status: "pass" }, { id: "lockfiles", status: "pass" },
     { id: "dependencies", status: "pass" }, { id: "ports", status: "pass" },
     { id: "routes", status: "pass" }, { id: "hosts", status: "pass" }
@@ -59,11 +62,50 @@ test("diagnoses manifest lifecycle and scaffold drift", async (t) => {
   const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
   const run = (manifest: LoadedProjectManifest, selected: StackDefinition | undefined = stack) => runProjectDoctor({ projectRoot: root, config, manifest, stack: selected, probes: probes() });
   assert.equal((await run({ kind: "missing" }))[0]!.status, "failure");
-  assert.equal((await run({ kind: "migration-required", manifest: { version: 1, loomVersion: "old", stack: { id: "node", scaffoldVersion: "1" }, ownedFiles: {} } }))[0]!.status, "warning");
-  const drift = { ...manifestValue, stack: { id: "node", scaffoldVersion: "0" } };
-  assert.equal((await run({ kind: "ready", manifest: drift }))[0]!.status, "warning");
+  assert.equal((await run({ kind: "migration-required", manifest: { version: 1, loomVersion: "old", stack: { id: "node", scaffoldVersion: "0" }, ownedFiles: {} } }))[0]!.status, "warning");
+  const legacy = { ...manifestValue, stack: { id: "node", scaffoldVersion: "0" } };
+  assert.equal((await run({ kind: "ready", manifest: legacy }))[0]!.status, "warning");
+  const drift = { ...manifestValue, stack: { id: "node", scaffoldVersion: "not-declared" } };
+  assert.equal((await run({ kind: "ready", manifest: drift }))[0]!.status, "failure");
   const unknown = await runProjectDoctor({ projectRoot: root, config, manifest: ready, stack: undefined, probes: probes() });
   assert.equal(unknown[0]!.status, "failure");
+});
+
+test("reports deterministic warning-only runtime image overrides including rendered databases", async (t) => {
+  const root = await fixture(); t.after(() => rm(root, { recursive: true, force: true }));
+  const withDatabase: LoomProjectManifestV2 = {
+    ...manifestValue,
+    renderInputs: { ...manifestValue.renderInputs, databases: ["postgres"] }
+  };
+  const exact: LoomConfig = {
+    ...config,
+    services: {
+      app: { ...config.services.app! },
+      database: { type: "postgres", image: "docker.io/library/postgres:16.9-alpine" }
+    }
+  };
+  let results = await runProjectDoctor({ projectRoot: root, config: exact, manifest: { kind: "ready", manifest: withDatabase }, stack, probes: probes() });
+  assert.deepEqual(results.find(({ id }) => id === "images"), {
+    id: "images",
+    status: "pass",
+    summary: "Runtime images match selected stack definitions"
+  });
+
+  const overridden: LoomConfig = {
+    ...exact,
+    services: {
+      app: { ...exact.services.app!, image: "docker.io/library/node:22.17.1-alpine" },
+      database: { ...exact.services.database!, image: "docker.io/library/postgres:16.8-alpine" }
+    }
+  };
+  results = await runProjectDoctor({ projectRoot: root, config: overridden, manifest: { kind: "ready", manifest: withDatabase }, stack, probes: probes() });
+  assert.deepEqual(results.find(({ id }) => id === "images"), {
+    id: "images",
+    status: "warning",
+    summary: "Runtime image overrides reduce reproducibility",
+    detail: "app=docker.io/library/node:22.17.1-alpine; database=docker.io/library/postgres:16.8-alpine"
+  });
+  assert.equal(doctorExitCode(results), 0);
 });
 
 test("diagnoses Podman and architecture failures", async (t) => {

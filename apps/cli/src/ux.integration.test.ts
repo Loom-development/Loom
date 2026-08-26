@@ -130,7 +130,7 @@ test("doctor CLI emits all ordered checks as JSON and matching human output", as
   assert.equal(jsonResult.stderr, "");
   const results = JSON.parse(jsonResult.stdout) as Array<{ id: string; status: "pass" | "warning" | "failure" }>;
   assert.deepEqual(results.map(({ id }) => id), [
-    "manifest", "podman", "architecture", "lockfiles", "dependencies", "ports", "routes", "hosts"
+    "manifest", "images", "podman", "architecture", "lockfiles", "dependencies", "ports", "routes", "hosts"
   ]);
   assert.equal(jsonResult.status, results.some(({ status }) => status === "failure") ? 1 : 0);
 
@@ -227,8 +227,13 @@ test("upgrade migrates v1 baselines without replacing project files", async () =
   assert.equal(migrated.status, 0, migrated.stderr);
   assert.match(migrated.stdout, /No project files were replaced/);
   assert.equal(await readFile(join(projectRoot, "loom.yaml"), "utf8"), loomYaml);
-  const manifest = JSON.parse(await readFile(join(projectRoot, ".loom", "manifest.json"), "utf8")) as { version: number; renderInputs: { projectName: string } };
+  const manifest = JSON.parse(await readFile(join(projectRoot, ".loom", "manifest.json"), "utf8")) as {
+    version: number;
+    stack: { definitionVersion: number };
+    renderInputs: { projectName: string };
+  };
   assert.equal(manifest.version, 2);
+  assert.equal(manifest.stack.definitionVersion, 2);
   assert.equal(manifest.renderInputs.projectName, "retained-name");
 });
 

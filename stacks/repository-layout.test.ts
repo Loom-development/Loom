@@ -20,6 +20,10 @@ async function repositoryFiles(...args: string[]): Promise<string[]> {
   return stdout.split("\0").filter(Boolean);
 }
 
+function isRemovedLayoutProse(path: string, line: string): boolean {
+  return extname(path) === ".md" && /`examples\/`/.test(line) && /\b(?:former|historical|removed|no longer)\b/i.test(line);
+}
+
 test("active repository content has no legacy generator-path references", async () => {
   const searchableExtensions = new Set([".js", ".json", ".md", ".mjs", ".ps1", ".sh", ".ts", ".yaml", ".yml"]);
   const historicalMigrationDocs = [
@@ -39,11 +43,25 @@ test("active repository content has no legacy generator-path references", async 
     if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) continue;
 
     for (const [index, line] of readFileSync(absolutePath, "utf8").split("\n").entries()) {
-      if (legacyReference.test(line)) violations.push(`${path}:${index + 1}:${line.trim()}`);
+      if (legacyReference.test(line) && !isRemovedLayoutProse(path, line)) {
+        violations.push(`${path}:${index + 1}:${line.trim()}`);
+      }
     }
   }
 
   assert.deepEqual(violations, []);
+});
+
+test("legacy reference guard permits removed-layout prose but rejects operational paths", () => {
+  const examplesRoot = ["examples", ""].join("/");
+  assert.equal(isRemovedLayoutProse("README.md", `The legacy \`${examplesRoot}\` generator layout was removed.`), true);
+  for (const line of [
+    `Run \`loom start --config ${examplesRoot}node/loom.yaml\`.`,
+    `Copy assets from \`${examplesRoot}php\`.`,
+    `The \`${examplesRoot}\` directory contains generator templates.`,
+    `Use the legacy \`${examplesRoot}\` generator layout.`
+  ]) assert.equal(isRemovedLayoutProse("README.md", line), false, line);
+  assert.equal(isRemovedLayoutProse("scripts/smoke.sh", `# removed ${examplesRoot} layout`), false);
 });
 
 test("canonical stack packages contain no tracked generated artifacts", async () => {

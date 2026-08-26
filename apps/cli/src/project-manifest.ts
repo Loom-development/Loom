@@ -20,16 +20,22 @@ export interface ProjectRenderInputs {
 export interface LoomProjectManifestV2 {
   version: 2;
   loomVersion: string;
-  stack: { id: string; scaffoldVersion: string };
+  stack: { id: string; scaffoldVersion: string; definitionVersion?: number };
   ownedFiles: Record<string, { sha256: string; baselinePath: string }>;
   renderInputs: ProjectRenderInputs;
 }
 
-export type LoomProjectManifest = LoomProjectManifestV2;
+export type LoomProjectManifest = Omit<LoomProjectManifestV2, "stack"> & {
+  stack: { id: string; scaffoldVersion: string; definitionVersion: number };
+};
 export type LoadedProjectManifest =
   | { kind: "ready"; manifest: LoomProjectManifestV2 }
   | { kind: "migration-required"; manifest: LoomProjectManifestV1 }
   | { kind: "missing" };
+export type ProjectManifestStackCompatibility =
+  | { kind: "current" }
+  | { kind: "legacy-compatible" }
+  | { kind: "incompatible"; reason: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -59,6 +65,10 @@ function parseV1(value: Record<string, unknown>): LoomProjectManifestV1 {
 
 function parseV2(value: Record<string, unknown>): LoomProjectManifestV2 {
   assertCommonManifest(value);
+  const definitionVersion = (value.stack as Record<string, unknown>).definitionVersion;
+  if (definitionVersion !== undefined && (!Number.isInteger(definitionVersion) || (definitionVersion as number) <= 0)) {
+    throw new Error("Invalid Loom project manifest stack definition version");
+  }
   for (const [path, entry] of Object.entries(value.ownedFiles as Record<string, unknown>)) {
     assertSafeRelativePath(path, "owned file path");
     if (!isRecord(entry) || typeof entry.sha256 !== "string" || typeof entry.baselinePath !== "string") {
@@ -73,6 +83,33 @@ function parseV2(value: Record<string, unknown>): LoomProjectManifestV2 {
     throw new Error("Invalid Loom project manifest render inputs");
   }
   return value as unknown as LoomProjectManifestV2;
+}
+
+export function classifyProjectManifestStack(
+  manifest: LoomProjectManifestV1 | LoomProjectManifestV2,
+  stack: StackDefinition
+): ProjectManifestStackCompatibility {
+  if (manifest.stack.id !== stack.id) {
+    return { kind: "incompatible", reason: `Manifest stack '${manifest.stack.id}' does not match '${stack.id}'` };
+  }
+  const definitionVersion = "definitionVersion" in manifest.stack ? manifest.stack.definitionVersion : undefined;
+  if (definitionVersion === stack.definitionVersion && manifest.stack.scaffoldVersion === stack.scaffoldVersion) {
+    return { kind: "current" };
+  }
+  if ((definitionVersion === undefined || definitionVersion < stack.definitionVersion) &&
+      stack.legacyScaffoldVersions.includes(manifest.stack.scaffoldVersion)) {
+    return { kind: "legacy-compatible" };
+  }
+  if (definitionVersion !== undefined && definitionVersion > stack.definitionVersion) {
+    return {
+      kind: "incompatible",
+      reason: `Manifest definition version ${definitionVersion} is newer than supported version ${stack.definitionVersion}`
+    };
+  }
+  return {
+    kind: "incompatible",
+    reason: `Scaffold version '${manifest.stack.scaffoldVersion}' is not a declared legacy scaffold version for '${stack.id}'`
+  };
 }
 
 async function sha256File(path: string): Promise<string | undefined> {
@@ -95,7 +132,7 @@ export async function buildProjectManifest(
   stack: StackDefinition,
   ownedFilePaths: readonly string[],
   renderInputs: ProjectRenderInputs
-): Promise<LoomProjectManifestV2> {
+): Promise<LoomProjectManifest> {
   const ownedFiles: LoomProjectManifestV2["ownedFiles"] = {};
   for (const relativePath of ownedFilePaths) {
     assertSafeRelativePath(relativePath, "owned file path");
@@ -105,7 +142,7 @@ export async function buildProjectManifest(
   return {
     version: 2,
     loomVersion,
-    stack: { id: stack.id, scaffoldVersion: stack.scaffoldVersion },
+    stack: { id: stack.id, scaffoldVersion: stack.scaffoldVersion, definitionVersion: stack.definitionVersion },
     ownedFiles,
     renderInputs: {
       projectName: renderInputs.projectName,

@@ -2,7 +2,7 @@ import { defineStack } from "../definition.js";
 import { runtimeImagePins } from "../pins.js";
 
 export const nodeT3Stack = defineStack({
-  id: "node-t3", definitionVersion: 2, legacyScaffoldVersions: ["1"], assetPath: "node-t3/templates", scaffoldVersion: "2",
+  id: "node-t3", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "node-t3/templates", scaffoldVersion: "2",
   generator: { kind: "none" }, runtimeImages: [{ env: "NODE_IMAGE", reference: runtimeImagePins.node24Alpine }],
   install: ["corepack enable && pnpm install"], start: ["pnpm dev"],
   readiness: { kind: "http", value: "http://127.0.0.1:3003", timeoutSeconds: 486 }, hostWrites: ["node_modules"],

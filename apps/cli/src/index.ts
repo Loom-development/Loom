@@ -24,7 +24,7 @@ import {
   type DbType
 } from "./init-prompt.js";
 import { prepareInitTarget } from "./init-template.js";
-import { loadProjectManifest, writeProjectManifest } from "./project-manifest.js";
+import { classifyProjectManifestStack, loadProjectManifest, writeProjectManifest } from "./project-manifest.js";
 import { applyProjectClean, planProjectClean, type ProjectCleanPlan } from "./project-clean.js";
 import { runProjectDoctor } from "./project-doctor.js";
 import { applyProjectUpgrade, planProjectUpgrade, renderPhpDocroot, renderProjectName } from "./project-upgrade.js";
@@ -685,6 +685,10 @@ cli
       const stack = findStackDefinition(stackId);
       if (!stack) {
         throw new Error(`Unknown stack '${stackId}' in Loom project manifest. Available stacks: ${listStackIds().join(", ")}`);
+      }
+      const compatibility = classifyProjectManifestStack(loaded.manifest, stack);
+      if (compatibility.kind === "incompatible") {
+        throw new Error(`Project manifest is incompatible with stack '${stackId}': ${compatibility.reason}`);
       }
 
       if (loaded.kind === "migration-required") {

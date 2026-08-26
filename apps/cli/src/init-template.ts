@@ -138,14 +138,6 @@ function renderGeneratorCommand(definition: StackDefinition): string[] {
     .replaceAll("{version}", generator.version));
 }
 
-const bootstrapContexts: Partial<Record<StackDefinition["id"], string>> = {
-  "php-drupal": "Drupal project with Podman Composer",
-  "php-symfony": "Symfony project with Podman Composer",
-  "php-wordpress": "WordPress project with Podman",
-  rails7: "Rails 7 project with Podman",
-  "rails7-hotwire": "Rails 7 + Hotwire project with Podman"
-};
-
 export async function runStackGeneratorWithDependencies(
   definition: StackDefinition,
   targetDir: string,
@@ -153,16 +145,15 @@ export async function runStackGeneratorWithDependencies(
 ): Promise<void> {
   if (definition.generator.kind !== "command") throw new Error(`Stack '${definition.id}' does not declare a command generator.`);
   const execute = dependencies.runCommand ?? runCommand;
-  const composerBootstrap = definition.generator.package.includes("/");
-  const mountTarget = definition.id.startsWith("rails7") ? "/workspace" : "/app";
+  const execution = definition.generator.execution;
   const podmanArgs = [
     "run",
     "--rm",
     ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
-    ...(composerBootstrap ? ["-e", "HOME=/tmp"] : []),
+    ...execution.environment.flatMap(({ name, value }) => ["-e", `${name}=${value}`]),
     "-v",
-    `${targetDir}:${mountTarget}`,
-    ...(definition.id === "php-wordpress" ? [] : ["-w", mountTarget]),
+    `${targetDir}:${execution.mountTarget}`,
+    ...(execution.workdir === undefined ? [] : ["-w", execution.workdir]),
     definition.generator.image,
     ...renderGeneratorCommand(definition)
   ];
@@ -178,7 +169,7 @@ export async function runStackGeneratorWithDependencies(
 
     throw formatBootstrapError(
       definition.id,
-      bootstrapContexts[definition.id] ?? `${definition.id} project with Podman`,
+      execution.context,
       definition.generator.image,
       error
     );

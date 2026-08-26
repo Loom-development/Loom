@@ -2,7 +2,7 @@ import { defineStack } from "../definition.js";
 import { runtimeImagePins } from "../pins.js";
 
 export const springReactStack = defineStack({
-  id: "spring-react", definitionVersion: 2, legacyScaffoldVersions: ["1"], assetPath: "spring-react/templates", scaffoldVersion: "2",
+  id: "spring-react", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "spring-react/templates", scaffoldVersion: "2",
   generator: { kind: "none" }, runtimeImages: [
     { env: "JAVA_IMAGE", reference: runtimeImagePins.maven39Temurin21 },
     { env: "NODE_IMAGE", reference: runtimeImagePins.node22Alpine }

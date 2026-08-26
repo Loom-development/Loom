@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { findStackDefinition, stackDefinitions } from "./index.js";
+import { findStackDefinition, generatorPins, stackDefinitions } from "./index.js";
 import { validateGeneratorVersion, validateRuntimeImage, validateStackDefinition } from "./definition.js";
 
 function templateServiceNames(yaml: string): string[] {
@@ -13,7 +13,7 @@ function templateServiceNames(yaml: string): string[] {
 }
 
 test("pin validators reject floating versions and accept exact tag families", () => {
-  for (const reference of ["node", "node:latest", "node:24", "postgres:16", "composer:2"]) {
+  for (const reference of ["node", "node:latest", "node:24", "node:24.4", "postgres:16", "composer:2"]) {
     assert.throws(() => validateRuntimeImage({ env: "NODE_IMAGE", reference }), /exact version tag/i);
   }
   for (const reference of [
@@ -75,7 +75,7 @@ test("language application stacks publish exact versioned package definitions", 
   for (const [id, runtimeImages] of Object.entries(expected)) {
     const definition = findStackDefinition(id)!;
     assert.equal(definition.definitionVersion, 2, id);
-    assert.deepEqual(definition.legacyScaffoldVersions, ["1"], id);
+    assert.deepEqual(definition.legacyScaffoldVersions, ["1", "2"], id);
     assert.equal(definition.assetPath, `${id}/templates`, id);
     assert.deepEqual(definition.generator, { kind: "none" }, id);
     assert.deepEqual(definition.runtimeImages, runtimeImages, id);
@@ -87,13 +87,19 @@ test("language application stacks publish exact versioned package definitions", 
 test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
   const expected = {
     "php-wordpress": {
-      aliases: ["wordpress-6-php8.3-apache"],
+      aliases: ["2", "wordpress-6-php8.3-apache"],
       generator: {
         kind: "command",
         image: "docker.io/library/wordpress:6.8.2-php8.3-apache",
         package: "wordpress",
         version: "6.8.2",
-        command: ["sh", "-c", "cp -a /usr/src/wordpress/. /app/"]
+        command: ["sh", "-c", "cp -a /usr/src/wordpress/. /app/"],
+        execution: {
+          kind: "container",
+          context: "WordPress project with Podman",
+          mountTarget: "/app",
+          environment: []
+        }
       },
       runtimeImages: [
         { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
@@ -101,13 +107,20 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
       ]
     },
     "php-drupal": {
-      aliases: ["unversioned"],
+      aliases: ["2", "unversioned"],
       generator: {
         kind: "command",
         image: "docker.io/library/composer:2.8.10",
         package: "drupal/recommended-project",
         version: "11.2.2",
-        command: ["create-project", "{package}:{version}", "."]
+        command: ["create-project", "{package}:{version}", "."],
+        execution: {
+          kind: "container",
+          context: "Drupal project with Podman Composer",
+          mountTarget: "/app",
+          workdir: "/app",
+          environment: [{ name: "HOME", value: "/tmp" }]
+        }
       },
       runtimeImages: [
         { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
@@ -115,7 +128,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
       ]
     },
     "php-symfony": {
-      aliases: ["unversioned"],
+      aliases: ["2", "unversioned"],
       generator: {
         kind: "command",
         image: "docker.io/library/composer:2.8.10",
@@ -125,7 +138,14 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
           "sh",
           "-c",
           "composer create-project {package}:{version} . && composer require symfony/webapp-pack:1.3.0"
-        ]
+        ],
+        execution: {
+          kind: "container",
+          context: "Symfony project with Podman Composer",
+          mountTarget: "/app",
+          workdir: "/app",
+          environment: [{ name: "HOME", value: "/tmp" }]
+        }
       },
       runtimeImages: [
         { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
@@ -133,7 +153,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
       ]
     },
     rails7: {
-      aliases: ["rails-7.1.5"],
+      aliases: ["2", "rails-7.1.5"],
       generator: {
         kind: "command",
         image: "docker.io/library/ruby:3.3.8",
@@ -143,12 +163,19 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
           "sh",
           "-c",
           "gem install bundler -v 2.6.9 --no-document && gem install {package} -v {version} --no-document && /usr/local/bundle/bin/rails _{version}_ new . --skip-javascript --skip-test --skip-system-test"
-        ]
+        ],
+        execution: {
+          kind: "container",
+          context: "Rails 7 project with Podman",
+          mountTarget: "/workspace",
+          workdir: "/workspace",
+          environment: []
+        }
       },
       runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.8" }]
     },
     "rails7-hotwire": {
-      aliases: ["rails-7.1.5-hotwire"],
+      aliases: ["2", "rails-7.1.5-hotwire"],
       generator: {
         kind: "command",
         image: "docker.io/library/ruby:3.3.8",
@@ -158,7 +185,14 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
           "sh",
           "-c",
           "gem install bundler -v 2.6.9 --no-document && gem install {package} -v {version} --no-document && /usr/local/bundle/bin/rails _{version}_ new . --skip-test --skip-system-test"
-        ]
+        ],
+        execution: {
+          kind: "container",
+          context: "Rails 7 + Hotwire project with Podman",
+          mountTarget: "/workspace",
+          workdir: "/workspace",
+          environment: []
+        }
       },
       runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.8" }]
     }
@@ -171,6 +205,14 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
     assert.deepEqual(definition.legacyScaffoldVersions, metadata.aliases, `${id} aliases`);
     assert.deepEqual(definition.generator, metadata.generator, `${id} generator`);
     assert.deepEqual(definition.runtimeImages, metadata.runtimeImages, `${id} images`);
+  }
+
+  const symfony = findStackDefinition("php-symfony")!;
+  assert.equal(symfony.generator.kind, "command");
+  if (symfony.generator.kind === "command") {
+    const secondaryVersion = /symfony\/webapp-pack:([^\s]+)/.exec(symfony.generator.command.join(" "))?.[1];
+    assert.equal(secondaryVersion, generatorPins.symfonyWebappPack);
+    assert.doesNotThrow(() => validateGeneratorVersion(secondaryVersion!));
   }
 });
 
@@ -255,7 +297,7 @@ test("database stacks publish exact versioned package definitions and lifecycle 
   for (const [id, metadata] of Object.entries(expected)) {
     const definition = findStackDefinition(id)!;
     assert.equal(definition.definitionVersion, 2, id);
-    assert.deepEqual(definition.legacyScaffoldVersions, ["1"], id);
+    assert.deepEqual(definition.legacyScaffoldVersions, ["1", "2"], id);
     assert.equal(definition.assetPath, `${id}/templates`, id);
     assert.deepEqual(definition.generator, { kind: "none" }, id);
     assert.deepEqual(definition.runtimeImages, metadata.runtimeImages, `${id} images`);

@@ -2,10 +2,14 @@ import { defineStack } from "../definition.js";
 import { generatorPins, runtimeImagePins } from "../pins.js";
 
 export const phpSymfonyStack = defineStack({
-  id: "php-symfony", definitionVersion: 2, legacyScaffoldVersions: ["unversioned"], assetPath: "php-symfony/templates", scaffoldVersion: "2",
+  id: "php-symfony", definitionVersion: 2, legacyScaffoldVersions: ["2", "unversioned"], assetPath: "php-symfony/templates", scaffoldVersion: "2",
   generator: {
     kind: "command", image: generatorPins.composerImage, package: "symfony/skeleton", version: generatorPins.symfonySkeleton,
-    command: ["sh", "-c", `composer create-project {package}:{version} . && composer require symfony/webapp-pack:${generatorPins.symfonyWebappPack}`]
+    command: ["sh", "-c", `composer create-project {package}:{version} . && composer require symfony/webapp-pack:${generatorPins.symfonyWebappPack}`],
+    execution: {
+      kind: "container", context: "Symfony project with Podman Composer", mountTarget: "/app", workdir: "/app",
+      environment: [{ name: "HOME", value: "/tmp" }]
+    }
   },
   runtimeImages: [
     { env: "MEMCACHED_IMAGE", reference: runtimeImagePins.memcached16Alpine },

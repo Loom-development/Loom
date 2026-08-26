@@ -2,10 +2,14 @@ import { defineStack } from "../definition.js";
 import { generatorPins, runtimeImagePins } from "../pins.js";
 
 export const phpDrupalStack = defineStack({
-  id: "php-drupal", definitionVersion: 2, legacyScaffoldVersions: ["unversioned"], assetPath: "php-drupal/templates", scaffoldVersion: "2",
+  id: "php-drupal", definitionVersion: 2, legacyScaffoldVersions: ["2", "unversioned"], assetPath: "php-drupal/templates", scaffoldVersion: "2",
   generator: {
     kind: "command", image: generatorPins.composerImage, package: "drupal/recommended-project", version: generatorPins.drupalRecommendedProject,
-    command: ["create-project", "{package}:{version}", "."]
+    command: ["create-project", "{package}:{version}", "."],
+    execution: {
+      kind: "container", context: "Drupal project with Podman Composer", mountTarget: "/app", workdir: "/app",
+      environment: [{ name: "HOME", value: "/tmp" }]
+    }
   },
   runtimeImages: [
     { env: "MEMCACHED_IMAGE", reference: runtimeImagePins.memcached16Alpine },

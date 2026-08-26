@@ -583,7 +583,13 @@ test("bootstrap command rendering consumes only the selected definition pins", a
       image: "docker.io/library/composer:9.9.9",
       package: "vendor/project",
       version: "12.34.56",
-      command: ["create-project", "{package}:{version}", "."]
+      command: ["create-project", "{package}:{version}", "."],
+      execution: {
+        kind: "container",
+        context: "Selected project generator",
+        mountTarget: "/workspace",
+        environment: [{ name: "CACHE_DIR", value: "/tmp/cache" }]
+      }
     }
   } satisfies StackDefinition;
   const calls: Array<{ command: string; args: string[]; cwd: string }> = [];
@@ -596,7 +602,7 @@ test("bootstrap command rendering consumes only the selected definition pins", a
     command: "podman",
     args: [
       "run", "--rm", ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
-      "-e", "HOME=/tmp", "-v", "/workspace/selected:/app", "-w", "/app",
+      "-e", "CACHE_DIR=/tmp/cache", "-v", "/workspace/selected:/workspace",
       "docker.io/library/composer:9.9.9", "create-project", "vendor/project:12.34.56", "."
     ],
     cwd: "/workspace/selected"

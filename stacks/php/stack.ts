@@ -2,7 +2,7 @@ import { defineStack } from "../definition.js";
 import { runtimeImagePins } from "../pins.js";
 
 export const phpStack = defineStack({
-  id: "php", definitionVersion: 2, legacyScaffoldVersions: ["1"], assetPath: "php/templates", scaffoldVersion: "2",
+  id: "php", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "php/templates", scaffoldVersion: "2",
   generator: { kind: "none" }, runtimeImages: [
     { env: "MEMCACHED_IMAGE", reference: runtimeImagePins.memcached16Alpine },
     { env: "PHP_IMAGE", reference: runtimeImagePins.php84Apache }

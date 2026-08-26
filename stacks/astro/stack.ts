@@ -2,7 +2,7 @@ import { defineStack } from "../definition.js";
 import { runtimeImagePins } from "../pins.js";
 
 export const astroStack = defineStack({
-  id: "astro", definitionVersion: 2, legacyScaffoldVersions: ["1"], assetPath: "astro/templates", scaffoldVersion: "2",
+  id: "astro", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "astro/templates", scaffoldVersion: "2",
   generator: { kind: "none" }, runtimeImages: [{ env: "NODE_IMAGE", reference: runtimeImagePins.node24Alpine }],
   install: ["npm install"], start: ["npx astro dev --host 0.0.0.0 --port 4321"],
   readiness: { kind: "http", value: "http://127.0.0.1:4321", timeoutSeconds: 495 }, hostWrites: ["node_modules"],

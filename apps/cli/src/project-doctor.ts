@@ -4,8 +4,8 @@ import { createServer } from "node:net";
 import { dirname, resolve } from "node:path";
 import type { LoomConfig } from "@loom/config";
 import { detectPodmanCapabilities, listProjectContainers, type PodmanCapabilities } from "@loom/runtime-podman";
-import type { LoadedProjectManifest } from "./project-manifest.js";
-import type { StackDefinition } from "./stacks.js";
+import { classifyProjectManifestStack, type LoadedProjectManifest } from "./project-manifest.js";
+import { findStackDefinition, type StackDefinition } from "./stacks.js";
 
 export type DoctorStatus = "pass" | "warning" | "failure";
 export interface DoctorResult { id: string; status: DoctorStatus; summary: string; detail?: string }
@@ -84,10 +84,32 @@ function parsePortMapping(mapping: string): PortMapping | undefined {
 
 async function manifestCheck(options: RunProjectDoctorOptions): Promise<DoctorResult> {
   if (options.manifest.kind === "missing") return result("manifest", "failure", "Project manifest is missing");
-  if (options.manifest.kind === "migration-required") return result("manifest", "warning", "Project manifest requires migration", "Run loom upgrade --initialize-baseline.");
   if (!options.stack || options.stack.id !== options.manifest.manifest.stack.id) return result("manifest", "failure", "Manifest selects an unknown stack", options.manifest.manifest.stack.id);
-  if (options.manifest.manifest.stack.scaffoldVersion !== options.stack.scaffoldVersion) return result("manifest", "warning", "Project scaffold differs from this Loom release", `${options.manifest.manifest.stack.scaffoldVersion} -> ${options.stack.scaffoldVersion}`);
+  const compatibility = classifyProjectManifestStack(options.manifest.manifest, options.stack);
+  if (compatibility.kind === "incompatible") return result("manifest", "failure", "Project manifest is incompatible with this Loom release", compatibility.reason);
+  if (options.manifest.kind === "migration-required") return result("manifest", "warning", "Project manifest requires migration", "Run loom upgrade --initialize-baseline.");
+  if (compatibility.kind === "legacy-compatible") {
+    return result("manifest", "warning", "Project definition metadata requires upgrade", "Run loom upgrade to record the current definition version.");
+  }
   return result("manifest", "pass", "Project manifest is current");
+}
+
+function imagesCheck(options: RunProjectDoctorOptions): DoctorResult {
+  if (!options.stack) return result("images", "failure", "Runtime image pins cannot be checked for an unknown stack");
+  const expected = new Set(options.stack.runtimeImages.map(({ reference }) => reference));
+  if (options.manifest.kind === "ready") {
+    for (const database of [...new Set(options.manifest.manifest.renderInputs.databases)].sort()) {
+      const definition = findStackDefinition(`db-${database}`);
+      for (const image of definition?.runtimeImages ?? []) expected.add(image.reference);
+    }
+  }
+  const overrides = Object.entries(options.config.services)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .filter(([, service]) => !expected.has(service.image))
+    .map(([serviceName, service]) => `${serviceName}=${service.image}`);
+  return overrides.length
+    ? result("images", "warning", "Runtime image overrides reduce reproducibility", overrides.join("; "))
+    : result("images", "pass", "Runtime images match selected stack definitions");
 }
 
 async function podmanCheck(config: LoomConfig, probes: DoctorProbes): Promise<DoctorResult> {
@@ -247,6 +269,7 @@ export async function runProjectDoctor(options: RunProjectDoctorOptions): Promis
   const parsed = parsedServicePorts(options.config);
   return [
     await manifestCheck(options),
+    imagesCheck(options),
     await podmanCheck(options.config, probes),
     architectureCheck(options.stack, probes),
     await lockfilesCheck(options.projectRoot, options.stack),

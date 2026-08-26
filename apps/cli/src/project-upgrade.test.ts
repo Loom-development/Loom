@@ -29,7 +29,7 @@ async function fixture() {
     id: "node",
     assetPath: "node/templates",
     scaffoldVersion: "2",
-    definitionVersion: 1, legacyScaffoldVersions: [], generator: { kind: "none" }, runtimeImages: [], install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
+    definitionVersion: 1, legacyScaffoldVersions: ["1"], generator: { kind: "none" }, runtimeImages: [], install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
     loomOwnedFiles: ["loom.yaml", ".env.example"],
     generatedPaths: [
       { path: "dist", category: "build" },
@@ -151,8 +151,22 @@ test("applier updates missing and unchanged files while skipping modified files"
     const manifest = JSON.parse(await readFile(join(value.projectRoot, ".loom/manifest.json"), "utf8"));
     assert.equal(manifest.version, 2);
     assert.equal(manifest.stack.scaffoldVersion, "2");
+    assert.equal(manifest.stack.definitionVersion, 1);
     assert.equal(manifest.ownedFiles["loom.yaml"].sha256, sha256(await readFile(join(value.projectRoot, "loom.yaml"), "utf8")));
     assert.equal((await readdir(join(value.projectRoot, ".loom"))).some((path) => path.startsWith("upgrade-")), false);
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("planner rejects v2 manifests outside the stack's explicit compatibility metadata", async () => {
+  const value = await fixture();
+  try {
+    value.manifest = {
+      ...value.manifest,
+      stack: { id: "node", scaffoldVersion: "not-declared" }
+    };
+    await assert.rejects(planProjectUpgrade(value), /incompatible.*not a declared legacy scaffold version/i);
   } finally {
     await rm(value.root, { recursive: true, force: true });
   }

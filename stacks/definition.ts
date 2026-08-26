@@ -15,9 +15,23 @@ export interface StackCompatibility {
   architectures: readonly NodeJS.Architecture[];
   runtime: "podman-rootless";
 }
+export interface StackGeneratorExecution {
+  kind: "container";
+  context: string;
+  mountTarget: string;
+  workdir?: string;
+  environment: readonly { name: string; value: string }[];
+}
 export type StackGenerator =
   | { kind: "none" }
-  | { kind: "command"; image: string; package: string; version: string; command: readonly string[] };
+  | {
+      kind: "command";
+      image: string;
+      package: string;
+      version: string;
+      command: readonly string[];
+      execution: StackGeneratorExecution;
+    };
 export interface StackRuntimeImage { env: string; reference: string }
 export interface StackVerificationCheck { service?: string; command: readonly string[] }
 export interface StackDefinition {
@@ -66,7 +80,7 @@ export function validateRuntimeImage(image: StackRuntimeImage): void {
   const colon = withoutDigest.lastIndexOf(":");
   const tag = colon > lastSlash ? withoutDigest.slice(colon + 1) : "";
   const digest = image.reference.includes("@") ? image.reference.slice(image.reference.indexOf("@") + 1) : undefined;
-  const exactTag = /^\d+\.\d+(?:\.\d+)?(?:[-.][0-9A-Za-z][0-9A-Za-z.-]*)?$/.test(tag)
+  const exactTag = /^(?:\d+\.\d+\.\d+(?:[-.][0-9A-Za-z][0-9A-Za-z.-]*)?|\d+\.\d+-[A-Za-z][0-9A-Za-z.-]*)$/.test(tag)
     || /^\d{4}(?:[-.]\d{2}){1,2}(?:[-.][0-9A-Za-z.-]+)?$/.test(tag)
     || /(?:^|-)CU\d+(?:-|$)/i.test(tag);
   if (!tag || tag.toLowerCase() === "latest" || !exactTag || (digest !== undefined && !/^sha256:[a-f0-9]{64}$/.test(digest))) {
@@ -85,6 +99,17 @@ export function validateStackDefinition(definition: StackDefinition): void {
     }
     validateRuntimeImage({ env: "GENERATOR_IMAGE", reference: definition.generator.image });
     validateGeneratorVersion(definition.generator.version);
+    const execution = definition.generator.execution;
+    const containerPaths = [execution.mountTarget, ...(execution.workdir === undefined ? [] : [execution.workdir])];
+    if (execution.kind !== "container" || !execution.context.trim() || containerPaths.some((path) =>
+      !path.startsWith("/") || path.includes("\\") || path.split("/").some((part, index) => index > 0 && (!part || part === "." || part === "..")))) {
+      throw new Error("Command generator requires valid container execution topology");
+    }
+    const environmentNames = execution.environment.map(({ name }) => name);
+    assertSortedUnique(environmentNames, "generator execution environment names");
+    if (execution.environment.some(({ name, value }) => !/^[A-Z][A-Z0-9_]*$/.test(name) || !value.trim())) {
+      throw new Error("Command generator requires valid execution environment values");
+    }
   }
   const runtimeEnvs = definition.runtimeImages.map(({ env }) => env);
   assertSortedUnique(runtimeEnvs, "runtime image environments");

@@ -49,10 +49,8 @@
     "dev": "tsx src/index.ts",
     "lint": "echo 'No lint rules configured'"
   },
-  "dependencies": {
-    "@loom/stacks": "workspace:*"
-  },
   "devDependencies": {
+    "@loom/stacks": "workspace:*",
     "cac": "^6.7.14",
     "@loom/config": "workspace:*",
     "@loom/core": "workspace:*",

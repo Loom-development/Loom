@@ -4,7 +4,7 @@ import { runtimeImagePins } from "../pins.js";
 export const nodeStack = defineStack({
   id: "node",
   definitionVersion: 2,
-  legacyScaffoldVersions: ["1"],
+  legacyScaffoldVersions: ["1", "2"],
   assetPath: "node/templates",
   scaffoldVersion: "2",
   generator: { kind: "none" },

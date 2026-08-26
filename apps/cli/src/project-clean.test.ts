@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LoomProjectManifestV2 } from "./project-manifest.js";
 import { applyProjectClean, planProjectClean } from "./project-clean.js";
-import type { StackDefinition, StackGeneratedPath } from "./stacks.js";
+import { findStackDefinition, type StackDefinition, type StackGeneratedPath } from "./stacks.js";
 
 async function fixture(generatedPaths: readonly StackGeneratedPath[] = [
   { path: "dist", category: "build" },
@@ -148,6 +148,37 @@ test("executor removes only planned paths, reports missing paths, and preserves 
     assert.deepEqual(result, { removed: ["dist"], missing: ["node_modules"] });
     for (const [path, contents] of snapshots) assert.deepEqual(await readFile(join(value.projectRoot, path)), contents);
   } finally { await rm(value.root, { recursive: true, force: true }); }
+});
+
+test("executor removes the complete declared Python maintenance set", async () => {
+  for (const id of ["python-django", "django-react"] as const) {
+    const definition = findStackDefinition(id)!;
+    const value = await fixture(definition.generatedPaths);
+    try {
+      value.stack = definition;
+      value.manifest = {
+        ...value.manifest,
+        stack: {
+          id: definition.id,
+          scaffoldVersion: definition.scaffoldVersion,
+          definitionVersion: definition.definitionVersion
+        }
+      };
+      for (const { path } of definition.generatedPaths) {
+        await mkdir(join(value.projectRoot, path), { recursive: true });
+        await writeFile(join(value.projectRoot, path, "generated"), `${path}\n`);
+      }
+
+      const result = await applyProjectClean(await planProjectClean(value));
+      assert.deepEqual(result, {
+        removed: definition.generatedPaths.map(({ path }) => path).sort((a, b) => a.localeCompare(b)),
+        missing: []
+      }, id);
+      assert.equal(await readFile(join(value.projectRoot, "package.json"), "utf8"), "{}\n");
+    } finally {
+      await rm(value.root, { recursive: true, force: true });
+    }
+  }
 });
 
 test("executor revalidates each target and stops when a target becomes a symlink", async () => {

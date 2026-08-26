@@ -21,13 +21,13 @@ test("stack definitions expose assets, scaffold versions, and initial Loom owner
   assert.equal(rails?.id, "rails7");
   assert.equal(rails?.assetPath, "rails7/templates");
   assert.equal(rails?.scaffoldVersion, "2");
-  assert.deepEqual(rails?.legacyScaffoldVersions, ["rails-7.1.5"]);
+  assert.deepEqual(rails?.legacyScaffoldVersions, ["2", "rails-7.1.5"]);
   assert.deepEqual(rails?.loomOwnedFiles, [".env.example", "loom.yaml"]);
   assert.equal(findStackDefinition("missing"), undefined);
 
   const node = findStackDefinition("node");
   assert.equal(node?.definitionVersion, 2);
-  assert.deepEqual(node?.legacyScaffoldVersions, ["1"]);
+  assert.deepEqual(node?.legacyScaffoldVersions, ["1", "2"]);
   assert.equal(node?.assetPath, "node/templates");
   assert.deepEqual(node?.runtimeImages, [
     { env: "NODE_IMAGE", reference: "docker.io/library/node:24.4.1-alpine" }

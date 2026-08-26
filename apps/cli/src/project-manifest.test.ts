@@ -4,7 +4,12 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildProjectManifest, loadProjectManifest, writeProjectManifest } from "./project-manifest.js";
+import {
+  buildProjectManifest,
+  classifyProjectManifestStack,
+  loadProjectManifest,
+  writeProjectManifest
+} from "./project-manifest.js";
 import { findStackDefinition } from "./stacks.js";
 
 const nodeStack = findStackDefinition("node");
@@ -29,7 +34,7 @@ test("buildProjectManifest records v2 render inputs and baseline paths", async (
     assert.deepEqual(manifest, {
       version: 2,
       loomVersion: "0.3.4",
-      stack: { id: "node", scaffoldVersion: "2" },
+      stack: { id: "node", scaffoldVersion: "2", definitionVersion: 2 },
       ownedFiles: {
         "loom.yaml": {
           sha256,
@@ -137,6 +142,46 @@ test("loadProjectManifest reports missing and v1 manifests distinctly", async ()
   }
 });
 
+test("v2 definition metadata distinguishes current, explicit legacy, and incompatible manifests", async () => {
+  const targetDir = await mkdtemp(join(tmpdir(), "loom-manifest-"));
+  try {
+    await mkdir(join(targetDir, ".loom"), { recursive: true });
+    const manifestPath = join(targetDir, ".loom", "manifest.json");
+    const base = {
+      version: 2,
+      loomVersion: "0.3.4",
+      stack: { id: "node", scaffoldVersion: "2" },
+      ownedFiles: {},
+      renderInputs: { projectName: "loom-demo", databases: [], adopted: false }
+    };
+
+    await writeFile(manifestPath, JSON.stringify({
+      ...base,
+      stack: { ...base.stack, definitionVersion: nodeStack.definitionVersion }
+    }), "utf8");
+    let loaded = await loadProjectManifest(targetDir);
+    assert.equal(loaded.kind, "ready");
+    if (loaded.kind !== "ready") throw new Error("expected ready manifest");
+    assert.deepEqual(classifyProjectManifestStack(loaded.manifest, nodeStack), { kind: "current" });
+
+    await writeFile(manifestPath, JSON.stringify(base), "utf8");
+    loaded = await loadProjectManifest(targetDir);
+    assert.equal(loaded.kind, "ready");
+    if (loaded.kind !== "ready") throw new Error("expected legacy-ready manifest");
+    assert.deepEqual(classifyProjectManifestStack(loaded.manifest, nodeStack), { kind: "legacy-compatible" });
+
+    await writeFile(manifestPath, JSON.stringify({ ...base, stack: { id: "node", scaffoldVersion: "not-declared" } }), "utf8");
+    loaded = await loadProjectManifest(targetDir);
+    assert.equal(loaded.kind, "ready");
+    if (loaded.kind !== "ready") throw new Error("expected parsed incompatible manifest");
+    const compatibility = classifyProjectManifestStack(loaded.manifest, nodeStack);
+    assert.equal(compatibility.kind, "incompatible");
+    if (compatibility.kind === "incompatible") assert.match(compatibility.reason, /not a declared legacy scaffold version/i);
+  } finally {
+    await rm(targetDir, { recursive: true, force: true });
+  }
+});
+
 test("loadProjectManifest rejects unknown versions and unsafe owned paths", async () => {
   const targetDir = await mkdtemp(join(tmpdir(), "loom-manifest-"));
   try {
@@ -153,6 +198,15 @@ test("loadProjectManifest rejects unknown versions and unsafe owned paths", asyn
       renderInputs: { projectName: "loom-demo", databases: [], adopted: false }
     }), "utf8");
     await assert.rejects(loadProjectManifest(targetDir), /unsafe owned file path/i);
+
+    await writeFile(manifestPath, JSON.stringify({
+      version: 2,
+      loomVersion: "0.3.4",
+      stack: { id: "node", scaffoldVersion: "2", definitionVersion: 2.5 },
+      ownedFiles: {},
+      renderInputs: { projectName: "loom-demo", databases: [], adopted: false }
+    }), "utf8");
+    await assert.rejects(loadProjectManifest(targetDir), /invalid Loom project manifest/i);
   } finally {
     await rm(targetDir, { recursive: true, force: true });
   }

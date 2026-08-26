@@ -237,12 +237,14 @@ contains a typed definition, initialization templates, and private migration
 fixtures. Definitions declare an integer definition version, a current scaffold
 identifier, exact generator and runtime versions, readiness behavior, ownership
 metadata, and safe generated paths. Explicit legacy scaffold aliases keep
-existing project manifests compatible while new projects record the current
-scaffold identifier.
+existing project manifests compatible while new projects record both the
+current scaffold identifier and definition version.
 
 The npm package copies these assets to `dist/stacks/`; standalone release
-archives include the same filtered `stacks/` tree. Neither distribution depends
-on the removed generator-example layout. `examples/runnable/` is reserved for
+archives include the same filtered `stacks/` tree.
+The removed legacy `examples/` generator layout is not a dependency of either
+distribution.
+`examples/runnable/` is reserved for
 complete projects that pass a direct-start release test, and is intentionally
 empty today.
 

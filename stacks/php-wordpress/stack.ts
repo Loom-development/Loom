@@ -2,10 +2,11 @@ import { defineStack } from "../definition.js";
 import { generatorPins, runtimeImagePins } from "../pins.js";
 
 export const phpWordpressStack = defineStack({
-  id: "php-wordpress", definitionVersion: 2, legacyScaffoldVersions: ["wordpress-6-php8.3-apache"], assetPath: "php-wordpress/templates", scaffoldVersion: "2",
+  id: "php-wordpress", definitionVersion: 2, legacyScaffoldVersions: ["2", "wordpress-6-php8.3-apache"], assetPath: "php-wordpress/templates", scaffoldVersion: "2",
   generator: {
     kind: "command", image: runtimeImagePins.wordpress682Php83Apache, package: "wordpress", version: generatorPins.wordpress,
-    command: ["sh", "-c", "cp -a /usr/src/wordpress/. /app/"]
+    command: ["sh", "-c", "cp -a /usr/src/wordpress/. /app/"],
+    execution: { kind: "container", context: "WordPress project with Podman", mountTarget: "/app", environment: [] }
   },
   runtimeImages: [
     { env: "MEMCACHED_IMAGE", reference: runtimeImagePins.memcached16Alpine },

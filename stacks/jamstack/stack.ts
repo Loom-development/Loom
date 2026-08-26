@@ -2,7 +2,7 @@ import { defineStack } from "../definition.js";
 import { runtimeImagePins } from "../pins.js";
 
 export const jamstackStack = defineStack({
-  id: "jamstack", definitionVersion: 2, legacyScaffoldVersions: ["1"], assetPath: "jamstack/templates", scaffoldVersion: "2",
+  id: "jamstack", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "jamstack/templates", scaffoldVersion: "2",
   generator: { kind: "none" }, runtimeImages: [{ env: "NODE_IMAGE", reference: runtimeImagePins.node24Alpine }],
   install: ["cd api && npm install", "cd web && npm install"],
   start: ["cd api && npm start", "cd web && npm run dev -- --host 0.0.0.0 --port 5174"],

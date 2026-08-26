@@ -4,7 +4,7 @@ import { runtimeImagePins } from "../pins.js";
 const sqliteStart = "sh -c \"apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\"";
 
 export const dbAllStack = defineStack({
-  id: "db-all", definitionVersion: 2, legacyScaffoldVersions: ["1"], assetPath: "db-all/templates", scaffoldVersion: "2",
+  id: "db-all", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "db-all/templates", scaffoldVersion: "2",
   generator: { kind: "none" }, runtimeImages: [
     { env: "ELASTICSEARCH_IMAGE", reference: runtimeImagePins.elasticsearch817 },
     { env: "MARIADB_IMAGE", reference: runtimeImagePins.mariadb118 },

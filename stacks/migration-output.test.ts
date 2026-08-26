@@ -14,15 +14,10 @@ const ids = [
   "django-react", "db-mysql", "db-sqlserver", "db-postgres", "db-mongodb", "db-redis", "db-elasticsearch",
   "db-sqlite", "db-mariadb", "db-all", ...bootstrapIds
 ] as const;
-const languageIds = [
-  "python", "python-django", "python-flask", "python-fastapi", "php", "dotnet", "spring-react", "spring-boot",
-  "django-react"
-] as const;
 const databaseIds = [
   "db-mysql", "db-sqlserver", "db-postgres", "db-mongodb", "db-redis", "db-elasticsearch", "db-sqlite",
   "db-mariadb", "db-all"
 ] as const;
-const environmentPinIds = [...languageIds, ...databaseIds, ...bootstrapIds] as const;
 
 function normalizeImageDefaults(yaml: string, imageEnvs: readonly string[]): string {
   const declared = new Set(imageEnvs);
@@ -60,7 +55,7 @@ test("copy stack migration preserves every non-image template byte", async () =>
     const digest = createHash("sha256");
     for (const path of files) {
       let bytes = await readFile(resolve(templateRoot, path));
-      if (path === ".env.example" && environmentPinIds.includes(id as typeof environmentPinIds[number])) {
+      if (path === ".env.example") {
         bytes = Buffer.from(normalizeEnvironmentImageDefaults(bytes.toString("utf8"), definition.runtimeImages.map(({ env }) => env)));
       }
       digest.update(path).update("\0").update(bytes);
@@ -149,12 +144,63 @@ test("packaged stack READMEs document only their exact definition runtime pins",
   }
 });
 
-test("migrated stack environment image defaults exactly match their definitions", async () => {
-  for (const id of environmentPinIds) {
-    const definition = findStackDefinition(id)!;
+test("every stack environment image default exactly matches its definition", async () => {
+  for (const definition of stackDefinitions) {
     const env = await readFile(resolve(root, "..", definition.assetPath, ".env.example"), "utf8");
     const defaults = [...env.matchAll(/^([A-Z][A-Z0-9_]*_IMAGE)=(.+)$/gm)].map((match) => ({ env: match[1]!, reference: match[2]! }));
-    assert.deepEqual(defaults.sort((a, b) => a.env.localeCompare(b.env)), definition.runtimeImages, id);
+    assert.deepEqual(defaults.sort((a, b) => a.env.localeCompare(b.env)), definition.runtimeImages, definition.id);
+  }
+});
+
+test("Python stack lifecycle and maintenance metadata stays exact", () => {
+  const expected = {
+    python: {
+      hostWrites: [],
+      generatedPaths: [
+        { path: ".pytest_cache", category: "cache" },
+        { path: ".venv", category: "dependency" },
+        { path: "__pycache__", category: "cache" }
+      ]
+    },
+    "python-django": {
+      hostWrites: ["db.sqlite3", "project/__pycache__"],
+      generatedPaths: [
+        { path: ".pytest_cache", category: "cache" },
+        { path: ".venv", category: "dependency" },
+        { path: "__pycache__", category: "cache" }
+      ]
+    },
+    "python-flask": {
+      hostWrites: ["__pycache__"],
+      generatedPaths: [
+        { path: ".pytest_cache", category: "cache" },
+        { path: ".venv", category: "dependency" },
+        { path: "__pycache__", category: "cache" }
+      ]
+    },
+    "python-fastapi": {
+      hostWrites: ["app/__pycache__"],
+      generatedPaths: [
+        { path: ".pytest_cache", category: "cache" },
+        { path: ".venv", category: "dependency" },
+        { path: "__pycache__", category: "cache" }
+      ]
+    },
+    "django-react": {
+      hostWrites: ["backend/db.sqlite3", "backend/project/__pycache__", "frontend/node_modules", "frontend/package-lock.json"],
+      generatedPaths: [
+        { path: "backend/.pytest_cache", category: "cache" },
+        { path: "backend/.venv", category: "dependency" },
+        { path: "frontend/dist", category: "build" },
+        { path: "frontend/node_modules", category: "dependency" }
+      ]
+    }
+  } as const;
+
+  for (const [id, metadata] of Object.entries(expected)) {
+    const definition = findStackDefinition(id)!;
+    assert.deepEqual(definition.hostWrites, metadata.hostWrites, `${id} host writes`);
+    assert.deepEqual(definition.generatedPaths, metadata.generatedPaths, `${id} generated paths`);
   }
 });
 

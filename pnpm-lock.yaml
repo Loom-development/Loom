@@ -40,11 +40,10 @@ importers:
         version: 5.9.3
 
   apps/cli:
-    dependencies:
+    devDependencies:
       '@loom/stacks':
         specifier: workspace:*
         version: link:../../stacks
-    devDependencies:
       '@loom/config':
         specifier: workspace:*
         version: link:../../packages/config

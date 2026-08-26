@@ -149,7 +149,7 @@ test("init applies runtime image overrides from --image", async () => {
   const manifest = JSON.parse(await readFile(join(targetDir, ".loom", "manifest.json"), "utf8")) as {
     version: number;
     loomVersion: string;
-    stack: { id: string; scaffoldVersion: string };
+    stack: { id: string; scaffoldVersion: string; definitionVersion: number };
     ownedFiles: Record<string, { sha256: string; baselinePath: string }>;
     renderInputs: { projectName: string; databases: string[]; adopted: boolean };
   };
@@ -160,7 +160,7 @@ test("init applies runtime image overrides from --image", async () => {
   assert.match(result.stdout, /Startup may take a few minutes while Loom downloads images and installs dependencies/);
   assert.equal(manifest.version, 2);
   assert.equal(manifest.loomVersion, "0.3.4");
-  assert.deepEqual(manifest.stack, { id: "node", scaffoldVersion: "2" });
+  assert.deepEqual(manifest.stack, { id: "node", scaffoldVersion: "2", definitionVersion: 2 });
   assert.match(manifest.ownedFiles["loom.yaml"]?.sha256 ?? "", /^[a-f0-9]{64}$/);
   assert.match(manifest.ownedFiles[".env.example"]?.sha256 ?? "", /^[a-f0-9]{64}$/);
   assert.equal(manifest.ownedFiles[".env"], undefined);
@@ -366,7 +366,7 @@ test("init jamstack creates frontend and api files with updated stack explanatio
   assert.match(generatedConfig, /service:\s*web/);
   assert.match(generatedConfig, /workdir:\s*\/workspace\/api/);
   assert.match(generatedConfig, /workdir:\s*\/workspace\/web/);
-  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:24-alpine/);
+  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:24\.4\.1-alpine/);
   assert.match(apiPackage, /loom-jamstack-api/);
   assert.match(webPackage, /loom-jamstack-web/);
 });

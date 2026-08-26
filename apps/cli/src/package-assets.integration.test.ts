@@ -14,7 +14,7 @@ const repoDir = resolve(cliDir, "..", "..");
 
 const executeFile = promisify(execFile);
 
-async function npmPackageFiles(): Promise<string[]> {
+async function createNpmPackage(): Promise<{ archivePath: string; cleanup(): void }> {
   const npmCache = mkdtempSync(resolve(tmpdir(), "loom-npm-cache-"));
   const packDir = mkdtempSync(resolve(tmpdir(), "loom-npm-pack-"));
   try {
@@ -25,14 +25,30 @@ async function npmPackageFiles(): Promise<string[]> {
     });
     const archive = readdirSync(packDir).find((path) => path.endsWith(".tgz"));
     assert.ok(archive, "npm pack did not produce an archive");
-    const { stdout } = await executeFile("tar", ["-tzf", resolve(packDir, archive)], {
+    return {
+      archivePath: resolve(packDir, archive),
+      cleanup: () => {
+        rmSync(npmCache, { recursive: true, force: true });
+        rmSync(packDir, { recursive: true, force: true });
+      }
+    };
+  } catch (error) {
+    rmSync(npmCache, { recursive: true, force: true });
+    rmSync(packDir, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function npmPackageFiles(): Promise<string[]> {
+  const packed = await createNpmPackage();
+  try {
+    const { stdout } = await executeFile("tar", ["-tzf", packed.archivePath], {
       encoding: "utf8",
       maxBuffer: 10 * 1024 * 1024
     });
     return stdout.trim().split("\n").map((path) => path.replace(/^package\//, "")).sort();
   } finally {
-    rmSync(npmCache, { recursive: true, force: true });
-    rmSync(packDir, { recursive: true, force: true });
+    packed.cleanup();
   }
 }
 
@@ -84,6 +100,40 @@ test("npm package publishes canonical stack assets without legacy examples", asy
   assert.equal(hasLegacyExampleAssets(paths, "dist"), false);
 });
 
+test("npm installs the produced CLI tgz and executes its binary without workspace dependencies", async () => {
+  const packed = await createNpmPackage();
+  const installRoot = await mkdtemp(resolve(tmpdir(), "loom-npm-install-"));
+  const npmCache = await mkdtemp(resolve(tmpdir(), "loom-npm-install-cache-"));
+  const targetDir = resolve(installRoot, "generated-node");
+  try {
+    await executeFile("npm", ["install", "--no-audit", "--no-fund", packed.archivePath], {
+      cwd: installRoot,
+      encoding: "utf8",
+      env: { ...process.env, npm_config_cache: npmCache },
+      maxBuffer: 10 * 1024 * 1024
+    });
+    await executeFile(resolve(installRoot, "node_modules", ".bin", "loom"), ["init", "node", "--dir", targetDir], {
+      cwd: installRoot,
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024
+    });
+
+    const installedPackage = JSON.parse(await readFile(resolve(installRoot, "node_modules", "@loomdev", "cli", "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+    };
+    assert.deepEqual(installedPackage.dependencies ?? {}, {});
+    assert.match(await readFile(resolve(targetDir, "server.js"), "utf8"), /app\.get\('\/health'/);
+    const manifest = JSON.parse(await readFile(resolve(targetDir, ".loom", "manifest.json"), "utf8")) as {
+      stack: { id: string; scaffoldVersion: string; definitionVersion: number };
+    };
+    assert.deepEqual(manifest.stack, { id: "node", scaffoldVersion: "2", definitionVersion: 2 });
+  } finally {
+    packed.cleanup();
+    await rm(installRoot, { recursive: true, force: true });
+    await rm(npmCache, { recursive: true, force: true });
+  }
+});
+
 async function isolatedCliFixture(projectDirName: string) {
   const tempRoot = await mkdtemp(resolve(tmpdir(), "loom-packaged-cli-"));
   const packageDistDir = resolve(tempRoot, "install", "package", "dist");
@@ -108,10 +158,10 @@ test("isolated packaged CLI initializes Node from canonical stack assets", async
     assert.match(await readFile(resolve(value.targetDir, "server.js"), "utf8"), /app\.get\('\/health'/);
     const manifest = JSON.parse(await readFile(resolve(value.targetDir, ".loom", "manifest.json"), "utf8")) as {
       version: number;
-      stack: { id: string; scaffoldVersion: string };
+      stack: { id: string; scaffoldVersion: string; definitionVersion: number };
     };
     assert.equal(manifest.version, 2);
-    assert.deepEqual(manifest.stack, { id: "node", scaffoldVersion: "2" });
+    assert.deepEqual(manifest.stack, { id: "node", scaffoldVersion: "2", definitionVersion: 2 });
   } finally {
     await rm(value.tempRoot, { recursive: true, force: true });
   }
@@ -130,10 +180,10 @@ test("isolated packaged CLI initializes a formerly nested stack ID", async () =>
     assert.match(await readFile(resolve(value.targetDir, "web", "index.html"), "utf8"), /<title>MERN Example<\/title>/);
     const manifest = JSON.parse(await readFile(resolve(value.targetDir, ".loom", "manifest.json"), "utf8")) as {
       version: number;
-      stack: { id: string; scaffoldVersion: string };
+      stack: { id: string; scaffoldVersion: string; definitionVersion: number };
     };
     assert.equal(manifest.version, 2);
-    assert.deepEqual(manifest.stack, { id: "node-mern", scaffoldVersion: "2" });
+    assert.deepEqual(manifest.stack, { id: "node-mern", scaffoldVersion: "2", definitionVersion: 2 });
   } finally {
     await rm(value.tempRoot, { recursive: true, force: true });
   }

@@ -4,7 +4,7 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 import packageJson from "../package.json" with { type: "json" };
 import { buildDatabaseServiceBlock } from "./database-service.js";
 import type { DbType } from "./init-prompt.js";
-import type { LoomProjectManifestV2 } from "./project-manifest.js";
+import { classifyProjectManifestStack, type LoomProjectManifestV2 } from "./project-manifest.js";
 import type { StackDefinition } from "./stacks.js";
 
 export type ProjectUpgradeFileState = "unchanged" | "modified" | "missing";
@@ -157,6 +157,10 @@ async function renderCandidates(options: PlanProjectUpgradeOptions, candidateRoo
 }
 
 export async function planProjectUpgrade(options: PlanProjectUpgradeOptions): Promise<ProjectUpgradePlan> {
+  const compatibility = classifyProjectManifestStack(options.manifest, options.stack);
+  if (compatibility.kind === "incompatible") {
+    throw new Error(`Project manifest is incompatible with stack '${options.stack.id}': ${compatibility.reason}`);
+  }
   await mkdir(resolve(options.projectRoot, ".loom"), { recursive: true });
   const candidateRoot = await mkdtemp(resolve(options.projectRoot, ".loom", "upgrade-candidate-"));
   try {
@@ -202,7 +206,11 @@ export async function applyProjectUpgrade(
     const nextManifest: LoomProjectManifestV2 = {
       ...plan.manifest,
       loomVersion: packageJson.version,
-      stack: { id: plan.stack.id, scaffoldVersion: plan.stack.scaffoldVersion },
+      stack: {
+        id: plan.stack.id,
+        scaffoldVersion: plan.stack.scaffoldVersion,
+        definitionVersion: plan.stack.definitionVersion
+      },
       ownedFiles: { ...plan.manifest.ownedFiles }
     };
     for (const file of plan.files.filter((entry) => updated.includes(entry.path))) {
