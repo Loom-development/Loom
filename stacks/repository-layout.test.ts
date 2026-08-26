@@ -24,6 +24,10 @@ function isRemovedLayoutProse(path: string, line: string): boolean {
   return extname(path) === ".md" && /`examples\/`/.test(line) && /\b(?:former|historical|removed|no longer)\b/i.test(line);
 }
 
+function isRepositorySourcePath(path: string): boolean {
+  return !path.split("/").some((segment) => segment === "node_modules");
+}
+
 test("active repository content has no legacy generator-path references", async () => {
   const searchableExtensions = new Set([".js", ".json", ".md", ".mjs", ".ps1", ".sh", ".ts", ".yaml", ".yml"]);
   const historicalMigrationDocs = [
@@ -37,6 +41,7 @@ test("active repository content has no legacy generator-path references", async 
   const violations: string[] = [];
 
   for (const path of await repositoryFiles("--cached", "--others", "--exclude-standard")) {
+    if (!isRepositorySourcePath(path)) continue;
     if (historicalMigrationDocs.some((prefix) => path.startsWith(prefix))) continue;
     if (path.startsWith(runnablePrefix)) continue;
     if (!searchableExtensions.has(extname(path))) continue;
@@ -51,6 +56,12 @@ test("active repository content has no legacy generator-path references", async 
   }
 
   assert.deepEqual(violations, []);
+});
+
+test("legacy reference guard excludes installed dependency sources", () => {
+  assert.equal(isRepositorySourcePath("node_modules/package/README.md"), false);
+  assert.equal(isRepositorySourcePath("packages/example/node_modules/package/README.md"), false);
+  assert.equal(isRepositorySourcePath("packages/example/README.md"), true);
 });
 
 test("legacy reference guard permits removed-layout prose but rejects operational paths", () => {
