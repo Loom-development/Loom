@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { copyFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { copyPublishableStackAssets } from "./copy-publishable-stack-assets.mjs";
@@ -39,3 +40,4 @@ run(
 );
 
 await copyPublishableStackAssets(sourceStacksDir, distStacksDir);
+await copyFile(resolve(repoDir, "README.md"), resolve(cliDir, "README.md"));

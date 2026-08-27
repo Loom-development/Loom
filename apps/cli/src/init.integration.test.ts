@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import cliPackageJson from "../package.json" with { type: "json" };
 import { findStackDefinition } from "./stacks.js";
 
 function runCli(args: string[], options: { env?: NodeJS.ProcessEnv; input?: string } = {}) {
@@ -159,7 +160,7 @@ test("init applies runtime image overrides from --image", async () => {
   assert.match(result.stdout, /Configured runtime image selections/);
   assert.match(result.stdout, /Startup may take a few minutes while Loom downloads images and installs dependencies/);
   assert.equal(manifest.version, 2);
-  assert.equal(manifest.loomVersion, "0.3.4");
+  assert.equal(manifest.loomVersion, cliPackageJson.version);
   assert.deepEqual(manifest.stack, { id: "node", scaffoldVersion: "2", definitionVersion: 2 });
   assert.match(manifest.ownedFiles["loom.yaml"]?.sha256 ?? "", /^[a-f0-9]{64}$/);
   assert.match(manifest.ownedFiles[".env.example"]?.sha256 ?? "", /^[a-f0-9]{64}$/);

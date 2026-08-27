@@ -100,6 +100,19 @@ test("npm package publishes canonical stack assets without legacy examples", asy
   assert.equal(hasLegacyExampleAssets(paths, "dist"), false);
 });
 
+test("npm package publishes the root README as its package documentation", async () => {
+  const packed = await createNpmPackage();
+  try {
+    const { stdout } = await executeFile("tar", ["-xOzf", packed.archivePath, "package/README.md"], {
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024
+    });
+    assert.equal(stdout, await readFile(resolve(repoDir, "README.md"), "utf8"));
+  } finally {
+    packed.cleanup();
+  }
+});
+
 test("npm installs the produced CLI tgz and executes its binary without workspace dependencies", async () => {
   const packed = await createNpmPackage();
   const installRoot = await mkdtemp(resolve(tmpdir(), "loom-npm-install-"));
