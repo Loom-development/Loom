@@ -14,11 +14,12 @@
     "dev": "pnpm --filter @loomdev/cli dev",
     "smoke:generated": "./scripts/smoke-generated-stacks.sh",
     "smoke:release": "./scripts/release-smoke.sh",
+    "test:images": "node --test scripts/images/*.test.mjs",
     "test": "pnpm -r test",
     "test:coverage": "c8 --all --include='packages/*/dist/**/*.js' --include='apps/*/dist/**/*.js' --exclude='**/*.test.js' --check-coverage --lines 35 --functions 35 --branches 25 pnpm -r test",
     "test:coverage:report": "c8 --all --include='packages/*/dist/**/*.js' --include='apps/*/dist/**/*.js' --exclude='**/*.test.js' --check-coverage --lines 35 --functions 35 --branches 25 --reporter=text-summary --reporter=lcov --reporter=json-summary pnpm -r test",
     "lint": "pnpm exec eslint \"apps/*/src/**/*.ts\" \"packages/*/src/**/*.ts\" \"stacks/**/*.ts\"",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test",
+    "verify": "pnpm test:images && pnpm lint && pnpm typecheck && pnpm test",
     "verify:coverage": "pnpm lint && pnpm typecheck && pnpm test:coverage:report"
   },
   "devDependencies": {
