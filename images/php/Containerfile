@@ -1,0 +1,65 @@
+ARG LOOM_BASE_IMAGE
+FROM docker.io/library/composer@sha256:20462d70afcfa999ad75dbd9333194067f4d869078bdb37430339e8d97e541d6 AS composer
+FROM ${LOOM_BASE_IMAGE}
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install --yes --no-install-recommends \
+        $PHPIZE_DEPS \
+        git \
+        libfreetype6-dev \
+        libicu-dev \
+        libjpeg62-turbo-dev \
+        libmagickwand-dev \
+        libmemcached-dev \
+        libpq-dev \
+        libsasl2-dev \
+        libsqlite3-dev \
+        libwebp-dev \
+        libxml2-dev \
+        libxslt1-dev \
+        libzip-dev \
+        unzip \
+        zlib1g-dev; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
+    docker-php-ext-install -j"$(nproc)" \
+        bcmath \
+        exif \
+        ftp \
+        gd \
+        gettext \
+        intl \
+        mysqli \
+        pcntl \
+        pdo_mysql \
+        pdo_pgsql \
+        pdo_sqlite \
+        soap \
+        sockets \
+        xsl \
+        zip; \
+    pecl install \
+        apcu-5.1.27 \
+        imagick-3.8.0 \
+        memcached-3.3.0 \
+        redis-6.2.0 \
+        xdebug-3.4.5; \
+    docker-php-ext-enable apcu imagick memcached redis xdebug; \
+    a2enmod rewrite; \
+    rm -rf /tmp/pear ~/.pearrc /var/lib/apt/lists/*
+
+COPY --from=composer /usr/bin/composer /usr/local/bin/composer
+
+RUN set -eux; \
+    { \
+        echo 'xdebug.mode=off'; \
+        echo 'xdebug.start_with_request=no'; \
+    } > /usr/local/etc/php/conf.d/zz-loom-xdebug.ini
+
+COPY docker-entrypoint-loom /usr/local/bin/docker-entrypoint-loom
+
+ENV LOOM_DOCUMENT_ROOT=/var/www/html
+WORKDIR /workspace
+
+ENTRYPOINT ["docker-entrypoint-loom"]
+CMD ["apache2-foreground"]
