@@ -25,6 +25,7 @@ jobs:
     outputs:
       builds: ${{ steps.matrix.outputs.builds }}
       manifests: ${{ steps.matrix.outputs.manifests }}
+      mirrors: ${{ steps.matrix.outputs.mirrors }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -35,6 +36,7 @@ jobs:
         run: |
           echo "builds=$(node scripts/images/matrix.mjs custom)" >> "$GITHUB_OUTPUT"
           echo "manifests=$(jq -c '{include: [.images[] | select(.kind == "custom") | {name, version, platforms}]}' images/catalog.json)" >> "$GITHUB_OUTPUT"
+          echo "mirrors=$(node scripts/images/matrix.mjs mirror | jq -c '{include: [.include | group_by(.name)[] | .[0]]}')" >> "$GITHUB_OUTPUT"
 
   publish-architectures:
     needs: matrix
@@ -133,3 +135,61 @@ jobs:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.digest.outputs.value }}
           push-to-registry: true
+          create-storage-record: false
+
+  publish-mirrors:
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.mirrors) }}
+    env:
+      IMAGE: ghcr.io/loom-development/${{ matrix.name }}
+      VERSION: ${{ matrix.version }}
+      REGISTRY_AUTH_FILE: /home/runner/.docker/config.json
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install mirror tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes podman skopeo
+      - name: Log in to GHCR
+        run: |
+          mkdir --parents "$HOME/.docker"
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io --username "${{ github.actor }}" --password-stdin
+      - name: Copy and verify upstream manifest
+        run: node scripts/images/mirror.mjs "${{ matrix.name }}"
+      - id: digest
+        name: Resolve mirrored manifest digest
+        run: |
+          DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://$IMAGE:$VERSION")
+          echo "value=$DIGEST" >> "$GITHUB_OUTPUT"
+      - name: Run mirror readiness probe
+        run: node scripts/images/test-mirror.mjs "${{ matrix.name }}" "$IMAGE@${{ steps.digest.outputs.value }}"
+      - name: Scan the immutable mirror
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "${{ env.IMAGE }}@${{ steps.digest.outputs.value }}"
+          format: json
+          output: trivy-report.json
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+      - name: Enforce vulnerability policy
+        run: node scripts/images/security-policy.mjs images/security-exceptions.json trivy-report.json
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+      - name: Keyless-sign the immutable mirror
+        env:
+          DIGEST: ${{ steps.digest.outputs.value }}
+        run: cosign sign --yes "$IMAGE@$DIGEST"
+      - name: Attest mirror provenance
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.digest.outputs.value }}
+          push-to-registry: true
+          create-storage-record: false

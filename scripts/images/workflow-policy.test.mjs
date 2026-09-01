@@ -50,4 +50,7 @@ test("release workflow publishes only from main and signs the scanned manifest d
   assert.match(workflow, /node scripts\/images\/security-policy\.mjs/);
   assert.match(workflow, /sigstore\/cosign-installer@v4\.1\.2/);
   assert.match(workflow, /cosign sign --yes "\$IMAGE@\$DIGEST"/);
+  assert.match(workflow, /node scripts\/images\/matrix\.mjs mirror/);
+  assert.match(workflow, /node scripts\/images\/mirror\.mjs/);
+  assert.match(workflow, /node scripts\/images\/test-mirror\.mjs/);
 });
