@@ -1,0 +1,51 @@
+name: Image CI
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/images-*.yml"
+      - "images/**"
+      - "scripts/images/**"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      custom: ${{ steps.matrix.outputs.custom }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - id: matrix
+        name: Generate custom image matrix
+        run: echo "custom=$(node scripts/images/matrix.mjs custom)" >> "$GITHUB_OUTPUT"
+
+  custom-images:
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.custom) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Enable emulation for linux/amd64 and linux/arm64
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: amd64,arm64
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes podman
+      - name: Build catalog image
+        run: node scripts/images/build.mjs "${{ matrix.name }}" --platform "${{ matrix.platform }}"
+      - name: Run public image contract
+        run: node scripts/images/test-image.mjs "${{ matrix.name }}" "localhost/${{ matrix.name }}:${{ matrix.version }}"
