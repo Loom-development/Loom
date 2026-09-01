@@ -13,6 +13,16 @@ const defaultCatalogPath = path.resolve(
   "../../images/catalog.json"
 );
 
+function skopeoDigestReference(source) {
+  const atIndex = source.lastIndexOf("@sha256:");
+  const taggedName = source.slice(0, atIndex);
+  const digest = source.slice(atIndex);
+  const slashIndex = taggedName.lastIndexOf("/");
+  const tagIndex = taggedName.lastIndexOf(":");
+  const repository = tagIndex > slashIndex ? taggedName.slice(0, tagIndex) : taggedName;
+  return `${repository}${digest}`;
+}
+
 export function createMirrorCopy(image, registry) {
   if (!image?.source?.match(/@sha256:[a-f0-9]{64}$/)) {
     throw new Error(`Mirror "${image?.name ?? "unknown"}" requires a digest-pinned source`);
@@ -21,11 +31,12 @@ export function createMirrorCopy(image, registry) {
     throw new Error(`Mirror "${image.name}" must not have a build context`);
   }
 
+  const source = skopeoDigestReference(image.source);
   const destination = `${registry}/${image.name}:${image.version}`;
   return {
     command: "skopeo",
-    args: ["copy", "--all", `docker://${image.source}`, `docker://${destination}`],
-    source: image.source,
+    args: ["copy", "--all", `docker://${source}`, `docker://${destination}`],
+    source,
     destination
   };
 }

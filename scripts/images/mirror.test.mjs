@@ -18,10 +18,10 @@ test("constructs a manifest-list copy without a shell", () => {
     args: [
       "copy",
       "--all",
-      `docker://${mirror.source}`,
+      `docker://docker.io/library/postgres@sha256:${"a".repeat(64)}`,
       "docker://ghcr.io/loom-development/postgres-16:16.9-alpine"
     ],
-    source: mirror.source,
+    source: `docker.io/library/postgres@sha256:${"a".repeat(64)}`,
     destination: "ghcr.io/loom-development/postgres-16:16.9-alpine"
   });
 });
@@ -53,7 +53,7 @@ test("copies all platforms and verifies source and destination digests", async (
   assert.equal(result.digest, digest);
   assert.deepEqual(calls, [
     { command: "skopeo", args: createMirrorCopy(mirror, "ghcr.io/loom-development").args },
-    { inspect: mirror.source },
+    { inspect: `docker.io/library/postgres@sha256:${"a".repeat(64)}` },
     { inspect: "ghcr.io/loom-development/postgres-16:16.9-alpine" }
   ]);
 });
