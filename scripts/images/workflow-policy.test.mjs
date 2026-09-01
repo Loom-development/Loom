@@ -60,3 +60,19 @@ test("release workflow publishes only from main and signs the scanned manifest d
   assert.match(workflow, /automation\/image-digests/);
   assert.match(workflow, /gh pr (view|create)/);
 });
+
+test("weekly update workflow reuses one PR and commits only changed catalog bytes", async () => {
+  const workflow = await readFile(
+    path.join(repositoryRoot, ".github/workflows/images-update.yml"),
+    "utf8"
+  );
+
+  assert.match(workflow, /schedule:\s*\n\s+- cron:/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /node scripts\/images\/check-updates\.mjs/);
+  assert.match(workflow, /git diff --quiet -- images\/catalog\.json/);
+  assert.match(workflow, /automation\/image-updates/);
+  assert.match(workflow, /gh pr (view|create)/);
+  assert.match(workflow, /gh workflow run ci\.yml/);
+  assert.match(workflow, /gh workflow run images-ci\.yml/);
+});
