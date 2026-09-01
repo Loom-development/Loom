@@ -12,6 +12,8 @@
     "build": "pnpm exec tsc -b tsconfig.json && node scripts/build-cli-package-assets.mjs",
     "typecheck": "pnpm exec tsc -b tsconfig.json",
     "dev": "pnpm --filter @loomdev/cli dev",
+    "images:build": "node scripts/images/build.mjs",
+    "images:test": "node scripts/images/test-image.mjs",
     "smoke:generated": "./scripts/smoke-generated-stacks.sh",
     "smoke:release": "./scripts/release-smoke.sh",
     "test:images": "node --test scripts/images/*.test.mjs",
