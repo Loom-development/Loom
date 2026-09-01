@@ -1,0 +1,12 @@
+ARG LOOM_BASE_IMAGE
+FROM ${LOOM_BASE_IMAGE}
+
+RUN set -eux; \
+    apk add --no-cache g++ git make python3; \
+    corepack enable; \
+    corepack prepare pnpm@10.15.0 --activate; \
+    corepack prepare yarn@4.9.2 --activate
+
+WORKDIR /workspace
+
+CMD ["node"]
