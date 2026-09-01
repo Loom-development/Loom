@@ -1,0 +1,8 @@
+ARG LOOM_BASE_IMAGE
+FROM ${LOOM_BASE_IMAGE}
+
+USER root
+WORKDIR /workspace
+
+ENTRYPOINT []
+CMD ["sqlite3"]
