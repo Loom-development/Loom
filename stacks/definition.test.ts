@@ -102,7 +102,6 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
         { env: "WORDPRESS_IMAGE", reference: "docker.io/library/wordpress:6.8.2-php8.3-apache" }
       ]
     },
@@ -214,6 +213,11 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
     assert.equal(secondaryVersion, generatorPins.symfonyWebappPack);
     assert.doesNotThrow(() => validateGeneratorVersion(secondaryVersion!));
   }
+
+  const wordpress = findStackDefinition("php-wordpress")!;
+  assert.deepEqual(wordpress.install, []);
+  assert.deepEqual(wordpress.start, ["docker-entrypoint.sh apache2-foreground"]);
+  assert.deepEqual(wordpress.readiness, { kind: "port", value: "127.0.0.1:80", timeoutSeconds: 90 });
 });
 
 test("database stacks publish exact versioned package definitions and lifecycle metadata", () => {

@@ -9,11 +9,10 @@ export const phpWordpressStack = defineStack({
     execution: { kind: "container", context: "WordPress project with Podman", mountTarget: "/app", environment: [] }
   },
   runtimeImages: [
-    { env: "MEMCACHED_IMAGE", reference: runtimeImagePins.memcached16Alpine },
     { env: "WORDPRESS_IMAGE", reference: runtimeImagePins.wordpress682Php83Apache }
   ],
-  install: ["apt-get update", "apt-get install -y --no-install-recommends libmemcached-dev libsasl2-dev libz-dev", "printf 'yes\\n\\n\\n\\n\\n\\n\\n' | pecl install memcached", "docker-php-ext-enable memcached"],
-  start: ["docker-entrypoint.sh apache2-foreground"], readiness: { kind: "port", value: "127.0.0.1:80", timeoutSeconds: 360 },
+  install: [],
+  start: ["docker-entrypoint.sh apache2-foreground"], readiness: { kind: "port", value: "127.0.0.1:80", timeoutSeconds: 90 },
   hostWrites: ["wp-content"], verification: [{ service: "app", command: ["php", "-r", "exit((int)!@fsockopen('127.0.0.1', 80));"] }],
   loomOwnedFiles: [".env.example", "loom.yaml", "wp-config.php"], generatedPaths: [], protectedPaths: ["wp-content"],
   compatibility: { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" }
