@@ -16,7 +16,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${PHP_IMAGE:-docker.io/library/php:8.4.10-apache}`
+  - Runtime: `${PHP_IMAGE:-docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5}`
   - Port: `8092`
   - Purpose: Apache + PHP application server serving Symfony from `/app/public`
 

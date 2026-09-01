@@ -119,7 +119,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }
+        { env: "PHP_IMAGE", reference: "docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5" }
       ]
     },
     "php-symfony": {
@@ -143,7 +143,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }
+        { env: "PHP_IMAGE", reference: "docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5" }
       ]
     },
     rails7: {

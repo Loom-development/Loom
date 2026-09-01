@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: php
-    image: ${PHP_IMAGE:-docker.io/library/php:8.4.10-apache}
+    image: ${PHP_IMAGE:-docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5}
     user: root
     userns: keep-id
     execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
