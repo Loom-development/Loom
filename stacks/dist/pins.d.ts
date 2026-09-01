@@ -1,0 +1,31 @@
+export declare const runtimeImagePins: {
+    readonly alpine320: "docker.io/library/alpine:3.20.7";
+    readonly sqlite346: "docker.io/keinos/sqlite3:3.46.1";
+    readonly bun1: "docker.io/oven/bun:1.2.18";
+    readonly node22Alpine: "docker.io/library/node:22.17.1-alpine";
+    readonly node24Alpine: "docker.io/library/node:24.4.1-alpine";
+    readonly dotnet8Sdk: "mcr.microsoft.com/dotnet/sdk:8.0.412";
+    readonly maven39Temurin21: "docker.io/library/maven:3.9.11-eclipse-temurin-21";
+    readonly memcached16Alpine: "docker.io/library/memcached:1.6.39-alpine";
+    readonly elasticsearch817: "docker.elastic.co/elasticsearch/elasticsearch:8.17.10";
+    readonly mariadb118: "docker.io/library/mariadb:11.8.2";
+    readonly mongo70: "docker.io/library/mongo:7.0.21";
+    readonly mssql2022: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04";
+    readonly mysql84: "docker.io/library/mysql:8.4.6";
+    readonly php84Apache: "docker.io/library/php:8.4.10-apache";
+    readonly php84FpmApache: "docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5";
+    readonly ruby338: "docker.io/library/ruby:3.3.8";
+    readonly wordpress682Php83Apache: "docker.io/library/wordpress:6.8.2-php8.3-apache";
+    readonly postgres16Alpine: "docker.io/library/postgres:16.9-alpine";
+    readonly python312Slim: "docker.io/library/python:3.12.11-slim";
+    readonly redis74Alpine: "docker.io/library/redis:7.4.5-alpine";
+};
+export declare const generatorPins: {
+    readonly composerImage: "docker.io/library/composer:2.8.10";
+    readonly bundler: "2.6.9";
+    readonly drupalRecommendedProject: "11.2.2";
+    readonly rails: "7.1.5";
+    readonly symfonySkeleton: "7.3.99";
+    readonly symfonyWebappPack: "1.3.0";
+    readonly wordpress: "6.8.2";
+};

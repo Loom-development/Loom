@@ -1,0 +1,17 @@
+import type { LoomService } from "@loom/config";
+import type { ContainerSummary } from "./types.js";
+export declare function normalizeImage(image: string): string;
+export declare function containerName(projectName: string, serviceName: string): string;
+export declare function ensurePodmanNetwork(networkName: string): Promise<void>;
+export declare function isContainerRunning(name: string): Promise<boolean>;
+export declare function inspectContainer(name: string): Promise<ContainerSummary | null>;
+export declare function listProjectContainers(projectName: string): Promise<ContainerSummary[]>;
+export declare function parseHostPorts(portMappings?: string[]): number[];
+export declare function ensureBindMountParentDirs(volumes?: string[]): Promise<void>;
+export declare function containerExists(name: string): Promise<boolean>;
+export declare function inspectContainerImage(name: string): Promise<string>;
+export declare function inspectContainerLabel(name: string, label: string): Promise<string>;
+export declare function serviceConfigHash(service: LoomService): string;
+export declare function removeContainer(name: string): Promise<void>;
+export declare function startContainer(name: string): Promise<void>;
+export declare function buildPodmanRunArgs(serviceName: string, containerNameValue: string, service: LoomService, networkName: string, expectedImage: string, expectedServiceHash: string): Promise<string[]>;

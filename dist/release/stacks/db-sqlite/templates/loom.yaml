@@ -1,0 +1,18 @@
+version: 1
+name: loom-db-sqlite
+runtime:
+  engine: podman
+  rootless: true
+  machine:
+    managed: true
+services:
+  db:
+    type: sqlite
+    image: ${SQLITE_IMAGE:-docker.io/keinos/sqlite3:3.46.1}
+    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    userns: keep-id
+    entrypoint: ""
+    command: sh -c "sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null"
+    workdir: /data
+    volumes:
+      - ./data/sqlite:/data

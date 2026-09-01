@@ -1,0 +1,327 @@
+import { spawn } from "node:child_process";
+import { constants } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
+import { access, mkdir, mkdtemp, open, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname, join } from "node:path";
+import { pipeline } from "node:stream/promises";
+import { createGunzip } from "node:zlib";
+import { containerName, isContainerRunning } from "./containers.js";
+import { runPodman } from "./podman.js";
+export const SUPPORTED_BACKUP_SERVICE_TYPES = [
+    "mysql",
+    "mariadb",
+    "postgres",
+    "mongodb",
+    "redis",
+    "sqlite",
+    "sqlserver"
+];
+export const SUPPORTED_RESTORE_SERVICE_TYPES = [
+    "mysql",
+    "mariadb",
+    "postgres",
+    "mongodb",
+    "redis",
+    "sqlite"
+];
+export function databaseBackupStrategy(serviceType) {
+    const normalized = serviceType.toLowerCase();
+    if (normalized === "mysql") {
+        return {
+            extension: "sql",
+            command: [
+                "sh",
+                "-c",
+                "mysqldump -h 127.0.0.1 -uroot -p\"$MYSQL_ROOT_PASSWORD\" \"${MYSQL_DATABASE:-loom}\""
+            ]
+        };
+    }
+    if (normalized === "mariadb") {
+        return {
+            extension: "sql",
+            command: [
+                "sh",
+                "-c",
+                "mariadb-dump -h 127.0.0.1 -uroot -p\"$MARIADB_ROOT_PASSWORD\" \"${MARIADB_DATABASE:-loom}\""
+            ]
+        };
+    }
+    if (normalized === "postgres") {
+        return {
+            extension: "sql",
+            command: ["sh", "-c", "pg_dump -U \"${POSTGRES_USER:-postgres}\" \"${POSTGRES_DB:-postgres}\""]
+        };
+    }
+    if (normalized === "mongodb") {
+        return {
+            extension: "archive.gz",
+            command: [
+                "sh",
+                "-c",
+                "mongodump --archive --gzip --authenticationDatabase admin --username \"${MONGO_INITDB_ROOT_USERNAME:-root}\" --password \"${MONGO_INITDB_ROOT_PASSWORD:-example}\" --db \"${MONGO_INITDB_DATABASE:-admin}\""
+            ]
+        };
+    }
+    if (normalized === "redis") {
+        return {
+            extension: "rdb",
+            command: ["sh", "-c", "redis-cli SAVE >/dev/null && cat /data/dump.rdb"]
+        };
+    }
+    if (normalized === "sqlite") {
+        return {
+            extension: "db",
+            command: ["sh", "-c", "cat /data/loom.db"]
+        };
+    }
+    if (normalized === "sqlserver" || normalized === "mssql") {
+        return {
+            extension: "bak",
+            command: [
+                "sh",
+                "-c",
+                "mkdir -p /var/opt/mssql/backup && /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -Q \"BACKUP DATABASE [master] TO DISK='/var/opt/mssql/backup/loom.bak' WITH INIT\" >/dev/null && cat /var/opt/mssql/backup/loom.bak"
+            ]
+        };
+    }
+    return null;
+}
+export function backupExtensionForServiceType(serviceType) {
+    return databaseBackupStrategy(serviceType)?.extension ?? null;
+}
+function requiresTextSqlRestore(serviceType) {
+    return ["mysql", "mariadb", "postgres"].includes(serviceType.toLowerCase());
+}
+async function readInputPrefix(inputPath, bytes = 64) {
+    const handle = await open(inputPath, "r");
+    try {
+        const buffer = Buffer.alloc(bytes);
+        const { bytesRead } = await handle.read(buffer, 0, bytes, 0);
+        return buffer.subarray(0, bytesRead);
+    }
+    finally {
+        await handle.close();
+    }
+}
+function detectRestoreInputFormat(prefix) {
+    if (prefix.length >= 2 && prefix[0] === 0x1f && prefix[1] === 0x8b) {
+        return "gzip";
+    }
+    if (prefix.length >= 6 &&
+        prefix[0] === 0xfd &&
+        prefix[1] === 0x37 &&
+        prefix[2] === 0x7a &&
+        prefix[3] === 0x58 &&
+        prefix[4] === 0x5a &&
+        prefix[5] === 0x00) {
+        return "xz";
+    }
+    if (prefix.length >= 4 &&
+        prefix[0] === 0x50 &&
+        prefix[1] === 0x4b &&
+        [0x03, 0x05, 0x07].includes(prefix[2] ?? -1) &&
+        [0x04, 0x06, 0x08].includes(prefix[3] ?? -1)) {
+        return "zip";
+    }
+    if (prefix.includes(0x00)) {
+        return "binary";
+    }
+    return "text";
+}
+async function gunzipRestoreInput(inputPath) {
+    const tempDir = await mkdtemp(join(tmpdir(), "loom-restore-"));
+    const outputName = basename(inputPath).replace(/\.gz$/i, "") || "loom-restore.sql";
+    const outputPath = join(tempDir, outputName);
+    await pipeline(createReadStream(inputPath), createGunzip(), createWriteStream(outputPath));
+    return {
+        path: outputPath,
+        cleanup: async () => {
+            await rm(tempDir, { recursive: true, force: true });
+        }
+    };
+}
+async function prepareRestoreInputForService(serviceType, inputPath) {
+    if (!requiresTextSqlRestore(serviceType)) {
+        return { path: inputPath };
+    }
+    const prefix = await readInputPrefix(inputPath);
+    const format = detectRestoreInputFormat(prefix);
+    if (format === "gzip") {
+        return gunzipRestoreInput(inputPath);
+    }
+    if (format === "xz") {
+        throw new Error(`Restore input '${inputPath}' appears to be xz-compressed. Loom restore currently supports plain SQL dumps and gzip-compressed SQL dumps for ${serviceType}. Decompress the file first.`);
+    }
+    if (format === "zip") {
+        throw new Error(`Restore input '${inputPath}' appears to be a zip archive. Loom restore currently supports plain SQL dumps and gzip-compressed SQL dumps for ${serviceType}. Extract the SQL file first.`);
+    }
+    if (format === "binary") {
+        throw new Error(`Restore input '${inputPath}' does not look like a plain SQL dump. Loom restore currently supports plain SQL dumps and gzip-compressed SQL dumps for ${serviceType}.`);
+    }
+    return { path: inputPath };
+}
+export function databaseRestoreStrategy(serviceType) {
+    const normalized = serviceType.toLowerCase();
+    if (normalized === "mysql") {
+        return {
+            destinationPath: "/tmp/loom-restore.sql",
+            command: [
+                "sh",
+                "-c",
+                "MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\" mysql --binary-mode=1 -h 127.0.0.1 -uroot \"${MYSQL_DATABASE:-loom}\" < /tmp/loom-restore.sql"
+            ]
+        };
+    }
+    if (normalized === "mariadb") {
+        return {
+            destinationPath: "/tmp/loom-restore.sql",
+            command: [
+                "sh",
+                "-c",
+                "MYSQL_PWD=\"$MARIADB_ROOT_PASSWORD\" mariadb --binary-mode=1 -h 127.0.0.1 -uroot \"${MARIADB_DATABASE:-loom}\" < /tmp/loom-restore.sql"
+            ]
+        };
+    }
+    if (normalized === "postgres") {
+        return {
+            destinationPath: "/tmp/loom-restore.sql",
+            command: [
+                "sh",
+                "-c",
+                "psql -U \"${POSTGRES_USER:-postgres}\" -d \"${POSTGRES_DB:-postgres}\" -f /tmp/loom-restore.sql"
+            ]
+        };
+    }
+    if (normalized === "mongodb") {
+        return {
+            destinationPath: "/tmp/loom-restore.archive.gz",
+            command: [
+                "sh",
+                "-c",
+                "mongorestore --drop --archive=/tmp/loom-restore.archive.gz --gzip --authenticationDatabase admin --username \"${MONGO_INITDB_ROOT_USERNAME:-root}\" --password \"${MONGO_INITDB_ROOT_PASSWORD:-example}\" --db \"${MONGO_INITDB_DATABASE:-admin}\""
+            ]
+        };
+    }
+    if (normalized === "redis") {
+        return {
+            destinationPath: "/data/dump.rdb"
+        };
+    }
+    if (normalized === "sqlite") {
+        return {
+            destinationPath: "/data/loom.db"
+        };
+    }
+    return null;
+}
+export function restoreSupportedForServiceType(serviceType) {
+    return databaseRestoreStrategy(serviceType) !== null;
+}
+export async function backupServiceToFile(projectName, serviceName, service, outputPath) {
+    return backupServiceToFileWithDependencies(projectName, serviceName, service, outputPath);
+}
+export async function backupServiceToFileWithDependencies(projectName, serviceName, service, outputPath, dependencies = {}) {
+    const strategy = databaseBackupStrategy(service.type);
+    if (!strategy) {
+        throw new Error(`Service type '${service.type}' does not currently support 'loom backup'. Supported types: mysql, mariadb, postgres, mongodb, redis, sqlite, sqlserver.`);
+    }
+    const name = containerName(projectName, serviceName);
+    const isContainerRunningByName = dependencies.isContainerRunningByName ?? isContainerRunning;
+    const makeDirectory = dependencies.makeDirectory ?? mkdir;
+    const createOutputStream = dependencies.createOutputStream ?? createWriteStream;
+    const spawnBackupProcess = dependencies.spawnBackupProcess ??
+        ((containerNameValue, command) => spawn("podman", ["exec", "-i", containerNameValue, ...command], {
+            stdio: ["ignore", "pipe", "pipe"]
+        }));
+    const running = await isContainerRunningByName(name);
+    if (!running) {
+        throw new Error(`Service '${serviceName}' is not running. Start it before creating a backup.`);
+    }
+    await makeDirectory(dirname(outputPath), { recursive: true });
+    await new Promise((resolve, reject) => {
+        const child = spawnBackupProcess(name, strategy.command);
+        const target = createOutputStream(outputPath);
+        let stderr = "";
+        let childExited = false;
+        let streamFinished = false;
+        let completed = false;
+        const finish = (error) => {
+            if (completed) {
+                return;
+            }
+            completed = true;
+            if (error) {
+                reject(error);
+                return;
+            }
+            resolve();
+        };
+        const maybeResolve = () => {
+            if (childExited && streamFinished) {
+                finish();
+            }
+        };
+        child.stderr.on("data", (chunk) => {
+            stderr += chunk.toString();
+        });
+        child.on("error", () => {
+            target.destroy();
+            finish(new Error(`Failed to run backup command for '${serviceName}'.`));
+        });
+        target.on("error", () => {
+            child.kill();
+            finish(new Error(`Failed to write backup file '${outputPath}'.`));
+        });
+        target.on("finish", () => {
+            streamFinished = true;
+            maybeResolve();
+        });
+        child.stdout.pipe(target);
+        child.on("close", (code) => {
+            if (code === 0) {
+                childExited = true;
+                maybeResolve();
+                return;
+            }
+            finish(new Error(`Backup failed for service '${serviceName}': ${stderr.trim() || "unknown error"}`));
+        });
+    });
+}
+export async function restoreServiceFromFile(projectName, serviceName, service, inputPath) {
+    return restoreServiceFromFileWithDependencies(projectName, serviceName, service, inputPath);
+}
+export async function restoreServiceFromFileWithDependencies(projectName, serviceName, service, inputPath, dependencies = {}) {
+    const strategy = databaseRestoreStrategy(service.type);
+    if (!strategy) {
+        throw new Error(`Service type '${service.type}' does not currently support 'loom restore'. Supported types: ${SUPPORTED_RESTORE_SERVICE_TYPES.join(", ")}.`);
+    }
+    const name = containerName(projectName, serviceName);
+    const isContainerRunningByName = dependencies.isContainerRunningByName ?? isContainerRunning;
+    const ensureInputReadable = dependencies.ensureInputReadable ?? ((path) => access(path, constants.R_OK));
+    const prepareRestoreInput = dependencies.prepareRestoreInput ?? prepareRestoreInputForService;
+    const runPodmanCommand = dependencies.runPodmanCommand ?? runPodman;
+    const running = await isContainerRunningByName(name);
+    if (strategy.command && !running) {
+        throw new Error(`Service '${serviceName}' is not running. Start it before restoring a backup.`);
+    }
+    await ensureInputReadable(inputPath);
+    const preparedInput = await prepareRestoreInput(service.type, inputPath);
+    try {
+        const copyResult = await runPodmanCommand(["cp", preparedInput.path, `${name}:${strategy.destinationPath}`]);
+        if (!copyResult.ok) {
+            throw new Error(`Restore failed for service '${serviceName}' while copying '${inputPath}' into the container: ${copyResult.stderr || copyResult.stdout || "unknown error"}`);
+        }
+        if (!strategy.command) {
+            return;
+        }
+        const restoreResult = await runPodmanCommand(["exec", name, ...strategy.command]);
+        if (!restoreResult.ok) {
+            throw new Error(`Restore failed for service '${serviceName}': ${restoreResult.stderr || restoreResult.stdout || "unknown error"}`);
+        }
+    }
+    finally {
+        await preparedInput.cleanup?.();
+    }
+}
+//# sourceMappingURL=backup.js.map
