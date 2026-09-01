@@ -68,6 +68,42 @@ test("copy stack migration preserves every non-image template byte", async () =>
   }
 });
 
+test("application templates never install operating-system packages during startup", async () => {
+  const forbidden = /\b(?:apt-get|apk\s+add|pecl\s+install|docker-php-ext-(?:install|enable))\b/;
+  for (const definition of stackDefinitions) {
+    if (definition.id.startsWith("db-")) continue;
+    const yaml = await readFile(resolve(root, "..", definition.assetPath, "loom.yaml"), "utf8");
+    assert.doesNotMatch(yaml, forbidden, definition.id);
+  }
+});
+
+test("Node-family templates run directly as the host user", async () => {
+  for (const id of ["node", "astro", "node-mean", "node-mern", "node-t3"] as const) {
+    const definition = findStackDefinition(id)!;
+    const yaml = await readFile(resolve(root, "..", definition.assetPath, "loom.yaml"), "utf8");
+    assert.match(yaml, /user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/, id);
+    assert.doesNotMatch(yaml, /user:\s*root|execUser:|setpriv|apt-get|apk\s+add/, id);
+  }
+});
+
+test("Python-family templates run directly as the host user", async () => {
+  for (const id of ["python", "python-django", "python-flask", "python-fastapi"] as const) {
+    const definition = findStackDefinition(id)!;
+    const yaml = await readFile(resolve(root, "..", definition.assetPath, "loom.yaml"), "utf8");
+    assert.match(yaml, /user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/, id);
+    assert.doesNotMatch(yaml, /user:\s*root|execUser:|setpriv|apt-get|apk\s+add/, id);
+  }
+});
+
+test("Rails templates run directly as the host user", async () => {
+  for (const id of ["rails7", "rails7-hotwire"] as const) {
+    const definition = findStackDefinition(id)!;
+    const yaml = await readFile(resolve(root, "..", definition.assetPath, "loom.yaml"), "utf8");
+    assert.match(yaml, /user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/, id);
+    assert.doesNotMatch(yaml, /user:\s*root|execUser:|setpriv|apt-get|apk\s+add/, id);
+  }
+});
+
 test("migration normalization preserves non-image environment defaults", async () => {
   const yaml = await readFile(resolve(root, "..", "node-mean/templates/loom.yaml"), "utf8");
   const imageEnvs = findStackDefinition("node-mean")!.runtimeImages.map(({ env }) => env);

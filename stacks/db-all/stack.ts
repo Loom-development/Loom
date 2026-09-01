@@ -1,7 +1,7 @@
 import { defineStack } from "../definition.js";
 import { runtimeImagePins } from "../pins.js";
 
-const sqliteStart = "sh -c \"apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\"";
+const sqliteStart = "sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\"";
 
 export const dbAllStack = defineStack({
   id: "db-all", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "db-all/templates", scaffoldVersion: "2",
@@ -13,7 +13,7 @@ export const dbAllStack = defineStack({
     { env: "MYSQL_IMAGE", reference: runtimeImagePins.mysql84 },
     { env: "POSTGRES_IMAGE", reference: runtimeImagePins.postgres16Alpine },
     { env: "REDIS_IMAGE", reference: runtimeImagePins.redis74Alpine },
-    { env: "SQLITE_IMAGE", reference: runtimeImagePins.alpine320 }
+    { env: "SQLITE_IMAGE", reference: runtimeImagePins.sqlite346 }
   ],
   install: [], start: ["redis-server --appendonly yes", sqliteStart],
   readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },

@@ -8,8 +8,11 @@ runtime:
 services:
   db:
     type: sqlite
-    image: ${SQLITE_IMAGE:-docker.io/library/alpine:3.20.7}
-    command: sh -c "apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null"
+    image: ${SQLITE_IMAGE:-docker.io/keinos/sqlite3:3.46.1}
+    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    userns: keep-id
+    entrypoint: ""
+    command: sh -c "sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null"
     workdir: /data
     volumes:
       - ./data/sqlite:/data

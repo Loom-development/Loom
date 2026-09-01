@@ -1,6 +1,8 @@
 export const runtimeImagePins = {
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/alpine
   alpine320: "docker.io/library/alpine:3.20.7",
+  // Verified 2026-09-01 against Docker Hub: https://hub.docker.com/r/keinos/sqlite3
+  sqlite346: "docker.io/keinos/sqlite3:3.46.1",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/r/oven/bun
   bun1: "docker.io/oven/bun:1.2.18",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/node
@@ -24,6 +26,8 @@ export const runtimeImagePins = {
   mysql84: "docker.io/library/mysql:8.4.6",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/php
   php84Apache: "docker.io/library/php:8.4.10-apache",
+  // Verified 2026-09-01 against Docker Hub and a local extension probe.
+  php84FpmApache: "docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/ruby
   ruby338: "docker.io/library/ruby:3.3.8",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/wordpress

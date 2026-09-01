@@ -9,29 +9,10 @@ services:
   app:
     type: node
     image: ${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}
-    user: root
+    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
     userns: keep-id
-    execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /workspace
-    command: |
-      set -eu
-      target_uid="${HOST_UID:-1000}"
-      target_gid="${HOST_GID:-1000}"
-      home_dir="/tmp/loom-home"
-      if [ ! -f /tmp/loom-node-build-deps.installed ]; then
-        if command -v apt-get >/dev/null 2>&1; then
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends python3 make g++ pkg-config default-libmysqlclient-dev libpq-dev libsqlite3-dev util-linux
-        elif command -v apk >/dev/null 2>&1; then
-          apk update && apk add --no-cache python3 make g++ pkgconf mariadb-connector-c-dev postgresql-dev sqlite-dev util-linux
-        fi
-        touch /tmp/loom-node-build-deps.installed
-      fi
-      corepack enable
-      mkdir -p "$home_dir"
-      chmod 0777 "$home_dir"
-      exec setpriv --reuid "$target_uid" --regid "$target_gid" --clear-groups env HOME="$home_dir" sh -c 'pnpm install && pnpm dev'
+    command: sh -c 'mkdir -p /tmp/loom-home && HOME=/tmp/loom-home corepack pnpm install && HOME=/tmp/loom-home exec corepack pnpm dev'
     ports:
       - "3003:3003"
     volumes:
@@ -52,4 +33,4 @@ routes:
 tasks:
   test:
     service: app
-    command: corepack enable && pnpm typecheck
+    command: corepack pnpm typecheck

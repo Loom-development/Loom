@@ -73,14 +73,10 @@ test("init php defaults docroot to '.' when not provided", async () => {
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedConfig, /docker-php-ext-install[\s\S]*intl zip exif/);
-  assert.match(generatedConfig, /pecl install imagick/);
-  assert.match(generatedConfig, /pecl install memcached/);
-  assert.match(generatedConfig, /type:\s*memcached/);
-  assert.match(generatedConfig, /MEMCACHED_HOST:\s*cache/);
+  assert.doesNotMatch(generatedConfig, /apt-get|pecl install|docker-php-ext-install|memcached/i);
   assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
   assert.doesNotMatch(generatedEnv, /NGINX_IMAGE=/);
-  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6\.39-alpine/);
+  assert.doesNotMatch(generatedEnv, /MEMCACHED_IMAGE/);
   assert.match(generatedConfig, /healthcheck:/);
   assert.match(generatedConfig, /DocumentRoot \/app/);
   assert.doesNotMatch(generatedConfig, /type:\s*nginx/);
@@ -455,9 +451,9 @@ test("init rails7-hotwire bootstraps a Rails + Hotwire project before copying Lo
   assert.match(result.stdout, /Initializing 'rails7-hotwire': Rails 7 with Hotwire bootstrapped into the project and run on a Ruby base image\./);
   assert.match(generatedConfig, /name:\s*loom-rails_hotwire_app/i);
   assert.match(generatedConfig, /3008:3008/);
-  assert.match(generatedConfig, /user:\s*root/);
+  assert.match(generatedConfig, /user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
-  assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
+  assert.doesNotMatch(generatedConfig, /execUser:|setpriv|apt-get|apk add/);
   assert.match(generatedConfig, /healthcheck:/);
   assert.match(generatedConfig, /TCPSocket\.new\('127\.0\.0\.1', 3008\)\.close/);
   assert.match(generatedConfig, /startPeriodSeconds:\s*10/);
@@ -527,15 +523,11 @@ test("init php-symfony bootstraps a Symfony project before copying Loom files", 
 
   assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.10-apache\}/i);
   assert.match(generatedConfig, /workdir:\s*\/app/);
-  assert.match(generatedConfig, /docker-php-ext-install[\s\S]*intl zip exif/);
-  assert.match(generatedConfig, /pecl install imagick/);
-  assert.match(generatedConfig, /pecl install memcached/);
-  assert.match(generatedConfig, /type:\s*memcached/);
-  assert.match(generatedConfig, /MEMCACHED_HOST:\s*cache/);
+  assert.doesNotMatch(generatedConfig, /apt-get|pecl install|docker-php-ext-install|memcached/i);
   assert.match(generatedConfig, /DocumentRoot \/app\/public/);
   assert.match(generatedIndex, /Symfony stub/);
   assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
-  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6\.39-alpine/);
+  assert.doesNotMatch(generatedEnv, /MEMCACHED_IMAGE/);
 });
 
 test("init php-symfony adopts an existing Symfony project and only adds Loom files", async () => {
@@ -598,7 +590,7 @@ test("init db-all emits every exact database image pin", async () => {
     MYSQL_IMAGE: "docker.io/library/mysql:8.4.6",
     POSTGRES_IMAGE: "docker.io/library/postgres:16.9-alpine",
     REDIS_IMAGE: "docker.io/library/redis:7.4.5-alpine",
-    SQLITE_IMAGE: "docker.io/library/alpine:3.20.7"
+    SQLITE_IMAGE: "docker.io/keinos/sqlite3:3.46.1"
   };
   for (const [env, reference] of Object.entries(pins)) {
     assert.ok(generatedConfig.includes(`image: \${${env}:-${reference}}`), `${env} loom.yaml`);
@@ -853,17 +845,13 @@ test("init php-drupal bootstraps a Drupal project with Podman Composer before co
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedConfig, /docker-php-ext-install[\s\S]*intl zip exif/);
-  assert.match(generatedConfig, /pecl install imagick/);
-  assert.match(generatedConfig, /pecl install memcached/);
-  assert.match(generatedConfig, /type:\s*memcached/);
-  assert.match(generatedConfig, /MEMCACHED_HOST:\s*cache/);
+  assert.doesNotMatch(generatedConfig, /apt-get|pecl install|docker-php-ext-install|memcached/i);
   assert.match(generatedConfig, /\.\/:\/app/);
   assert.match(generatedConfig, /\.\/data\/files:\/app\/web\/sites\/default\/files/);
   assert.match(generatedComposer, /drupal\/recommended-project/);
   assert.match(generatedIndex, /Drupal stub/);
   assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
-  assert.match(generatedEnv, /MEMCACHED_IMAGE=docker\.io\/library\/memcached:1\.6\.39-alpine/);
+  assert.doesNotMatch(generatedEnv, /MEMCACHED_IMAGE/);
 });
 
 test("init php-drupal reports when Podman is unavailable", async () => {
@@ -1106,9 +1094,9 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
   assert.match(generatedConfig, /image:\s*\$\{RUBY_IMAGE:-docker\.io\/library\/ruby:3\.3\.8\}/i);
-  assert.match(generatedConfig, /user:\s*root/);
+  assert.match(generatedConfig, /user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
-  assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
+  assert.doesNotMatch(generatedConfig, /execUser:|setpriv|apt-get|apk add/);
   assert.match(generatedConfig, /gem install bundler -v 2\.6\.9 --no-document/);
   assert.match(generatedConfig, /bundle install/);
   assert.match(generatedConfig, /bin\/rails server -b 0\.0\.0\.0 -p 3006/);

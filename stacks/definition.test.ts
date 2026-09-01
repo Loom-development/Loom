@@ -56,10 +56,7 @@ test("language application stacks publish exact versioned package definitions", 
     "python-django": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
     "python-flask": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
     "python-fastapi": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
-    php: [
-      { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
-      { env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }
-    ],
+    php: [{ env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }],
     dotnet: [{ env: "DOTNET_IMAGE", reference: "mcr.microsoft.com/dotnet/sdk:8.0.412" }],
     "spring-react": [
       { env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.11-eclipse-temurin-21" },
@@ -122,7 +119,6 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
         { env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }
       ]
     },
@@ -147,7 +143,6 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "MEMCACHED_IMAGE", reference: "docker.io/library/memcached:1.6.39-alpine" },
         { env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }
       ]
     },
@@ -259,8 +254,8 @@ test("database stacks publish exact versioned package definitions and lifecycle 
       architectures: ["arm64", "x64"]
     },
     "db-sqlite": {
-      runtimeImages: [{ env: "SQLITE_IMAGE", reference: "docker.io/library/alpine:3.20.7" }],
-      start: ["sh -c \"apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
+      runtimeImages: [{ env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.46.1" }],
+      start: ["sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
       readiness: { kind: "command", value: "sqlite3 /data/loom.db 'select 1;'", timeoutSeconds: 60 },
       verification: [{ service: "db", command: ["sqlite3", "/data/loom.db", "select 1;"] }],
       architectures: ["arm", "arm64", "x64"]
@@ -280,9 +275,9 @@ test("database stacks publish exact versioned package definitions and lifecycle 
         { env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.6" },
         { env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.9-alpine" },
         { env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.5-alpine" },
-        { env: "SQLITE_IMAGE", reference: "docker.io/library/alpine:3.20.7" }
+        { env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.46.1" }
       ],
-      start: ["redis-server --appendonly yes", "sh -c \"apk add --no-cache sqlite && sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
+      start: ["redis-server --appendonly yes", "sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
       readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },
       verification: [
         { service: "mysql", command: ["mysql", "-h", "127.0.0.1", "-uloom", "-ploom", "loom", "-e", "SELECT 1"] },

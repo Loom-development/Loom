@@ -28,4 +28,4 @@ loom status
 
 ## File permissions
 
-The container runs with `userns: keep-id` and `execUser` set to the host UID:GID so `npm install` and Astro's generated files write with host-aligned ownership on Linux rootless Podman.
+The container runs directly as the host UID:GID with `userns: keep-id` so `npm install` and Astro's generated files keep host-aligned ownership on Linux rootless Podman.
