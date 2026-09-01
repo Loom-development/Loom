@@ -1,0 +1,16 @@
+ARG LOOM_BASE_IMAGE
+FROM ${LOOM_BASE_IMAGE}
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install --yes --no-install-recommends curl git; \
+    rm -rf /var/lib/apt/lists/*
+
+ENV DOTNET_CLI_HOME=/tmp/dotnet \
+    DOTNET_NOLOGO=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    NUGET_PACKAGES=/tmp/nuget
+
+WORKDIR /workspace
+
+CMD ["dotnet"]
