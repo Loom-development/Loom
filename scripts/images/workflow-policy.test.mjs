@@ -23,4 +23,9 @@ test("pull-request image workflow builds and contracts both platforms without pu
   assert.match(workflow, /linux\/arm64/);
   assert.match(workflow, /node scripts\/images\/build\.mjs/);
   assert.match(workflow, /node scripts\/images\/test-image\.mjs/);
+  assert.match(workflow, /aquasecurity\/trivy-action@v0\.36\.0/);
+  assert.match(workflow, /format: json/);
+  assert.match(workflow, /severity: CRITICAL/);
+  assert.match(workflow, /ignore-unfixed: true/);
+  assert.match(workflow, /node scripts\/images\/security-policy\.mjs/);
 });

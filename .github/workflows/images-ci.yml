@@ -49,3 +49,14 @@ jobs:
         run: node scripts/images/build.mjs "${{ matrix.name }}" --platform "${{ matrix.platform }}"
       - name: Run public image contract
         run: node scripts/images/test-image.mjs "${{ matrix.name }}" "localhost/${{ matrix.name }}:${{ matrix.version }}"
+      - name: Scan for fixable critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "localhost/${{ matrix.name }}:${{ matrix.version }}"
+          format: json
+          output: trivy-report.json
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+      - name: Enforce vulnerability policy
+        run: node scripts/images/security-policy.mjs images/security-exceptions.json trivy-report.json
