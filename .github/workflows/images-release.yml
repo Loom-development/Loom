@@ -1,0 +1,135 @@
+name: Image Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/images-release.yml"
+      - "images/**"
+      - "scripts/images/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: image-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      builds: ${{ steps.matrix.outputs.builds }}
+      manifests: ${{ steps.matrix.outputs.manifests }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - id: matrix
+        name: Generate release matrices
+        run: |
+          echo "builds=$(node scripts/images/matrix.mjs custom)" >> "$GITHUB_OUTPUT"
+          echo "manifests=$(jq -c '{include: [.images[] | select(.kind == "custom") | {name, version, platforms}]}' images/catalog.json)" >> "$GITHUB_OUTPUT"
+
+  publish-architectures:
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.builds) }}
+    env:
+      IMAGE: ghcr.io/loom-development/${{ matrix.name }}
+      REGISTRY_AUTH_FILE: /home/runner/.docker/config.json
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Enable emulation for linux/amd64 and linux/arm64
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: amd64,arm64
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes podman
+      - name: Log in to GHCR
+        run: |
+          mkdir --parents "$HOME/.docker"
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io --username "${{ github.actor }}" --password-stdin
+      - name: Build catalog image
+        run: node scripts/images/build.mjs "${{ matrix.name }}" --platform "${{ matrix.platform }}"
+      - name: Run public image contract
+        run: node scripts/images/test-image.mjs "${{ matrix.name }}" "localhost/${{ matrix.name }}:${{ matrix.version }}"
+      - name: Publish architecture image
+        run: |
+          ARCH="${{ matrix.platform }}"
+          ARCH="${ARCH#linux/}"
+          podman tag "localhost/${{ matrix.name }}:${{ matrix.version }}" "$IMAGE:${{ matrix.version }}-$ARCH"
+          podman push "$IMAGE:${{ matrix.version }}-$ARCH"
+
+  publish-manifests:
+    needs: [matrix, publish-architectures]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.manifests) }}
+    env:
+      IMAGE: ghcr.io/loom-development/${{ matrix.name }}
+      VERSION: ${{ matrix.version }}
+      REGISTRY_AUTH_FILE: /home/runner/.docker/config.json
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install manifest tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes podman skopeo
+      - name: Log in to GHCR
+        run: |
+          mkdir --parents "$HOME/.docker"
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io --username "${{ github.actor }}" --password-stdin
+      - name: Assemble and publish multi-platform manifest
+        run: |
+          MANIFEST="localhost/${{ matrix.name }}-manifest:${{ matrix.version }}"
+          podman manifest create "$MANIFEST"
+          for PLATFORM in ${{ join(matrix.platforms, ' ') }}; do
+            ARCH="${PLATFORM#linux/}"
+            podman manifest add "$MANIFEST" "docker://$IMAGE:$VERSION-$ARCH"
+          done
+          podman manifest push --all "$MANIFEST" "docker://$IMAGE:$VERSION"
+      - id: digest
+        name: Resolve published manifest digest
+        run: |
+          DIGEST=$(skopeo inspect --format '{{.Digest}}' "docker://$IMAGE:$VERSION")
+          echo "value=$DIGEST" >> "$GITHUB_OUTPUT"
+      - name: Scan the immutable manifest
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: "${{ env.IMAGE }}@${{ steps.digest.outputs.value }}"
+          format: json
+          output: trivy-report.json
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+      - name: Enforce vulnerability policy
+        run: node scripts/images/security-policy.mjs images/security-exceptions.json trivy-report.json
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+      - name: Keyless-sign the immutable manifest
+        env:
+          DIGEST: ${{ steps.digest.outputs.value }}
+        run: cosign sign --yes "$IMAGE@$DIGEST"
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.digest.outputs.value }}
+          push-to-registry: true
