@@ -9,6 +9,8 @@ import { spawnSync } from "node:child_process";
 import cliPackageJson from "../package.json" with { type: "json" };
 import { findStackDefinition } from "./stacks.js";
 
+const phpFpmApacheImage = "docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5";
+
 function runCli(args: string[], options: { env?: NodeJS.ProcessEnv; input?: string } = {}) {
   const currentFileDir = dirname(fileURLToPath(import.meta.url));
   const cliPath = resolve(currentFileDir, "index.js");
@@ -521,12 +523,12 @@ test("init php-symfony bootstraps a Symfony project before copying Loom files", 
   const generatedIndex = await readFile(join(targetDir, "public", "index.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.10-apache\}/i);
+  assert.ok(generatedConfig.includes(`image: \${PHP_IMAGE:-${phpFpmApacheImage}}`));
   assert.match(generatedConfig, /workdir:\s*\/app/);
   assert.doesNotMatch(generatedConfig, /apt-get|pecl install|docker-php-ext-install|memcached/i);
   assert.match(generatedConfig, /DocumentRoot \/app\/public/);
   assert.match(generatedIndex, /Symfony stub/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
+  assert.ok(generatedEnv.includes(`PHP_IMAGE=${phpFpmApacheImage}`));
   assert.doesNotMatch(generatedEnv, /MEMCACHED_IMAGE/);
 });
 
@@ -550,7 +552,7 @@ test("init php-symfony adopts an existing Symfony project and only adds Loom fil
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
   assert.match(existingIndex, /existing symfony/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
+  assert.ok(generatedEnv.includes(`PHP_IMAGE=${phpFpmApacheImage}`));
 });
 
 test("init db template defaults to ./db and creates .env", async () => {
@@ -841,7 +843,7 @@ test("init php-drupal bootstraps a Drupal project with Podman Composer before co
   const generatedIndex = await readFile(join(targetDir, "web", "index.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.10-apache\}/i);
+  assert.ok(generatedConfig.includes(`image: \${PHP_IMAGE:-${phpFpmApacheImage}}`));
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
@@ -850,7 +852,7 @@ test("init php-drupal bootstraps a Drupal project with Podman Composer before co
   assert.match(generatedConfig, /\.\/data\/files:\/app\/web\/sites\/default\/files/);
   assert.match(generatedComposer, /drupal\/recommended-project/);
   assert.match(generatedIndex, /Drupal stub/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
+  assert.ok(generatedEnv.includes(`PHP_IMAGE=${phpFpmApacheImage}`));
   assert.doesNotMatch(generatedEnv, /MEMCACHED_IMAGE/);
 });
 
@@ -886,12 +888,12 @@ test("init php-drupal adopts an existing Drupal project and only adds Loom files
   const existingIndex = await readFile(join(targetDir, "web", "index.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.10-apache\}/i);
+  assert.ok(generatedConfig.includes(`image: \${PHP_IMAGE:-${phpFpmApacheImage}}`));
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(existingIndex, /existing drupal/);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.10-apache/);
+  assert.ok(generatedEnv.includes(`PHP_IMAGE=${phpFpmApacheImage}`));
 });
 
 test("init php-wordpress bootstraps a local WordPress project before copying loom config", async () => {

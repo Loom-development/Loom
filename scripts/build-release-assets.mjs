@@ -7,10 +7,10 @@ import { copyPublishableStackAssets } from "./copy-publishable-stack-assets.mjs"
 const rootDir = process.cwd();
 const releaseDir = resolve(rootDir, "dist", "release");
 const stageDir = resolve(releaseDir, ".stage");
-const unixStageDir = resolve(stageDir, "unix");
 const windowsStageDir = resolve(stageDir, "windows");
 const bundledCliPath = resolve(releaseDir, "loom.mjs");
 const releaseStacksDir = resolve(releaseDir, "stacks");
+const unixWrapperPath = resolve(releaseDir, "loom");
 
 const unixWrapper = `#!/usr/bin/env sh
 set -eu
@@ -37,7 +37,6 @@ function run(command, args) {
 }
 
 await rm(releaseDir, { recursive: true, force: true });
-await mkdir(unixStageDir, { recursive: true });
 await mkdir(windowsStageDir, { recursive: true });
 run("pnpm", ["--filter", "@loom/stacks", "build"]);
 await copyPublishableStackAssets(resolve(rootDir, "stacks"), releaseStacksDir);
@@ -53,9 +52,9 @@ run("pnpm", [
   "--banner:js=import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);"
 ]);
 
-await writeFile(resolve(unixStageDir, "loom"), unixWrapper, "utf8");
+await writeFile(unixWrapperPath, unixWrapper, "utf8");
 await writeFile(resolve(windowsStageDir, "loom.cmd"), windowsWrapper, "utf8");
-run("chmod", ["0755", resolve(unixStageDir, "loom")]);
+run("chmod", ["0755", unixWrapperPath]);
 
 for (const asset of unixAssets) {
   run("tar", [
@@ -65,8 +64,6 @@ for (const asset of unixAssets) {
     releaseDir,
     "loom.mjs",
     "stacks",
-    "-C",
-    unixStageDir,
     "loom"
   ]);
 }
@@ -83,3 +80,4 @@ for (const asset of windowsAssets) {
 }
 
 await rm(stageDir, { recursive: true, force: true });
+await rm(unixWrapperPath, { force: true });
