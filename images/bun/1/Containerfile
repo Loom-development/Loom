@@ -1,0 +1,15 @@
+ARG LOOM_BASE_IMAGE
+FROM ${LOOM_BASE_IMAGE}
+
+USER root
+RUN set -eux; \
+    apt-get update; \
+    apt-get install --yes --no-install-recommends \
+        build-essential \
+        git \
+        python3; \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+CMD ["bun"]
