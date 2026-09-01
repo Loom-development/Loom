@@ -1,0 +1,22 @@
+ARG LOOM_BASE_IMAGE
+FROM ${LOOM_BASE_IMAGE}
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install --yes --no-install-recommends \
+        build-essential \
+        default-libmysqlclient-dev \
+        git \
+        imagemagick \
+        libpq-dev \
+        libsqlite3-dev \
+        libyaml-dev \
+        pkg-config; \
+    rm -rf /var/lib/apt/lists/*
+
+ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
+    BUNDLE_WITHOUT=production
+
+WORKDIR /workspace
+
+CMD ["irb"]
