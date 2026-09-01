@@ -38,6 +38,7 @@ test("release workflow publishes only from main and signs the scanned manifest d
 
   assert.match(workflow, /push:\s*\n\s+branches:\s*\[main\]/);
   assert.doesNotMatch(workflow, /pull_request:/);
+  assert.match(workflow, /!images\/digests\.json/);
   assert.match(
     workflow,
     /permissions:\s*\n\s+contents: read\s*\n\s+packages: write\s*\n\s+id-token: write/
@@ -53,4 +54,9 @@ test("release workflow publishes only from main and signs the scanned manifest d
   assert.match(workflow, /node scripts\/images\/matrix\.mjs mirror/);
   assert.match(workflow, /node scripts\/images\/mirror\.mjs/);
   assert.match(workflow, /node scripts\/images\/test-mirror\.mjs/);
+  assert.match(workflow, /actions\/upload-artifact@v7/);
+  assert.match(workflow, /actions\/download-artifact@v8/);
+  assert.match(workflow, /node scripts\/images\/digests\.mjs/);
+  assert.match(workflow, /automation\/image-digests/);
+  assert.match(workflow, /gh pr (view|create)/);
 });

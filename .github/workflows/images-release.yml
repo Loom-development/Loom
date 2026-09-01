@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/images-release.yml"
       - "images/**"
+      - "!images/digests.json"
       - "scripts/images/**"
   workflow_dispatch:
 
@@ -36,7 +37,7 @@ jobs:
         run: |
           echo "builds=$(node scripts/images/matrix.mjs custom)" >> "$GITHUB_OUTPUT"
           echo "manifests=$(jq -c '{include: [.images[] | select(.kind == "custom") | {name, version, platforms}]}' images/catalog.json)" >> "$GITHUB_OUTPUT"
-          echo "mirrors=$(node scripts/images/matrix.mjs mirror | jq -c '{include: [.include | group_by(.name)[] | .[0]]}')" >> "$GITHUB_OUTPUT"
+          echo "mirrors=$(node scripts/images/matrix.mjs mirror | jq -c '{include: [.include | group_by(.name)[] | {name: .[0].name, version: .[0].version, source: .[0].source, platforms: map(.platform)}]}')" >> "$GITHUB_OUTPUT"
 
   publish-architectures:
     needs: matrix
@@ -136,6 +137,21 @@ jobs:
           subject-digest: ${{ steps.digest.outputs.value }}
           push-to-registry: true
           create-storage-record: false
+      - name: Record released manifest
+        run: |
+          mkdir --parents release-record
+          jq --null-input \
+            --arg name "${{ matrix.name }}" \
+            --arg digest "${{ steps.digest.outputs.value }}" \
+            --argjson platforms '${{ toJSON(matrix.platforms) }}' \
+            '{name: $name, digest: $digest, platforms: $platforms}' \
+            > "release-record/${{ matrix.name }}.json"
+      - name: Upload released manifest record
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.name }}
+          path: release-record/${{ matrix.name }}.json
+          retention-days: 7
 
   publish-mirrors:
     needs: matrix
@@ -193,3 +209,64 @@ jobs:
           subject-digest: ${{ steps.digest.outputs.value }}
           push-to-registry: true
           create-storage-record: false
+      - name: Record released mirror
+        run: |
+          mkdir --parents release-record
+          jq --null-input \
+            --arg name "${{ matrix.name }}" \
+            --arg digest "${{ steps.digest.outputs.value }}" \
+            --argjson platforms '${{ toJSON(matrix.platforms) }}' \
+            '{name: $name, digest: $digest, platforms: $platforms}' \
+            > "release-record/${{ matrix.name }}.json"
+      - name: Upload released mirror record
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.name }}
+          path: release-record/${{ matrix.name }}.json
+          retention-days: 7
+
+  update-digest-catalog:
+    needs: [publish-manifests, publish-mirrors]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Download release records
+        uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: release-records
+          merge-multiple: true
+      - name: Generate immutable digest catalog
+        run: node scripts/images/digests.mjs release-records images/digests.json
+      - id: changes
+        name: Detect catalog changes
+        run: |
+          if git diff --quiet -- images/digests.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Update stable digest pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="automation/image-digests"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add images/digests.json
+          git commit -m "chore(images): record published manifest digests"
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+          gh pr view "$BRANCH" --json url --jq .url || gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore(images): record published manifest digests" \
+            --body "Records the signed and scanned GHCR manifest digests produced by the image release workflow."

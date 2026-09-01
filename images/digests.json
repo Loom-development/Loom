@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "registry": "ghcr.io/loom-development",
+  "signatureIdentity": "https://github.com/Loom-development/Loom/.github/workflows/images-release.yml@refs/heads/main",
+  "status": "pending-initial-release",
+  "images": []
+}
