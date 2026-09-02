@@ -18,6 +18,13 @@ if [[ "${1:-}" == "apache2-foreground" ]]; then
     /etc/apache2/sites-available/*.conf \
     /etc/apache2/apache2.conf \
     /etc/apache2/conf-available/*.conf
+
+  {
+    printf '<Directory "%s">\n' "${LOOM_DOCUMENT_ROOT}"
+    printf '    AllowOverride All\n'
+    printf '    Require all granted\n'
+    printf '</Directory>\n'
+  } >/etc/apache2/conf-enabled/zz-loom-document-root.conf
 fi
 
 exec docker-php-entrypoint "$@"

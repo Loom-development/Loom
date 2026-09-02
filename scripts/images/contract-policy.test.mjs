@@ -49,3 +49,13 @@ test("WordPress contract removes container-owned fixtures inside the Podman user
   assert.match(source, /podman unshare rm -rf -- "\$\{test_directory\}"/);
   assert.doesNotMatch(source, /^\s*rm -rf "\$\{test_directory\}"/m);
 });
+
+test("PHP entrypoint authorizes a custom Apache document root", async () => {
+  const source = await readFile(
+    path.join(repositoryRoot, "images/php/docker-entrypoint-loom"),
+    "utf8"
+  );
+  assert.match(source, /<Directory \"%s\">/);
+  assert.match(source, /Require all granted/);
+  assert.match(source, /conf-enabled\/zz-loom-document-root\.conf/);
+});
