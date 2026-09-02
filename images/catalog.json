@@ -114,8 +114,8 @@
     {
       "name": "mongo-7.0",
       "kind": "mirror",
-      "source": "docker.io/library/mongo:7.0.21@sha256:3d715950d83061ff2fbc910d12d3703212538cacf6b3003e3736fa5c7f51a2e1",
-      "version": "7.0.21",
+      "source": "docker.io/library/mongo:7.0.40-jammy@sha256:406a4fdca9fc763443268f000218d3849ef8996f66ed9e92ba0b501b446ab822",
+      "version": "7.0.40-jammy",
       "platforms": ["linux/amd64", "linux/arm64"]
     },
     {
