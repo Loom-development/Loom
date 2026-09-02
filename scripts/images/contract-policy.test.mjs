@@ -20,6 +20,14 @@ test("Node tool version failures report expected and actual versions", async () 
   assert.match(source, /Node contract failed at line/);
   assert.match(source, /install --mode=skip-build/);
   assert.match(source, /runtime_command=\(yarn node\)/);
+  assert.match(source, /YARN_ENABLE_GLOBAL_CACHE=false/);
+});
+
+test("PHP-family contracts report the command that failed", async () => {
+  for (const contract of ["images/php/contract.sh", "images/wordpress/contract.sh"]) {
+    const source = await readFile(path.join(repositoryRoot, contract), "utf8");
+    assert.match(source, /contract failed at line/);
+  }
 });
 
 test("WordPress version probe searches for the literal PHP variable", async () => {

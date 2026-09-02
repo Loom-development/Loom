@@ -50,11 +50,14 @@ for package_manager in npm pnpm yarn; do
     >"${project_directory}/package.json"
 
   install_arguments=(install --ignore-scripts)
+  package_manager_environment=()
   if [[ "${package_manager}" == "yarn" ]]; then
     install_arguments=(install --mode=skip-build)
+    package_manager_environment=(--env YARN_ENABLE_GLOBAL_CACHE=false)
   fi
 
   podman run --rm \
+    "${package_manager_environment[@]}" \
     --volume "${test_directory}:/contract:Z" \
     --workdir "/contract/${package_manager}" \
     "${image_reference}" "${package_manager}" "${install_arguments[@]}"
@@ -65,6 +68,7 @@ for package_manager in npm pnpm yarn; do
   fi
 
   podman run --rm \
+    "${package_manager_environment[@]}" \
     --volume "${test_directory}:/contract:Z" \
     --workdir "/contract/${package_manager}" \
     "${image_reference}" "${runtime_command[@]}" --eval \

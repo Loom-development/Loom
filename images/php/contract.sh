@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+trap 'status=$?; printf "PHP contract failed at line %s: %s\n" "${LINENO}" "${BASH_COMMAND}" >&2; exit "${status}"' ERR
+
 image_reference="${1:?usage: contract.sh <image-reference>}"
 contract_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 test_directory="$(mktemp -d)"
@@ -26,7 +28,7 @@ fi
 podman run --rm "${image_reference}" composer --version >/dev/null
 podman run --rm "${image_reference}" php -r \
   'exit(ini_get("xdebug.mode") === "off" ? 0 : 1);'
-apache_modules="$(podman run --rm "${image_reference}" apache2ctl -M 2>/dev/null)"
+apache_modules="$(podman run --rm "${image_reference}" apache2ctl -M 2>/dev/null || true)"
 grep -q 'rewrite_module' <<<"${apache_modules}"
 
 mkdir -p "${test_directory}/project/public"

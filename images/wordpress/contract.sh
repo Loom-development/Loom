@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+trap 'status=$?; printf "WordPress contract failed at line %s: %s\n" "${LINENO}" "${BASH_COMMAND}" >&2; exit "${status}"' ERR
+
 image_reference="${1:?usage: contract.sh <image-reference>}"
 contract_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 test_directory="$(mktemp -d)"
