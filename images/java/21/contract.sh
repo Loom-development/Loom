@@ -11,10 +11,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-podman run --rm "${image_reference}" java -version 2>&1 \
-  | grep -Eq 'version "21\.'
-podman run --rm "${image_reference}" mvn --version \
-  | grep -Eq '^Apache Maven 3\.9\.'
+java_version="$(podman run --rm "${image_reference}" java -version 2>&1)"
+grep -Eq 'version "21\.' <<<"${java_version}"
+maven_version="$(podman run --rm "${image_reference}" mvn --version)"
+grep -Eq '^Apache Maven 3\.9\.' <<<"${maven_version}"
 podman run --rm "${image_reference}" sh -c \
   'command -v javac >/dev/null && command -v jar >/dev/null && command -v git >/dev/null'
 

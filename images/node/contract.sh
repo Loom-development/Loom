@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+trap 'status=$?; printf "Node contract failed at line %s: %s\n" "${LINENO}" "${BASH_COMMAND}" >&2; exit "${status}"' ERR
+
 image_reference="${1:?usage: contract.sh <image-reference>}"
 test_directory="$(mktemp -d)"
 container_name="loom-node-contract-$$"
@@ -22,8 +24,16 @@ case "${node_major}" in
 esac
 
 podman run --rm "${image_reference}" npm --version >/dev/null
-podman run --rm "${image_reference}" pnpm --version | grep -qx '10\.15\.0'
-podman run --rm "${image_reference}" yarn --version | grep -qx '4\.9\.2'
+pnpm_version="$(podman run --rm "${image_reference}" pnpm --version)"
+if [[ "${pnpm_version}" != "10.15.0" ]]; then
+  printf 'Expected pnpm 10.15.0, got %s\n' "${pnpm_version}" >&2
+  exit 1
+fi
+yarn_version="$(podman run --rm "${image_reference}" yarn --version)"
+if [[ "${yarn_version}" != "4.9.2" ]]; then
+  printf 'Expected Yarn 4.9.2, got %s\n' "${yarn_version}" >&2
+  exit 1
+fi
 
 mkdir -p "${test_directory}/dependency"
 printf '%s\n' \
@@ -39,14 +49,25 @@ for package_manager in npm pnpm yarn; do
     '{"name":"loom-contract-app","version":"1.0.0","private":true,"dependencies":{"loom-contract-dependency":"file:../dependency"}}' \
     >"${project_directory}/package.json"
 
+  install_arguments=(install --ignore-scripts)
+  if [[ "${package_manager}" == "yarn" ]]; then
+    install_arguments=(install --mode=skip-build)
+  fi
+
   podman run --rm \
     --volume "${test_directory}:/contract:Z" \
     --workdir "/contract/${package_manager}" \
-    "${image_reference}" "${package_manager}" install --ignore-scripts >/dev/null
+    "${image_reference}" "${package_manager}" "${install_arguments[@]}"
+
+  runtime_command=(node)
+  if [[ "${package_manager}" == "yarn" ]]; then
+    runtime_command=(yarn node)
+  fi
+
   podman run --rm \
     --volume "${test_directory}:/contract:Z" \
     --workdir "/contract/${package_manager}" \
-    "${image_reference}" node --eval \
+    "${image_reference}" "${runtime_command[@]}" --eval \
     'if (require("loom-contract-dependency") !== "loom-node-ready") process.exit(1);'
 done
 

@@ -26,8 +26,8 @@ fi
 podman run --rm "${image_reference}" composer --version >/dev/null
 podman run --rm "${image_reference}" php -r \
   'exit(ini_get("xdebug.mode") === "off" ? 0 : 1);'
-podman run --rm "${image_reference}" apache2ctl -M 2>/dev/null \
-  | grep -q 'rewrite_module'
+apache_modules="$(podman run --rm "${image_reference}" apache2ctl -M 2>/dev/null)"
+grep -q 'rewrite_module' <<<"${apache_modules}"
 
 mkdir -p "${test_directory}/project/public"
 printf '%s\n' '<?php echo "loom-php-ready";' \
