@@ -5,7 +5,7 @@ RUN set -eux; \
     apk add --no-cache g++ git make python3; \
     npm install --global npm@11.19.1; \
     corepack enable; \
-    corepack prepare pnpm@10.15.0 --activate; \
+    corepack prepare pnpm@10.34.5 --activate; \
     corepack prepare yarn@4.9.2 --activate
 
 WORKDIR /workspace

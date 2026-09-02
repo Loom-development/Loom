@@ -35,8 +35,14 @@ if [[ "${npm_tar_version}" != "7.5.22" ]]; then
   exit 1
 fi
 pnpm_version="$(podman run --rm "${image_reference}" pnpm --version)"
-if [[ "${pnpm_version}" != "10.15.0" ]]; then
-  printf 'Expected pnpm 10.15.0, got %s\n' "${pnpm_version}" >&2
+if [[ "${pnpm_version}" != "10.34.5" ]]; then
+  printf 'Expected pnpm 10.34.5, got %s\n' "${pnpm_version}" >&2
+  exit 1
+fi
+pnpm_tar_version="$(podman run --rm "${image_reference}" node --print \
+  'require("/root/.cache/node/corepack/v1/pnpm/10.34.5/dist/node_modules/tar/package.json").version')"
+if [[ "${pnpm_tar_version}" != "7.5.19" ]]; then
+  printf 'Expected pnpm tar 7.5.19, got %s\n' "${pnpm_tar_version}" >&2
   exit 1
 fi
 yarn_version="$(podman run --rm "${image_reference}" yarn --version)"

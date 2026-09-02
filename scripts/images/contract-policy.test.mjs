@@ -17,7 +17,8 @@ test("Node tool version failures report expected and actual versions", async () 
   const source = await readFile(path.join(repositoryRoot, "images/node/contract.sh"), "utf8");
   assert.match(source, /Expected npm 11\.19\.1, got/);
   assert.match(source, /Expected npm tar 7\.5\.22, got/);
-  assert.match(source, /Expected pnpm 10\.15\.0, got/);
+  assert.match(source, /Expected pnpm 10\.34\.5, got/);
+  assert.match(source, /Expected pnpm tar 7\.5\.19, got/);
   assert.match(source, /Expected Yarn 4\.9\.2, got/);
   assert.match(source, /Node contract failed at line/);
   assert.match(source, /install --mode=skip-build/);

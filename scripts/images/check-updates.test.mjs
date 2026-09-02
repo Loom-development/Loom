@@ -12,7 +12,7 @@ const catalog = {
       name: "loom-node-24",
       kind: "custom",
       source: `docker.io/library/node:24.20.0-alpine@${digest("a")}`,
-      version: "24.20.0-loom.2",
+      version: "24.20.0-loom.3",
       platforms: ["linux/amd64", "linux/arm64"],
       context: "images/node"
     }

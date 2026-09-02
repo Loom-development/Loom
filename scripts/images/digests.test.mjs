@@ -13,7 +13,7 @@ const catalog = {
       name: "loom-node-24",
       kind: "custom",
       source: `docker.io/library/node:24@${hash("a")}`,
-      version: "24.20.0-loom.2",
+      version: "24.20.0-loom.3",
       platforms: ["linux/amd64", "linux/arm64"],
       context: "images/node"
     },
@@ -48,7 +48,7 @@ test("creates a stable complete GHCR digest document with mirror provenance", ()
     images: [
       {
         name: "loom-node-24",
-        version: "24.20.0-loom.2",
+        version: "24.20.0-loom.3",
         image: "ghcr.io/loom-development/loom-node-24",
         digest: hash("c"),
         platforms: ["linux/amd64", "linux/arm64"]
