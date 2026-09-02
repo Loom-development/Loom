@@ -6,5 +6,69 @@
     "rationale": "gosu only changes process credentials during local container startup and does not use the affected crypto/tls certificate validation or session resumption paths; retain until upstream rebuilds gosu with a fixed Go release.",
     "owner": "@Loom-development",
     "expires": "2026-10-01"
+  },
+  {
+    "id": "CVE-2026-56854",
+    "target": "usr/bin/bsondump",
+    "packageName": "golang.org/x/crypto",
+    "rationale": "MongoDB 7.0.40 is the newest vendor image and no rebuilt Database Tools package is available; Loom runs mongod and mongosh, not this offline dump utility.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-02"
+  },
+  {
+    "id": "CVE-2026-56854",
+    "target": "usr/bin/mongodump",
+    "packageName": "golang.org/x/crypto",
+    "rationale": "MongoDB 7.0.40 is the newest vendor image and no rebuilt Database Tools package is available; Loom runs mongod and mongosh, not this offline dump utility.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-02"
+  },
+  {
+    "id": "CVE-2026-56854",
+    "target": "usr/bin/mongoexport",
+    "packageName": "golang.org/x/crypto",
+    "rationale": "MongoDB 7.0.40 is the newest vendor image and no rebuilt Database Tools package is available; Loom runs mongod and mongosh, not this offline export utility.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-02"
+  },
+  {
+    "id": "CVE-2026-56854",
+    "target": "usr/bin/mongofiles",
+    "packageName": "golang.org/x/crypto",
+    "rationale": "MongoDB 7.0.40 is the newest vendor image and no rebuilt Database Tools package is available; Loom runs mongod and mongosh, not this offline GridFS utility.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-02"
+  },
+  {
+    "id": "CVE-2026-56854",
+    "target": "usr/bin/mongoimport",
+    "packageName": "golang.org/x/crypto",
+    "rationale": "MongoDB 7.0.40 is the newest vendor image and no rebuilt Database Tools package is available; Loom runs mongod and mongosh, not this offline import utility.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-02"
+  },
+  {
+    "id": "CVE-2026-56854",
+    "target": "usr/bin/mongorestore",
+    "packageName": "golang.org/x/crypto",
+    "rationale": "MongoDB 7.0.40 is the newest vendor image and no rebuilt Database Tools package is available; Loom runs mongod and mongosh, not this offline restore utility.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-02"
+  },
+  {
+    "id": "CVE-2026-56854",
+    "target": "usr/bin/mongostat",
+    "packageName": "golang.org/x/crypto",
+    "rationale": "MongoDB 7.0.40 is the newest vendor image and no rebuilt Database Tools package is available; Loom runs mongod and mongosh, not this optional monitoring utility.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-02"
+  },
+  {
+    "id": "CVE-2026-56854",
+    "target": "usr/bin/mongotop",
+    "packageName": "golang.org/x/crypto",
+    "rationale": "MongoDB 7.0.40 is the newest vendor image and no rebuilt Database Tools package is available; Loom runs mongod and mongosh, not this optional monitoring utility.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-02"
   }
 ]

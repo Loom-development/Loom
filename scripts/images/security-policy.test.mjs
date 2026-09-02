@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { validateSecurityExceptions } from "./security-policy.mjs";
 
 const now = new Date("2026-09-01T00:00:00Z");
 const finding = { id: "CVE-2026-1000", fixedVersion: "1.2.3" };
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 test("accepts a documented active exception for a reported finding", () => {
   assert.deepEqual(
@@ -94,5 +98,39 @@ test("scopes an exception to its vulnerable target and package", () => {
   assert.match(
     validateSecurityExceptions([exception], now, [gosuFinding, serverFinding]).join("\n"),
     /in usr\/local\/bin\/server:stdlib/
+  );
+});
+
+test("MongoDB Database Tools exceptions cover only the reported binaries", async () => {
+  const exceptions = JSON.parse(await readFile(
+    path.join(repositoryRoot, "images/security-exceptions.json"),
+    "utf8"
+  ));
+  const targets = [
+    "usr/bin/bsondump",
+    "usr/bin/mongodump",
+    "usr/bin/mongoexport",
+    "usr/bin/mongofiles",
+    "usr/bin/mongoimport",
+    "usr/bin/mongorestore",
+    "usr/bin/mongostat",
+    "usr/bin/mongotop"
+  ];
+  const findings = targets.map((target) => ({
+    id: "CVE-2026-56854",
+    target,
+    packageName: "golang.org/x/crypto",
+    installedVersion: "v0.54.0",
+    fixedVersion: "0.55.0"
+  }));
+
+  assert.deepEqual(
+    validateSecurityExceptions(exceptions, new Date("2026-09-02T00:00:00Z"), findings),
+    []
+  );
+  assert.equal(
+    exceptions.filter(({ id }) => id === "CVE-2026-56854").every(({ target, packageName }) =>
+      targets.includes(target) && packageName === "golang.org/x/crypto"),
+    true
   );
 });
