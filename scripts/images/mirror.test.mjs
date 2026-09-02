@@ -104,3 +104,19 @@ test("starts the upstream entrypoint, waits for readiness, and removes the conta
   assert.deepEqual(calls[2].args.slice(-2), ["redis-cli", "ping"]);
   assert.deepEqual(calls.at(-1).args.slice(0, 2), ["rm", "--force"]);
 });
+
+test("does not fail a successful readiness probe when Podman cleanup fails", async () => {
+  const cleanupErrors = [];
+
+  await testMirror("mysql-8.4", "ghcr.io/loom-development/mysql-8.4@sha256:test", {
+    attempts: 1,
+    interval: 0,
+    reportCleanupError: (message) => cleanupErrors.push(message),
+    execute: async (_command, args) => {
+      if (args[0] === "rm") throw new Error("container PID did not die");
+    }
+  });
+
+  assert.equal(cleanupErrors.length, 1);
+  assert.match(cleanupErrors[0], /container PID did not die/);
+});

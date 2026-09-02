@@ -49,6 +49,22 @@ test("rejects incomplete, expired, overlong, and stale exceptions", () => {
 test("rejects a fixable critical finding without an exception", () => {
   assert.deepEqual(
     validateSecurityExceptions([], now, [finding]),
-    ["fixable critical vulnerability CVE-2026-1000 is not excepted"]
+    ["fixable critical vulnerability CVE-2026-1000 (fixed in 1.2.3) is not excepted"]
+  );
+});
+
+test("reports the vulnerable package and upgrade path", () => {
+  const detailedFinding = {
+    ...finding,
+    target: "usr/local/bin/example",
+    packageName: "stdlib",
+    installedVersion: "1.20.1"
+  };
+
+  assert.deepEqual(
+    validateSecurityExceptions([], now, [detailedFinding]),
+    [
+      "fixable critical vulnerability CVE-2026-1000 in usr/local/bin/example:stdlib (1.20.1 -> 1.2.3) is not excepted"
+    ]
   );
 });

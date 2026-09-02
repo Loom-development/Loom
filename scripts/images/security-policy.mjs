@@ -50,7 +50,13 @@ export function validateSecurityExceptions(entries, now, findings = []) {
   const exceptedIds = new Set(exceptions.map(({ id }) => id));
   for (const finding of findings) {
     if (finding?.id && !exceptedIds.has(finding.id)) {
-      errors.push(`fixable critical vulnerability ${finding.id} is not excepted`);
+      const location = [finding.target, finding.packageName].filter(Boolean).join(":");
+      const versions = finding.installedVersion
+        ? ` (${finding.installedVersion} -> ${finding.fixedVersion})`
+        : ` (fixed in ${finding.fixedVersion})`;
+      errors.push(
+        `fixable critical vulnerability ${finding.id}${location ? ` in ${location}` : ""}${versions} is not excepted`
+      );
     }
   }
 
@@ -59,11 +65,15 @@ export function validateSecurityExceptions(entries, now, findings = []) {
 
 export function extractFixableCriticalFindings(report) {
   return (report?.Results ?? [])
-    .flatMap(({ Vulnerabilities = [] }) => Vulnerabilities)
+    .flatMap(({ Target, Vulnerabilities = [] }) =>
+      Vulnerabilities.map((vulnerability) => ({ ...vulnerability, Target })))
     .filter(({ Severity, FixedVersion }) => Severity === "CRITICAL" && FixedVersion)
-    .map(({ VulnerabilityID, FixedVersion }) => ({
+    .map(({ VulnerabilityID, FixedVersion, InstalledVersion, PkgName, Target }) => ({
       id: VulnerabilityID,
-      fixedVersion: FixedVersion
+      fixedVersion: FixedVersion,
+      installedVersion: InstalledVersion,
+      packageName: PkgName,
+      target: Target
     }));
 }
 

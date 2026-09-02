@@ -83,6 +83,7 @@ export async function testMirror(name, reference, options = {}) {
   const execute = options.execute ?? run;
   const attempts = options.attempts ?? 30;
   const interval = options.interval ?? 2_000;
+  const reportCleanupError = options.reportCleanupError ?? console.warn;
   const containerName = `loom-mirror-${name.replaceAll(/[^a-z0-9_.-]/g, "-")}-${process.pid}`;
   const environmentArgs = probe.environment.flatMap((value) => ["--env", value]);
 
@@ -108,7 +109,11 @@ export async function testMirror(name, reference, options = {}) {
     }
     throw new Error(`Mirror "${name}" did not become ready: ${lastError?.message}`);
   } finally {
-    await execute("podman", ["rm", "--force", containerName]);
+    try {
+      await execute("podman", ["rm", "--force", containerName]);
+    } catch (error) {
+      reportCleanupError(`Could not remove readiness container ${containerName}: ${error.message}`);
+    }
   }
 }
 
