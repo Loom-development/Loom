@@ -111,6 +111,26 @@ test("generated-stack smoke initializes disposable projects by public ID", () =>
   assert.doesNotMatch(cleanupHelper, /project_name/);
 });
 
+test("published-image smoke validates and pulls the generated GHCR digest", () => {
+  const packageJson = JSON.parse(readFileSync(resolve(repoDir, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+  };
+  assert.equal(packageJson.scripts["smoke:published-image"], "./scripts/smoke-published-stack-image.sh");
+
+  const wrapper = readFileSync(resolve(repoDir, "scripts", "smoke-published-stack-image.sh"), "utf8");
+  assert.match(wrapper, /LOOM_PUBLISHED_IMAGE_PREFLIGHT=1/);
+  assert.match(wrapper, /LOOM_PUBLISHED_SMOKE_KEEP/);
+  assert.match(wrapper, /smoke-generated-stacks\.sh/);
+
+  const smoke = readFileSync(resolve(repoDir, "scripts", "smoke-generated-stacks.sh"), "utf8");
+  assert.ok(smoke.includes("^ghcr\\.io/loom-development/[^@]+@sha256:[a-f0-9]{64}$"));
+  assert.match(smoke, /podman pull/);
+  const init = smoke.indexOf('run_loom init "$stack_id"');
+  const pull = smoke.indexOf('podman pull "$image_reference"');
+  const start = smoke.indexOf("run_loom start --recreate");
+  assert.ok(init >= 0 && init < pull && pull < start);
+});
+
 test("generated-stack smoke refuses a pre-existing custom workspace", async () => {
   const tempRoot = await mkdtemp(resolve(tmpdir(), "loom-smoke-root-test-"));
   const sharedRoot = resolve(tempRoot, "shared");

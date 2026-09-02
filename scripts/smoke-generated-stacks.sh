@@ -251,6 +251,30 @@ init_stack() {
   fi
 }
 
+published_image_preflight() {
+  project_dir="$1"
+  [ "${LOOM_PUBLISHED_IMAGE_PREFLIGHT:-0}" = "1" ] || return 0
+  image_references="$(node -e '
+    const fs = require("node:fs");
+    const yaml = fs.readFileSync(process.argv[1], "utf8");
+    const references = [...yaml.matchAll(/image:\s*\$\{[A-Z][A-Z0-9_]*:?-([^}]+)\}/g)].map((match) => match[1]);
+    process.stdout.write([...new Set(references)].join("\n"));
+  ' "$project_dir/loom.yaml")"
+  [ -n "$image_references" ] || {
+    echo "Generated project has no default image references: $project_dir/loom.yaml" >&2
+    return 1
+  }
+  while IFS= read -r image_reference; do
+    if ! printf '%s\n' "$image_reference" | grep -Eq '^ghcr\.io/loom-development/[^@]+@sha256:[a-f0-9]{64}$'; then
+      echo "Generated project image is not an immutable Loom GHCR reference: $image_reference" >&2
+      return 1
+    fi
+    podman pull "$image_reference" || return 1
+  done <<EOF
+$image_references
+EOF
+}
+
 verify_stack() {
   stack_id="$1"
   case "$stack_id" in
@@ -301,6 +325,11 @@ smoke_stack() {
   name="$(project_name "$project_dir")"
   if ! record_created_project "$project_key" "$name" "$project_dir"; then
     echo "===== FAIL: $stack_id (scope) =====" >&2
+    return 1
+  fi
+
+  if ! published_image_preflight "$project_dir"; then
+    echo "===== FAIL: $stack_id (published image preflight) =====" >&2
     return 1
   fi
 

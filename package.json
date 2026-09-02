@@ -16,6 +16,7 @@
     "images:test": "node scripts/images/test-image.mjs",
     "images:sync-stacks": "node scripts/sync-stack-image-pins.mjs",
     "smoke:generated": "./scripts/smoke-generated-stacks.sh",
+    "smoke:published-image": "./scripts/smoke-published-stack-image.sh",
     "smoke:release": "./scripts/release-smoke.sh",
     "test:images": "node --test scripts/images/*.test.mjs",
     "test": "pnpm -r test",
