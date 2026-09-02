@@ -60,6 +60,8 @@ test("release workflow publishes only from main and signs the scanned manifest d
   assert.match(workflow, /actions\/upload-artifact@v7/);
   assert.match(workflow, /actions\/download-artifact@v8/);
   assert.match(workflow, /node scripts\/images\/digests\.mjs/);
+  assert.match(workflow, /pnpm images:sync-stacks/);
+  assert.match(workflow, /git add images\/digests\.json stacks\/published-image-data\.ts stacks\/\*\/templates/);
   assert.match(workflow, /automation\/image-digests/);
   assert.match(workflow, /gh pr (view|create)/);
 });

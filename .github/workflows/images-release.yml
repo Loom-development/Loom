@@ -237,6 +237,10 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Download release records
         uses: actions/download-artifact@v8
         with:
@@ -245,10 +249,12 @@ jobs:
           merge-multiple: true
       - name: Generate immutable digest catalog
         run: node scripts/images/digests.mjs release-records images/digests.json
+      - name: Synchronize published stack image defaults
+        run: pnpm images:sync-stacks
       - id: changes
         name: Detect catalog changes
         run: |
-          if git diff --quiet -- images/digests.json; then
+          if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -262,7 +268,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B "$BRANCH"
-          git add images/digests.json
+          git add images/digests.json stacks/published-image-data.ts stacks/*/templates
           git commit -m "chore(images): record published manifest digests"
           git push --force origin "HEAD:refs/heads/$BRANCH"
           gh pr view "$BRANCH" --json url --jq .url || gh pr create \

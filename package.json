@@ -14,6 +14,7 @@
     "dev": "pnpm --filter @loomdev/cli dev",
     "images:build": "node scripts/images/build.mjs",
     "images:test": "node scripts/images/test-image.mjs",
+    "images:sync-stacks": "node scripts/sync-stack-image-pins.mjs",
     "smoke:generated": "./scripts/smoke-generated-stacks.sh",
     "smoke:release": "./scripts/release-smoke.sh",
     "test:images": "node --test scripts/images/*.test.mjs",
