@@ -18,7 +18,7 @@ podman run --rm "${image_reference}" php -r \
   'exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 4 ? 0 : 1);'
 podman run --rm "${image_reference}" composer --version >/dev/null
 podman run --rm "${image_reference}" php -r \
-  'exit(ini_get("xdebug.mode") === "off" ? 0 : 1);'
+  'exit(xdebug_info("mode") === [] ? 0 : 1);'
 podman run --rm "${image_reference}" grep -Fq \
   '$wp_version = '\''6.8.2'\''' /usr/src/wordpress/wp-includes/version.php
 

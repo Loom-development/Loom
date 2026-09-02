@@ -27,6 +27,8 @@ test("PHP-family contracts report the command that failed", async () => {
   for (const contract of ["images/php/contract.sh", "images/wordpress/contract.sh"]) {
     const source = await readFile(path.join(repositoryRoot, contract), "utf8");
     assert.match(source, /contract failed at line/);
+    assert.match(source, /xdebug_info\("mode"\) === \[\]/);
+    assert.doesNotMatch(source, /ini_get\("xdebug\.mode"\)/);
   }
 });
 
