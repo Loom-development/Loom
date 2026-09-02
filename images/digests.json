@@ -2,6 +2,182 @@
   "schemaVersion": 1,
   "registry": "ghcr.io/loom-development",
   "signatureIdentity": "https://github.com/Loom-development/Loom/.github/workflows/images-release.yml@refs/heads/main",
-  "status": "pending-initial-release",
-  "images": []
+  "images": [
+    {
+      "name": "elasticsearch-8.19",
+      "version": "8.19.20",
+      "image": "ghcr.io/loom-development/elasticsearch-8.19",
+      "digest": "sha256:e4797708584bd0df7c746b33a6640d243018a0ae8c8b088391c6f4675a3bef52",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "upstreamDigest": "sha256:e4797708584bd0df7c746b33a6640d243018a0ae8c8b088391c6f4675a3bef52"
+    },
+    {
+      "name": "loom-bun-1",
+      "version": "1.2.23-loom.2",
+      "image": "ghcr.io/loom-development/loom-bun-1",
+      "digest": "sha256:179e6d6251f1bfa8e2a010929dbc19b050a0a46a80b8112b5b7ec38840b5a91a",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-dotnet-8",
+      "version": "8.0.424-loom.1",
+      "image": "ghcr.io/loom-development/loom-dotnet-8",
+      "digest": "sha256:3c6796f373952665136bf1e368703bfc86c0b6f87f0ae5118153d5b6ce880bc0",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-java-21",
+      "version": "21-maven3.9.13-loom.1",
+      "image": "ghcr.io/loom-development/loom-java-21",
+      "digest": "sha256:c5c0911d7bdeab6023aa4450d64943acb551eff60e7a9185eb4229172d1a12f5",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-node-22",
+      "version": "22.23.2-loom.3",
+      "image": "ghcr.io/loom-development/loom-node-22",
+      "digest": "sha256:482ba8d8544e0e9b58ef21df6c821ee91e16e530562d08cc6c6e5f6651a3b48c",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-node-24",
+      "version": "24.20.0-loom.3",
+      "image": "ghcr.io/loom-development/loom-node-24",
+      "digest": "sha256:723ac6711606bdb5170d2c997d216460118ce8802e3185c666439272bf33bfa7",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-php",
+      "version": "8.4.25-loom.1",
+      "image": "ghcr.io/loom-development/loom-php",
+      "digest": "sha256:39fa6e7e23cc88454fcf96cfa61767e77ac24cbbb48b5b856a174222a4122806",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-python-3.12",
+      "version": "3.12.14-loom.1",
+      "image": "ghcr.io/loom-development/loom-python-3.12",
+      "digest": "sha256:bcd4c0f084f66238997d8b52b17e84f82a73ba65e7793b4a841a77164cd3ae02",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-ruby-3.3",
+      "version": "3.3.12-loom.1",
+      "image": "ghcr.io/loom-development/loom-ruby-3.3",
+      "digest": "sha256:deef50b96e9407629cdddf1dcf673f1dd9ff1f357d915ab3b556ea5f809a0e85",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-sqlite-3",
+      "version": "3.53.4-loom.1",
+      "image": "ghcr.io/loom-development/loom-sqlite-3",
+      "digest": "sha256:8b24f727efc62a19faba9296bdf2c8d87801fda21c44c156fce7cec564876b26",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "loom-wordpress",
+      "version": "6.8.3-php8.4-loom.1",
+      "image": "ghcr.io/loom-development/loom-wordpress",
+      "digest": "sha256:89f7a30ac6f87a9ae9a63f2883ed2f7177bb06b2571fbc9e35f8c04b57063d1b",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    {
+      "name": "mariadb-11.8",
+      "version": "11.8.9",
+      "image": "ghcr.io/loom-development/mariadb-11.8",
+      "digest": "sha256:2439dcd7d14010ecd1ff7a4e1c5abe8e208c34fe35290744deeeaac3569043c3",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "upstreamDigest": "sha256:2439dcd7d14010ecd1ff7a4e1c5abe8e208c34fe35290744deeeaac3569043c3"
+    },
+    {
+      "name": "mongo-7.0",
+      "version": "7.0.40-jammy",
+      "image": "ghcr.io/loom-development/mongo-7.0",
+      "digest": "sha256:406a4fdca9fc763443268f000218d3849ef8996f66ed9e92ba0b501b446ab822",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "upstreamDigest": "sha256:406a4fdca9fc763443268f000218d3849ef8996f66ed9e92ba0b501b446ab822"
+    },
+    {
+      "name": "mssql-2022",
+      "version": "2022-CU26-ubuntu-22.04",
+      "image": "ghcr.io/loom-development/mssql-2022",
+      "digest": "sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89",
+      "platforms": [
+        "linux/amd64"
+      ],
+      "upstreamDigest": "sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89"
+    },
+    {
+      "name": "mysql-8.4",
+      "version": "8.4.11",
+      "image": "ghcr.io/loom-development/mysql-8.4",
+      "digest": "sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "upstreamDigest": "sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb"
+    },
+    {
+      "name": "postgres-16",
+      "version": "16.15-alpine3.24",
+      "image": "ghcr.io/loom-development/postgres-16",
+      "digest": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "upstreamDigest": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685"
+    },
+    {
+      "name": "redis-7.4",
+      "version": "7.4.11-alpine3.21",
+      "image": "ghcr.io/loom-development/redis-7.4",
+      "digest": "sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "upstreamDigest": "sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf"
+    }
+  ]
 }
