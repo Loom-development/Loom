@@ -9,7 +9,27 @@ import { spawnSync } from "node:child_process";
 import cliPackageJson from "../package.json" with { type: "json" };
 import { findStackDefinition } from "./stacks.js";
 
-const phpFpmApacheImage = "docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5";
+function runtimeImage(stackId: string, environment: string): string {
+  return findStackDefinition(stackId)!.runtimeImages.find(({ env }) => env === environment)!.reference;
+}
+
+function generatorImage(stackId: string): string {
+  const generator = findStackDefinition(stackId)!.generator;
+  assert.equal(generator.kind, "command");
+  return generator.kind === "command" ? generator.image : "";
+}
+
+const phpFpmApacheImage = runtimeImage("php-drupal", "PHP_IMAGE");
+const rubyImage = generatorImage("rails7");
+const wordpressImage = generatorImage("php-wordpress");
+
+function assertConfigImage(config: string, environment: string, reference: string): void {
+  assert.ok(config.includes(`image: \${${environment}:-${reference}}`), `${environment} loom.yaml`);
+}
+
+function assertEnvironmentImage(environmentFile: string, environment: string, reference: string): void {
+  assert.ok(environmentFile.includes(`${environment}=${reference}`), `${environment} .env`);
+}
 
 function runCli(args: string[], options: { env?: NodeJS.ProcessEnv; input?: string } = {}) {
   const currentFileDir = dirname(fileURLToPath(import.meta.url));
@@ -71,12 +91,12 @@ test("init php defaults docroot to '.' when not provided", async () => {
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
   assert.match(generatedConfig, /apache2-foreground/);
-  assert.match(generatedConfig, /image:\s*\$\{PHP_IMAGE:-docker\.io\/library\/php:8\.4\.25-apache\}/);
+  assertConfigImage(generatedConfig, "PHP_IMAGE", runtimeImage("php", "PHP_IMAGE"));
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.doesNotMatch(generatedConfig, /apt-get|pecl install|docker-php-ext-install|memcached/i);
-  assert.match(generatedEnv, /PHP_IMAGE=docker\.io\/library\/php:8\.4\.25-apache/);
+  assertEnvironmentImage(generatedEnv, "PHP_IMAGE", runtimeImage("php", "PHP_IMAGE"));
   assert.doesNotMatch(generatedEnv, /NGINX_IMAGE=/);
   assert.doesNotMatch(generatedEnv, /MEMCACHED_IMAGE/);
   assert.match(generatedConfig, /healthcheck:/);
@@ -153,7 +173,7 @@ test("init applies runtime image overrides from --image", async () => {
     renderInputs: { projectName: string; databases: string[]; adopted: boolean };
   };
 
-  assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:24\.20\.0-alpine\}/);
+  assertConfigImage(generatedConfig, "NODE_IMAGE", runtimeImage("node", "NODE_IMAGE"));
   assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:22-alpine/);
   assert.match(result.stdout, /Configured runtime image selections/);
   assert.match(result.stdout, /Startup may take a few minutes while Loom downloads images and installs dependencies/);
@@ -299,12 +319,12 @@ test("init django-react creates backend, frontend, and env files", async () => {
 
   assert.match(result.stdout, /Initializing 'django-react': Django backend and React frontend\./);
   assert.match(generatedConfig, /name:\s*loom-django_react_app/i);
-  assert.match(generatedConfig, /image:\s*\$\{PYTHON_IMAGE:-docker\.io\/library\/python:3\.12\.14-slim\}/);
-  assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:24\.20\.0-alpine\}/);
+  assertConfigImage(generatedConfig, "PYTHON_IMAGE", runtimeImage("django-react", "PYTHON_IMAGE"));
+  assertConfigImage(generatedConfig, "NODE_IMAGE", runtimeImage("django-react", "NODE_IMAGE"));
   assert.match(generatedConfig, /type:\s*python[\s\S]*user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}[\s\S]*userns:\s*keep-id[\s\S]*execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /type:\s*node[\s\S]*user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}[\s\S]*userns:\s*keep-id[\s\S]*execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedEnv, /PYTHON_IMAGE=docker\.io\/library\/python:3\.12\.14-slim/);
-  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:24\.20\.0-alpine/);
+  assertEnvironmentImage(generatedEnv, "PYTHON_IMAGE", runtimeImage("django-react", "PYTHON_IMAGE"));
+  assertEnvironmentImage(generatedEnv, "NODE_IMAGE", runtimeImage("django-react", "NODE_IMAGE"));
   assert.match(generatedEnv, /HOST_UID=1000/);
   assert.match(generatedEnv, /HOST_GID=1000/);
   assert.match(backendRequirements, /Django~=5\.2\.0/);
@@ -321,10 +341,10 @@ test("init dotnet includes host-aligned exec user defaults", async () => {
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{DOTNET_IMAGE:-mcr\.microsoft\.com\/dotnet\/sdk:8\.0\.424\}/);
+  assertConfigImage(generatedConfig, "DOTNET_IMAGE", runtimeImage("dotnet", "DOTNET_IMAGE"));
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.match(generatedConfig, /execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedEnv, /DOTNET_IMAGE=mcr\.microsoft\.com\/dotnet\/sdk:8\.0\.424/);
+  assertEnvironmentImage(generatedEnv, "DOTNET_IMAGE", runtimeImage("dotnet", "DOTNET_IMAGE"));
   assert.match(generatedEnv, /HOST_UID=1000/);
   assert.match(generatedEnv, /HOST_GID=1000/);
 });
@@ -339,12 +359,12 @@ test("init spring-react includes host-aligned exec user defaults", async () => {
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{JAVA_IMAGE:-docker\.io\/library\/maven:3\.9\.13-eclipse-temurin-21\}/);
-  assert.match(generatedConfig, /image:\s*\$\{NODE_IMAGE:-docker\.io\/library\/node:22\.23\.2-alpine\}/);
+  assertConfigImage(generatedConfig, "JAVA_IMAGE", runtimeImage("spring-react", "JAVA_IMAGE"));
+  assertConfigImage(generatedConfig, "NODE_IMAGE", runtimeImage("spring-react", "NODE_IMAGE"));
   assert.match(generatedConfig, /type:\s*java[\s\S]*userns:\s*keep-id[\s\S]*execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /type:\s*node[\s\S]*userns:\s*keep-id[\s\S]*execUser:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
-  assert.match(generatedEnv, /JAVA_IMAGE=docker\.io\/library\/maven:3\.9\.13-eclipse-temurin-21/);
-  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:22\.23\.2-alpine/);
+  assertEnvironmentImage(generatedEnv, "JAVA_IMAGE", runtimeImage("spring-react", "JAVA_IMAGE"));
+  assertEnvironmentImage(generatedEnv, "NODE_IMAGE", runtimeImage("spring-react", "NODE_IMAGE"));
   assert.match(generatedEnv, /HOST_UID=1000/);
   assert.match(generatedEnv, /HOST_GID=1000/);
 });
@@ -365,7 +385,7 @@ test("init jamstack creates frontend and api files with updated stack explanatio
   assert.match(generatedConfig, /service:\s*web/);
   assert.match(generatedConfig, /workdir:\s*\/workspace\/api/);
   assert.match(generatedConfig, /workdir:\s*\/workspace\/web/);
-  assert.match(generatedEnv, /NODE_IMAGE=docker\.io\/library\/node:24\.20\.0-alpine/);
+  assertEnvironmentImage(generatedEnv, "NODE_IMAGE", runtimeImage("jamstack", "NODE_IMAGE"));
   assert.match(apiPackage, /loom-jamstack-api/);
   assert.match(webPackage, /loom-jamstack-web/);
 });
@@ -416,7 +436,7 @@ test("init rails7-hotwire bootstraps a Rails + Hotwire project before copying Lo
       "    --rm|--userns=keep-id)",
       "      shift",
       "      ;;",
-      "    docker.io/library/ruby:3.3.12)",
+      `    ${rubyImage})`,
       "      shift",
       "      break",
       "      ;;",
@@ -459,7 +479,7 @@ test("init rails7-hotwire bootstraps a Rails + Hotwire project before copying Lo
   assert.match(generatedConfig, /healthcheck:/);
   assert.match(generatedConfig, /TCPSocket\.new\('127\.0\.0\.1', 3008\)\.close/);
   assert.match(generatedConfig, /startPeriodSeconds:\s*10/);
-  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3\.12/);
+  assertEnvironmentImage(generatedEnv, "RUBY_IMAGE", runtimeImage("rails7-hotwire", "RUBY_IMAGE"));
   assert.match(generatedLayout, /Hotwire/);
 });
 
@@ -567,9 +587,10 @@ test("init db template defaults to ./db and creates .env", async () => {
     const generatedConfig = await readFile(join(tempRoot, "db", "loom.yaml"), "utf8");
     const generatedEnv = await readFile(join(tempRoot, "db", ".env"), "utf8");
     assert.match(generatedConfig, /name:\s*loom-loom_cli_init_/i);
-    assert.match(generatedConfig, /image:\s*\$\{POSTGRES_IMAGE:-docker\.io\/library\/postgres:16\.15-alpine3\.24\}/);
+    const postgresImage = runtimeImage("db-postgres", "POSTGRES_IMAGE");
+    assert.ok(generatedConfig.includes(`image: \${POSTGRES_IMAGE:-${postgresImage}}`));
     assert.match(generatedEnv, /POSTGRES_USER=/);
-    assert.match(generatedEnv, /POSTGRES_IMAGE=docker\.io\/library\/postgres:16\.15-alpine3\.24/);
+    assert.ok(generatedEnv.includes(`POSTGRES_IMAGE=${postgresImage}`));
     assert.match(result.stdout, /Initialized 'db-postgres' in .*\/db/);
   } finally {
     process.chdir(previousCwd);
@@ -584,16 +605,9 @@ test("init db-all emits every exact database image pin", async () => {
 
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
-  const pins = {
-    ELASTICSEARCH_IMAGE: "docker.elastic.co/elasticsearch/elasticsearch:8.19.20",
-    MARIADB_IMAGE: "docker.io/library/mariadb:11.8.9",
-    MONGO_IMAGE: "docker.io/library/mongo:7.0.40-jammy",
-    MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04",
-    MYSQL_IMAGE: "docker.io/library/mysql:8.4.11",
-    POSTGRES_IMAGE: "docker.io/library/postgres:16.15-alpine3.24",
-    REDIS_IMAGE: "docker.io/library/redis:7.4.11-alpine3.21",
-    SQLITE_IMAGE: "docker.io/keinos/sqlite3:3.53.4"
-  };
+  const pins = Object.fromEntries(
+    findStackDefinition("db-all")!.runtimeImages.map(({ env, reference }) => [env, reference])
+  );
   for (const [env, reference] of Object.entries(pins)) {
     assert.ok(generatedConfig.includes(`image: \${${env}:-${reference}}`), `${env} loom.yaml`);
     assert.ok(generatedEnv.includes(`${env}=${reference}`), `${env} .env`);
@@ -919,7 +933,7 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
       "    --rm|--userns=keep-id)",
       "      shift",
       "      ;;",
-      "    docker.io/library/wordpress:6.8.3-php8.4-apache)",
+      `    ${wordpressImage})`,
       "      shift",
       "      break",
       "      ;;",
@@ -952,7 +966,7 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
   const generatedWpConfig = await readFile(join(targetDir, "wp-config.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{WORDPRESS_IMAGE:-docker\.io\/library\/wordpress:6\.8\.3-php8\.4-apache\}/i);
+  assertConfigImage(generatedConfig, "WORDPRESS_IMAGE", runtimeImage("php-wordpress", "WORDPRESS_IMAGE"));
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /user:\s*root/);
   assert.match(generatedConfig, /groupmod -o -g "\$target_gid" www-data/);
@@ -965,7 +979,7 @@ test("init php-wordpress bootstraps a local WordPress project before copying loo
   assert.match(generatedIndex, /WordPress stub/);
   assert.match(generatedWpConfig, /DB_NAME/);
   assert.match(generatedWpConfig, /\$table_prefix\s*=\s*loomWordPressEnv\('WORDPRESS_TABLE_PREFIX', 'wp_'\);/);
-  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6\.8\.3-php8\.4-apache/);
+  assertEnvironmentImage(generatedEnv, "WORDPRESS_IMAGE", runtimeImage("php-wordpress", "WORDPRESS_IMAGE"));
   assert.doesNotMatch(generatedEnv, /MEMCACHED_IMAGE|WORDPRESS_TABLE_PREFIX|WORDPRESS_AUTH_KEY|WORDPRESS_DEBUG/);
 });
 
@@ -1001,13 +1015,13 @@ test("init php-wordpress adopts an existing WordPress project and preserves exis
   const existingWpConfig = await readFile(join(targetDir, "wp-config.php"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{WORDPRESS_IMAGE:-docker\.io\/library\/wordpress:6\.8\.3-php8\.4-apache\}/i);
+  assertConfigImage(generatedConfig, "WORDPRESS_IMAGE", runtimeImage("php-wordpress", "WORDPRESS_IMAGE"));
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /user:\s*root/);
   assert.doesNotMatch(generatedConfig, /execUser:|workdir:|memcached/i);
   assert.match(existingWpConfig, /existing/);
   assert.doesNotMatch(existingWpConfig, /loom-auth-key/);
-  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6\.8\.3-php8\.4-apache/);
+  assertEnvironmentImage(generatedEnv, "WORDPRESS_IMAGE", runtimeImage("php-wordpress", "WORDPRESS_IMAGE"));
 });
 
 test("init php-wordpress adopts an existing WordPress project and adds wp-config when missing", async () => {
@@ -1032,7 +1046,7 @@ test("init php-wordpress adopts an existing WordPress project and adds wp-config
   assert.match(generatedConfig, /composer:\s*false/);
   assert.match(generatedConfig, /user:\s*root/);
   assert.doesNotMatch(generatedConfig, /execUser:|workdir:|memcached/i);
-  assert.match(generatedEnv, /WORDPRESS_IMAGE=docker\.io\/library\/wordpress:6\.8\.3-php8\.4-apache/);
+  assertEnvironmentImage(generatedEnv, "WORDPRESS_IMAGE", runtimeImage("php-wordpress", "WORDPRESS_IMAGE"));
 });
 
 test("init rails7 bootstraps a local Rails project before copying loom config", async () => {
@@ -1061,7 +1075,7 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
       "    --rm|--userns=keep-id)",
       "      shift",
       "      ;;",
-      "    docker.io/library/ruby:3.3.12)",
+      `    ${rubyImage})`,
       "      shift",
       "      break",
       "      ;;",
@@ -1095,7 +1109,7 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
   const generatedRailsBin = await readFile(join(targetDir, "bin", "rails"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{RUBY_IMAGE:-docker\.io\/library\/ruby:3\.3\.12\}/i);
+  assertConfigImage(generatedConfig, "RUBY_IMAGE", runtimeImage("rails7", "RUBY_IMAGE"));
   assert.match(generatedConfig, /user:\s*\$\{HOST_UID:-1000\}:\$\{HOST_GID:-1000\}/);
   assert.match(generatedConfig, /userns:\s*keep-id/);
   assert.doesNotMatch(generatedConfig, /execUser:|setpriv|apt-get|apk add/);
@@ -1108,7 +1122,7 @@ test("init rails7 bootstraps a local Rails project before copying loom config", 
   assert.doesNotMatch(generatedConfig, /rails _7\.1\.5_ new rails7/);
   assert.match(generatedGemfile, /rubygems/);
   assert.match(generatedRailsBin, /env ruby/);
-  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3\.12/);
+  assertEnvironmentImage(generatedEnv, "RUBY_IMAGE", runtimeImage("rails7", "RUBY_IMAGE"));
 });
 
 test("init rails7 reports when Podman is unavailable", async () => {
@@ -1143,7 +1157,7 @@ test("init rails7 adopts an existing Rails project and only adds Loom files", as
   const existingGemfile = await readFile(join(targetDir, "Gemfile"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
 
-  assert.match(generatedConfig, /image:\s*\$\{RUBY_IMAGE:-docker\.io\/library\/ruby:3\.3\.12\}/i);
+  assertConfigImage(generatedConfig, "RUBY_IMAGE", runtimeImage("rails7", "RUBY_IMAGE"));
   assert.match(existingGemfile, /rubygems/);
-  assert.match(generatedEnv, /RUBY_IMAGE=docker\.io\/library\/ruby:3\.3\.12/);
+  assertEnvironmentImage(generatedEnv, "RUBY_IMAGE", runtimeImage("rails7", "RUBY_IMAGE"));
 });

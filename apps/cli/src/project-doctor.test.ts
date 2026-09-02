@@ -8,12 +8,15 @@ import type { PodmanCapabilities } from "@loom/runtime-podman";
 import type { LoadedProjectManifest, LoomProjectManifestV2 } from "./project-manifest.js";
 import { runProjectDoctor, type DoctorProbes } from "./project-doctor.js";
 import { doctorExitCode } from "./doctor-output.js";
-import type { StackDefinition } from "./stacks.js";
+import { findStackDefinition, type StackDefinition } from "./stacks.js";
+
+const nodeImage = findStackDefinition("node")!.runtimeImages[0]!.reference;
+const postgresImage = findStackDefinition("db-postgres")!.runtimeImages[0]!.reference;
 
 const stack: StackDefinition = {
   id: "node", assetPath: "node", scaffoldVersion: "1", loomOwnedFiles: ["loom.yaml"],
   definitionVersion: 1, legacyScaffoldVersions: ["0"], generator: { kind: "none" },
-  runtimeImages: [{ env: "NODE_IMAGE", reference: "docker.io/library/node:24.20.0-alpine" }],
+  runtimeImages: [{ env: "NODE_IMAGE", reference: nodeImage }],
   install: [], start: [], readiness: { kind: "command", value: "true", timeoutSeconds: 1 }, hostWrites: [], verification: [],
   generatedPaths: [{ path: "dist", category: "build" }, { path: "node_modules", category: "dependency" }],
   protectedPaths: ["src"], compatibility: { architectures: ["x64"], runtime: "podman-rootless" }
@@ -25,7 +28,7 @@ const manifestValue: LoomProjectManifestV2 = {
 const ready: LoadedProjectManifest = { kind: "ready", manifest: manifestValue };
 const config: LoomConfig = {
   version: 1, name: "demo", runtime: { engine: "podman", rootless: true },
-  services: { app: { type: "node", image: "docker.io/library/node:24.20.0-alpine", ports: ["3000:3000"] } },
+  services: { app: { type: "node", image: nodeImage, ports: ["3000:3000"] } },
   routes: [{ host: "demo.local", service: "app", port: 3000 }]
 };
 const podman: PodmanCapabilities = { available: true, rootless: true, version: "5", machine: { supported: false, running: false } };
@@ -81,7 +84,7 @@ test("reports deterministic warning-only runtime image overrides including rende
     ...config,
     services: {
       app: { ...config.services.app! },
-      database: { type: "postgres", image: "docker.io/library/postgres:16.15-alpine3.24" }
+      database: { type: "postgres", image: postgresImage }
     }
   };
   let results = await runProjectDoctor({ projectRoot: root, config: exact, manifest: { kind: "ready", manifest: withDatabase }, stack, probes: probes() });
@@ -94,8 +97,8 @@ test("reports deterministic warning-only runtime image overrides including rende
   const overridden: LoomConfig = {
     ...exact,
     services: {
-      app: { ...exact.services.app!, image: "docker.io/library/postgres:16.15-alpine3.24" },
-      database: { ...exact.services.database!, image: "docker.io/library/node:24.20.0-alpine" }
+      app: { ...exact.services.app!, image: postgresImage },
+      database: { ...exact.services.database!, image: nodeImage }
     }
   };
   results = await runProjectDoctor({ projectRoot: root, config: overridden, manifest: { kind: "ready", manifest: withDatabase }, stack, probes: probes() });
@@ -103,7 +106,7 @@ test("reports deterministic warning-only runtime image overrides including rende
     id: "images",
     status: "warning",
     summary: "Runtime image overrides reduce reproducibility",
-    detail: "app=docker.io/library/postgres:16.15-alpine3.24; database=docker.io/library/node:24.20.0-alpine"
+    detail: `app=${postgresImage}; database=${nodeImage}`
   });
   assert.equal(doctorExitCode(results), 0);
 });

@@ -11,6 +11,16 @@ import {
 } from "./init-template.js";
 import { findStackDefinition, type StackDefinition } from "./stacks.js";
 
+function generatorImage(stackId: "php-wordpress" | "rails7" | "rails7-hotwire"): string {
+  const generator = findStackDefinition(stackId)!.generator;
+  assert.equal(generator.kind, "command");
+  return generator.kind === "command" ? generator.image : "";
+}
+
+const wordpressImage = generatorImage("php-wordpress");
+const rubyImage = generatorImage("rails7");
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 function prepareInitTarget(
   template: string,
   targetDir: string,
@@ -328,7 +338,7 @@ test("runWordPressCreateProjectWithDependencies uses Podman to copy WordPress in
         ...(process.platform === "linux" ? ["--userns=keep-id"] : []),
         "-v",
         "/workspace/wordpress:/app",
-        "docker.io/library/wordpress:6.8.3-php8.4-apache",
+        wordpressImage,
         "sh",
         "-c",
         "cp -a /usr/src/wordpress/. /app/"
@@ -360,7 +370,7 @@ test("runWordPressCreateProjectWithDependencies reports unavailable images clear
           throw new Error("pull access denied");
         }
       }),
-    /image 'docker\.io\/library\/wordpress:6\.8\.3-php8\.4-apache' requires registry access or authentication:[\s\S]*podman login docker\.io/i
+    new RegExp(`image '${escapeRegExp(wordpressImage)}' requires registry access or authentication:[\\s\\S]*podman login ghcr\\.io`, "i")
   );
 });
 
@@ -384,7 +394,7 @@ test("runRailsCreateProjectWithDependencies uses Podman to generate Rails in the
         "/workspace/rails7:/workspace",
         "-w",
         "/workspace",
-        "docker.io/library/ruby:3.3.12",
+        rubyImage,
         "sh",
         "-c",
         "gem install bundler -v 2.6.9 --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-javascript --skip-test --skip-system-test"
@@ -416,7 +426,7 @@ test("runRailsCreateProjectWithDependencies reports unavailable images clearly",
           throw new Error("image not known");
         }
       }),
-    /image 'docker\.io\/library\/ruby:3\.3\.12' is not available or could not be pulled/i
+    new RegExp(`image '${escapeRegExp(rubyImage)}' is not available or could not be pulled`, "i")
   );
 });
 
@@ -440,7 +450,7 @@ test("runRailsHotwireCreateProjectWithDependencies uses Podman to generate Rails
         "/workspace/rails-hotwire:/workspace",
         "-w",
         "/workspace",
-        "docker.io/library/ruby:3.3.12",
+        rubyImage,
         "sh",
         "-c",
         "gem install bundler -v 2.6.9 --no-document && gem install rails -v 7.1.5 --no-document && /usr/local/bundle/bin/rails _7.1.5_ new . --skip-test --skip-system-test"
@@ -472,7 +482,7 @@ test("runRailsCreateProjectWithDependencies reports registry auth failures clear
           throw new Error("authentication required");
         }
       }),
-    /image 'docker\.io\/library\/ruby:3\.3\.12' requires registry access or authentication:[\s\S]*podman login docker\.io/i
+    new RegExp(`image '${escapeRegExp(rubyImage)}' requires registry access or authentication:[\\s\\S]*podman login ghcr\\.io`, "i")
   );
 });
 
@@ -538,9 +548,9 @@ test("classified bootstrap errors identify every public stack ID", async () => {
   const cases = [
     { id: "php-drupal", context: "Drupal project with Podman Composer", image: "docker.io/library/composer:2.8.10" },
     { id: "php-symfony", context: "Symfony project with Podman Composer", image: "docker.io/library/composer:2.8.10" },
-    { id: "php-wordpress", context: "WordPress project with Podman", image: "docker.io/library/wordpress:6.8.3-php8.4-apache" },
-    { id: "rails7", context: "Rails 7 project with Podman", image: "docker.io/library/ruby:3.3.12" },
-    { id: "rails7-hotwire", context: "Rails 7 + Hotwire project with Podman", image: "docker.io/library/ruby:3.3.12" }
+    { id: "php-wordpress", context: "WordPress project with Podman", image: wordpressImage },
+    { id: "rails7", context: "Rails 7 project with Podman", image: rubyImage },
+    { id: "rails7-hotwire", context: "Rails 7 + Hotwire project with Podman", image: generatorImage("rails7-hotwire") }
   ] as const;
 
   for (const testCase of cases) {
@@ -621,7 +631,7 @@ test("all bootstrap definitions resolve exact packages and gem installs", async 
     const invocation = calls[0]!.args.join(" ");
     assert.ok(calls[0]!.args.includes(definition.generator.image), `${id} image`);
     if (definition.generator.package === "wordpress") {
-      assert.ok(definition.generator.image.includes(definition.generator.version), `${id} image version`);
+      assert.match(definition.generator.image, /^ghcr\.io\/loom-development\/loom-wordpress@sha256:[a-f0-9]{64}$/, `${id} published image`);
     } else if (definition.generator.package.includes("/")) {
       assert.match(invocation, new RegExp(`${definition.generator.package.replace("/", "\\/")}:${definition.generator.version.replaceAll(".", "\\.")}(?:\\s|$)`), id);
     } else {

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   findStackDefinition,
   listStackIds,
+  publishedImage,
   stackDefinitions,
   stackIds,
   validateStackDefinition
@@ -30,8 +31,9 @@ test("stack definitions expose assets, scaffold versions, and initial Loom owner
   assert.deepEqual(node?.legacyScaffoldVersions, ["1", "2"]);
   assert.equal(node?.assetPath, "node/templates");
   assert.deepEqual(node?.runtimeImages, [
-    { env: "NODE_IMAGE", reference: "docker.io/library/node:24.20.0-alpine" }
+    { env: "NODE_IMAGE", reference: publishedImage("loom-node-24") }
   ]);
+  assert.match(node!.runtimeImages[0]!.reference, /^ghcr\.io\/loom-development\/loom-node-24@sha256:[a-f0-9]{64}$/);
 });
 
 test("every stack has explicit, deterministic maintenance metadata", () => {
