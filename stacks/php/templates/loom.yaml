@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: php
-    image: ${PHP_IMAGE:-docker.io/library/php:8.4.10-apache}
+    image: ${PHP_IMAGE:-docker.io/library/php:8.4.25-apache}
     composer: false
     user: root
     userns: keep-id

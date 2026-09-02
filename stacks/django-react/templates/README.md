@@ -10,13 +10,13 @@ This template gives you a small full-stack project with:
 ## Services
 
 - `backend`
-  - Runtime: `${PYTHON_IMAGE:-docker.io/library/python:3.12.11-slim}`
+  - Runtime: `${PYTHON_IMAGE:-docker.io/library/python:3.12.14-slim}`
   - Working directory: `/workspace/backend`
   - Port: `8001`
   - Starts Django with `python manage.py runserver 0.0.0.0:8001`
 
 - `web`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.20.0-alpine}`
   - Working directory: `/workspace/frontend`
   - Port: `5176`
   - Starts Vite with `npm run dev -- --host 0.0.0.0 --port 5176`
@@ -51,14 +51,14 @@ The backend and frontend both run directly as the host-aligned UID:GID under `us
 
 ```bash
 # Python runtime
-PYTHON_IMAGE=docker.io/library/python:3.12.11-slim
+PYTHON_IMAGE=docker.io/library/python:3.12.14-slim
 
 # Node runtime
-NODE_IMAGE=docker.io/library/node:24.4.1-alpine
+NODE_IMAGE=docker.io/library/node:24.20.0-alpine
 ```
 
 You can also choose these during init interactively or pass them directly:
 
 ```bash
-loom init django-react --image PYTHON_IMAGE=docker.io/library/python:3.12.11-slim --image NODE_IMAGE=docker.io/library/node:24.4.1-alpine
+loom init django-react --image PYTHON_IMAGE=docker.io/library/python:3.12.14-slim --image NODE_IMAGE=docker.io/library/node:24.20.0-alpine
 ```

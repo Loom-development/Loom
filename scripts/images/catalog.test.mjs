@@ -14,8 +14,8 @@ const validCatalog = {
     {
       name: "loom-php",
       kind: "custom",
-      source: "docker.io/library/php:8.4.10-apache@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      version: "8.4.10-loom.1",
+      source: "docker.io/library/php:8.4.25-apache@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      version: "8.4.25-loom.1",
       platforms: ["linux/amd64", "linux/arm64"],
       context: "images/php"
     }
@@ -28,7 +28,7 @@ function addDependentImage(catalog, overrides = {}) {
     kind: "custom",
     source: "docker.io/library/wordpress@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     runtime: "loom-php",
-    version: "6.8.2-php8.4-loom.1",
+    version: "6.8.3-php8.4-loom.1",
     platforms: ["linux/amd64", "linux/arm64"],
     context: "images/wordpress",
     ...overrides

@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${SQLITE_IMAGE:-docker.io/keinos/sqlite3:3.46.1}`
+  - Runtime: `${SQLITE_IMAGE:-docker.io/keinos/sqlite3:3.53.4}`
   - Port: none
   - Purpose: create and expose the SQLite database file under the project data directory
 

@@ -11,8 +11,8 @@ const catalog = {
     {
       name: "loom-node-24",
       kind: "custom",
-      source: `docker.io/library/node:24.4.1-alpine@${digest("a")}`,
-      version: "24.4.1-loom.1",
+      source: `docker.io/library/node:24.20.0-alpine@${digest("a")}`,
+      version: "24.20.0-loom.1",
       platforms: ["linux/amd64", "linux/arm64"],
       context: "images/node"
     }
@@ -34,7 +34,7 @@ test("updates a changed digest behind the pinned upstream tag", () => {
   assert.equal(result.changed, true);
   assert.equal(
     result.catalog.images[0].source,
-    `docker.io/library/node:24.4.1-alpine@${digest("b")}`
+    `docker.io/library/node:24.20.0-alpine@${digest("b")}`
   );
 });
 

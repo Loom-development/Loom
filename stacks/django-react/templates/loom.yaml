@@ -8,7 +8,7 @@ runtime:
 services:
   backend:
     type: python
-    image: ${PYTHON_IMAGE:-docker.io/library/python:3.12.11-slim}
+    image: ${PYTHON_IMAGE:-docker.io/library/python:3.12.14-slim}
     user: ${HOST_UID:-1000}:${HOST_GID:-1000}
     userns: keep-id
     execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
@@ -31,7 +31,7 @@ services:
       startPeriodSeconds: 4
   web:
     type: node
-    image: ${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}
+    image: ${NODE_IMAGE:-docker.io/library/node:24.20.0-alpine}
     dependsOn:
       - backend
     user: ${HOST_UID:-1000}:${HOST_GID:-1000}

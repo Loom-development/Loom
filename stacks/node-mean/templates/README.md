@@ -16,11 +16,11 @@ loom status
 - `mongo`
   - Port: `27021`
 - `api`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.20.0-alpine}`
   - Port: `3001`
   - Purpose: Express.js API
 - `web`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.20.0-alpine}`
   - Port: `4200`
   - Purpose: Angular frontend served by Angular CLI with `/api` proxying to the backend
 

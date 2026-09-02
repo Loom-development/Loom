@@ -8,7 +8,7 @@ runtime:
 services:
   api:
     type: node
-    image: ${NODE_IMAGE:-docker.io/library/node:22.17.1-alpine}
+    image: ${NODE_IMAGE:-docker.io/library/node:22.23.2-alpine}
     userns: keep-id
     workdir: /workspace
     command: npm run dev:api
@@ -24,7 +24,7 @@ services:
       startPeriodSeconds: 6
   web:
     type: node
-    image: ${NODE_IMAGE:-docker.io/library/node:22.17.1-alpine}
+    image: ${NODE_IMAGE:-docker.io/library/node:22.23.2-alpine}
     userns: keep-id
     workdir: /workspace
     command: npm run dev:web

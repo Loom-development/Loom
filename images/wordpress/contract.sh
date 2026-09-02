@@ -20,7 +20,7 @@ podman run --rm "${image_reference}" composer --version >/dev/null
 podman run --rm "${image_reference}" php -r \
   'exit(xdebug_info("mode") === [] ? 0 : 1);'
 podman run --rm "${image_reference}" grep -Fq \
-  '$wp_version = '\''6.8.2'\''' /usr/src/wordpress/wp-includes/version.php
+  '$wp_version = '\''6.8.3'\''' /usr/src/wordpress/wp-includes/version.php
 
 podman run --rm "${image_reference}" php -m \
   | tr '[:upper:]' '[:lower:]' \

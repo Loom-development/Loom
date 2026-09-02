@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.4.1-alpine}`
+  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.20.0-alpine}`
   - Port: `4321`
   - Purpose: Astro dev server with HMR
 

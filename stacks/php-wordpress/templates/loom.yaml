@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: php
-    image: ${WORDPRESS_IMAGE:-docker.io/library/wordpress:6.8.2-php8.3-apache}
+    image: ${WORDPRESS_IMAGE:-docker.io/library/wordpress:6.8.3-php8.4-apache}
     composer: false
     user: root
     userns: keep-id

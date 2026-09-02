@@ -28,7 +28,7 @@ Build and contract-test a custom runtime with:
 
 ```sh
 node scripts/images/build.mjs loom-node-24 --platform linux/amd64
-node scripts/images/test-image.mjs loom-node-24 localhost/loom-node-24:24.4.1-loom.1
+node scripts/images/test-image.mjs loom-node-24 localhost/loom-node-24:24.20.0-loom.1
 ```
 
 Mirror and readiness-test an infrastructure image after authenticating to

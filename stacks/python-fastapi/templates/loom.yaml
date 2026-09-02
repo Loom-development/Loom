@@ -8,7 +8,7 @@ runtime:
 services:
   app:
     type: python
-    image: ${PYTHON_IMAGE:-docker.io/library/python:3.12.11-slim}
+    image: ${PYTHON_IMAGE:-docker.io/library/python:3.12.14-slim}
     user: ${HOST_UID:-1000}:${HOST_GID:-1000}
     userns: keep-id
     workdir: /workspace

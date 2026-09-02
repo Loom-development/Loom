@@ -20,7 +20,7 @@ test("builds a custom catalog image with an argument-array invocation", async ()
     }
   });
 
-  assert.equal(reference, "localhost/loom-php:8.4.10-loom.1");
+  assert.equal(reference, "localhost/loom-php:8.4.25-loom.1");
   assert.deepEqual(calls, [
     {
       command: "podman",
@@ -29,11 +29,11 @@ test("builds a custom catalog image with an argument-array invocation", async ()
         "--platform",
         "linux/amd64",
         "--build-arg",
-        "LOOM_BASE_IMAGE=docker.io/library/php:8.4.10-apache@sha256:d79e472947b150b581240b8d16ba234c0dd3a6a484881ebbed3bc9f53c81bd0b",
+        "LOOM_BASE_IMAGE=docker.io/library/php:8.4.25-apache@sha256:51da594c844a97f31b1cd6b1ac6660982f40788f4fe13e75f7fd39e2f9b58651",
         "--file",
         path.join(repositoryRoot, "images/php/Containerfile"),
         "--tag",
-        "localhost/loom-php:8.4.10-loom.1",
+        "localhost/loom-php:8.4.25-loom.1",
         path.join(repositoryRoot, "images/php")
       ],
       options: { cwd: repositoryRoot }
@@ -51,19 +51,19 @@ test("builds a runtime dependency before its dependent image", async () => {
     }
   });
 
-  assert.equal(reference, "localhost/loom-wordpress:6.8.2-php8.4-loom.1");
+  assert.equal(reference, "localhost/loom-wordpress:6.8.3-php8.4-loom.1");
   assert.equal(calls.length, 2);
-  assert.equal(calls[0].args.at(-2), "localhost/loom-php:8.4.10-loom.1");
+  assert.equal(calls[0].args.at(-2), "localhost/loom-php:8.4.25-loom.1");
   assert.deepEqual(
     calls[1].args.filter((argument) => argument.startsWith("LOOM_")),
     [
-      "LOOM_BASE_IMAGE=localhost/loom-php:8.4.10-loom.1",
-      "LOOM_SOURCE_IMAGE=docker.io/library/wordpress:6.8.2-php8.3-apache@sha256:09ac1315368f234db7559e4f9dcca3178a5efc6f2193b88289252abe18551522"
+      "LOOM_BASE_IMAGE=localhost/loom-php:8.4.25-loom.1",
+      "LOOM_SOURCE_IMAGE=docker.io/library/wordpress:6.8.3-php8.4-apache@sha256:da2a1ff20daa435abf260853ebfd829b1f5f9b8400938940c7393f786a63bf94"
     ]
   );
   assert.equal(
     calls[1].args.at(-2),
-    "localhost/loom-wordpress:6.8.2-php8.4-loom.1"
+    "localhost/loom-wordpress:6.8.3-php8.4-loom.1"
   );
 });
 
@@ -83,7 +83,7 @@ test("stops when a runtime dependency build fails", async () => {
   );
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].args.at(-2), "localhost/loom-php:8.4.10-loom.1");
+  assert.equal(calls[0].args.at(-2), "localhost/loom-php:8.4.25-loom.1");
 });
 
 test("CLI accepts an image name and platform", async () => {

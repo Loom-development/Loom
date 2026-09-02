@@ -32,7 +32,7 @@ loom status
 - `POSTGRES_IMAGE=docker.io/library/postgres:16.15-alpine3.24`
 - `MONGO_IMAGE=docker.io/library/mongo:7.0.40-jammy`
 - `REDIS_IMAGE=docker.io/library/redis:7.4.11-alpine3.21`
-- `SQLITE_IMAGE=docker.io/keinos/sqlite3:3.46.1`
+- `SQLITE_IMAGE=docker.io/keinos/sqlite3:3.53.4`
 - `MSSQL_IMAGE=mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04`
 - `MARIADB_IMAGE=docker.io/library/mariadb:11.8.9`
 - `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:8.19.20`

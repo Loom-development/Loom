@@ -17,15 +17,15 @@ test("pin validators reject floating versions and accept exact tag families", ()
     assert.throws(() => validateRuntimeImage({ env: "NODE_IMAGE", reference }), /exact version tag/i);
   }
   for (const reference of [
-    "node:24.4.1-alpine", "postgres:16.15-alpine3.24", "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04",
-    `node:24.4.1-alpine@sha256:${"a".repeat(64)}`
+    "node:24.20.0-alpine", "postgres:16.15-alpine3.24", "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04",
+    `node:24.20.0-alpine@sha256:${"a".repeat(64)}`
   ]) assert.doesNotThrow(() => validateRuntimeImage({ env: "NODE_IMAGE", reference }));
-  assert.throws(() => validateRuntimeImage({ env: "node_image", reference: "node:24.4.1-alpine" }), /uppercase/i);
+  assert.throws(() => validateRuntimeImage({ env: "node_image", reference: "node:24.20.0-alpine" }), /uppercase/i);
 
   for (const version of ["", "latest", "next", "nightly", "unversioned", "^7.1.5", "7.x", "*"]) {
     assert.throws(() => validateGeneratorVersion(version), /exact generator version/i);
   }
-  for (const version of ["7.1.5", "11.1", "6.8.2-beta.1"]) assert.doesNotThrow(() => validateGeneratorVersion(version));
+  for (const version of ["7.1.5", "11.1", "6.8.3-beta.1"]) assert.doesNotThrow(() => validateGeneratorVersion(version));
 });
 
 test("definitions enforce version, aliases, canonical assets, and maintenance safety", () => {
@@ -52,20 +52,20 @@ test("definitions enforce version, aliases, canonical assets, and maintenance sa
 
 test("language application stacks publish exact versioned package definitions", () => {
   const expected = {
-    python: [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
-    "python-django": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
-    "python-flask": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
-    "python-fastapi": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }],
-    php: [{ env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.10-apache" }],
-    dotnet: [{ env: "DOTNET_IMAGE", reference: "mcr.microsoft.com/dotnet/sdk:8.0.412" }],
+    python: [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }],
+    "python-django": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }],
+    "python-flask": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }],
+    "python-fastapi": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }],
+    php: [{ env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.25-apache" }],
+    dotnet: [{ env: "DOTNET_IMAGE", reference: "mcr.microsoft.com/dotnet/sdk:8.0.424" }],
     "spring-react": [
-      { env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.11-eclipse-temurin-21" },
-      { env: "NODE_IMAGE", reference: "docker.io/library/node:22.17.1-alpine" }
+      { env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.13-eclipse-temurin-21" },
+      { env: "NODE_IMAGE", reference: "docker.io/library/node:22.23.2-alpine" }
     ],
-    "spring-boot": [{ env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.11-eclipse-temurin-21" }],
+    "spring-boot": [{ env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.13-eclipse-temurin-21" }],
     "django-react": [
-      { env: "NODE_IMAGE", reference: "docker.io/library/node:24.4.1-alpine" },
-      { env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.11-slim" }
+      { env: "NODE_IMAGE", reference: "docker.io/library/node:24.20.0-alpine" },
+      { env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }
     ]
   } as const;
 
@@ -87,9 +87,9 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
       aliases: ["2", "wordpress-6-php8.3-apache"],
       generator: {
         kind: "command",
-        image: "docker.io/library/wordpress:6.8.2-php8.3-apache",
+        image: "docker.io/library/wordpress:6.8.3-php8.4-apache",
         package: "wordpress",
-        version: "6.8.2",
+        version: "6.8.3",
         command: ["sh", "-c", "cp -a /usr/src/wordpress/. /app/"],
         execution: {
           kind: "container",
@@ -99,7 +99,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "WORDPRESS_IMAGE", reference: "docker.io/library/wordpress:6.8.2-php8.3-apache" }
+        { env: "WORDPRESS_IMAGE", reference: "docker.io/library/wordpress:6.8.3-php8.4-apache" }
       ]
     },
     "php-drupal": {
@@ -150,7 +150,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
       aliases: ["2", "rails-7.1.5"],
       generator: {
         kind: "command",
-        image: "docker.io/library/ruby:3.3.8",
+        image: "docker.io/library/ruby:3.3.12",
         package: "rails",
         version: "7.1.5",
         command: [
@@ -166,13 +166,13 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
           environment: []
         }
       },
-      runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.8" }]
+      runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.12" }]
     },
     "rails7-hotwire": {
       aliases: ["2", "rails-7.1.5-hotwire"],
       generator: {
         kind: "command",
-        image: "docker.io/library/ruby:3.3.8",
+        image: "docker.io/library/ruby:3.3.12",
         package: "rails",
         version: "7.1.5",
         command: [
@@ -188,7 +188,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
           environment: []
         }
       },
-      runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.8" }]
+      runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.12" }]
     }
   } as const;
 
@@ -254,7 +254,7 @@ test("database stacks publish exact versioned package definitions and lifecycle 
       architectures: ["arm64", "x64"]
     },
     "db-sqlite": {
-      runtimeImages: [{ env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.46.1" }],
+      runtimeImages: [{ env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.53.4" }],
       start: ["sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
       readiness: { kind: "command", value: "sqlite3 /data/loom.db 'select 1;'", timeoutSeconds: 60 },
       verification: [{ service: "db", command: ["sqlite3", "/data/loom.db", "select 1;"] }],
@@ -275,7 +275,7 @@ test("database stacks publish exact versioned package definitions and lifecycle 
         { env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.11" },
         { env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.15-alpine3.24" },
         { env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.11-alpine3.21" },
-        { env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.46.1" }
+        { env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.53.4" }
       ],
       start: ["redis-server --appendonly yes", "sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
       readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },
@@ -352,5 +352,5 @@ test("Node template inventory and bytes match the approved migration fixture", a
     const bytes = await readFile(resolve(root, "templates", entry));
     assert.equal(createHash("sha256").update(bytes).digest("hex"), expected[entry], entry);
   }
-  assert.match(await readFile(resolve(root, "templates/loom.yaml"), "utf8"), /node:24\.4\.1-alpine/);
+  assert.match(await readFile(resolve(root, "templates/loom.yaml"), "utf8"), /node:24\.20\.0-alpine/);
 });

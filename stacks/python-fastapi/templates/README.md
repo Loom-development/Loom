@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${PYTHON_IMAGE:-docker.io/library/python:3.12.11-slim}`
+  - Runtime: `${PYTHON_IMAGE:-docker.io/library/python:3.12.14-slim}`
   - Port: `8003`
   - Purpose: FastAPI development server
 

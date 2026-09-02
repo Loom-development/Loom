@@ -8,7 +8,7 @@ runtime:
 services:
   backend:
     type: java
-    image: ${JAVA_IMAGE:-docker.io/library/maven:3.9.11-eclipse-temurin-21}
+    image: ${JAVA_IMAGE:-docker.io/library/maven:3.9.13-eclipse-temurin-21}
     userns: keep-id
     execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /workspace/backend
@@ -19,7 +19,7 @@ services:
       - ./:/workspace
   web:
     type: node
-    image: ${NODE_IMAGE:-docker.io/library/node:22.17.1-alpine}
+    image: ${NODE_IMAGE:-docker.io/library/node:22.23.2-alpine}
     userns: keep-id
     execUser: ${HOST_UID:-1000}:${HOST_GID:-1000}
     workdir: /workspace/frontend

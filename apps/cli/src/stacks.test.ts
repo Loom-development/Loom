@@ -30,7 +30,7 @@ test("stack definitions expose assets, scaffold versions, and initial Loom owner
   assert.deepEqual(node?.legacyScaffoldVersions, ["1", "2"]);
   assert.equal(node?.assetPath, "node/templates");
   assert.deepEqual(node?.runtimeImages, [
-    { env: "NODE_IMAGE", reference: "docker.io/library/node:24.4.1-alpine" }
+    { env: "NODE_IMAGE", reference: "docker.io/library/node:24.20.0-alpine" }
   ]);
 });
 

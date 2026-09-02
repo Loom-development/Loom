@@ -13,7 +13,7 @@ export const dbAllStack = defineStack({
     { env: "MYSQL_IMAGE", reference: runtimeImagePins.mysql84 },
     { env: "POSTGRES_IMAGE", reference: runtimeImagePins.postgres16Alpine },
     { env: "REDIS_IMAGE", reference: runtimeImagePins.redis74Alpine },
-    { env: "SQLITE_IMAGE", reference: runtimeImagePins.sqlite346 }
+    { env: "SQLITE_IMAGE", reference: runtimeImagePins.sqlite353 }
   ],
   install: [], start: ["redis-server --appendonly yes", sqliteStart],
   readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },

@@ -11,7 +11,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-podman run --rm "${image_reference}" bun --version | grep -qx '1\.2\.18'
+podman run --rm "${image_reference}" bun --version | grep -qx '1\.2\.23'
 podman run --rm "${image_reference}" sh -c \
   'command -v cc >/dev/null && command -v git >/dev/null && command -v python3 >/dev/null'
 

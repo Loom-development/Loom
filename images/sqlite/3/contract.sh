@@ -10,7 +10,7 @@ cleanup() {
 trap cleanup EXIT
 
 podman run --rm "${image_reference}" sqlite3 --version \
-  | grep -Eq '^3\.46\.1 '
+  | grep -Eq '^3\.53\.4 '
 
 database_path="${test_directory}/loom.sqlite3"
 podman run --rm \

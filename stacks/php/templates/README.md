@@ -14,4 +14,4 @@ Pass `--php-docroot <path>` to `loom init php` when the application entrypoint
 is not the project root. The generated `.env` exposes the exact default PHP
 image tag and may be edited for an explicit runtime override:
 
-- `${PHP_IMAGE:-docker.io/library/php:8.4.10-apache}`
+- `${PHP_IMAGE:-docker.io/library/php:8.4.25-apache}`
