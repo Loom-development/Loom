@@ -55,7 +55,7 @@
       "name": "loom-bun-1",
       "kind": "custom",
       "source": "docker.io/oven/bun:1.2.23@sha256:6ebf306367da43ad75c4d5119563e24de9b66372929ad4fa31546be053a16f74",
-      "version": "1.2.23-loom.1",
+      "version": "1.2.23-loom.2",
       "platforms": ["linux/amd64", "linux/arm64"],
       "context": "images/bun/1"
     },

@@ -62,3 +62,12 @@ test("PHP entrypoint authorizes a custom Apache document root", async () => {
   assert.match(source, /Require all granted/);
   assert.match(source, /conf-enabled\/zz-loom-document-root\.conf/);
 });
+
+test("Bun contract requires the patched Debian GnuTLS package", async () => {
+  const source = await readFile(
+    path.join(repositoryRoot, "images/bun/1/contract.sh"),
+    "utf8"
+  );
+  assert.match(source, /3\.7\.9-2\+deb12u7/);
+  assert.match(source, /dpkg --compare-versions/);
+});

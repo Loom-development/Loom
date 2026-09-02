@@ -12,6 +12,14 @@ cleanup() {
 trap cleanup EXIT
 
 podman run --rm "${image_reference}" bun --version | grep -qx '1\.2\.23'
+gnutls_version="$(podman run --rm "${image_reference}" \
+  dpkg-query --show --showformat='${Version}' libgnutls30)"
+if ! podman run --rm "${image_reference}" dpkg --compare-versions \
+  "${gnutls_version}" ge '3.7.9-2+deb12u7'; then
+  printf 'Expected libgnutls30 3.7.9-2+deb12u7 or newer, got %s\n' \
+    "${gnutls_version}" >&2
+  exit 1
+fi
 podman run --rm "${image_reference}" sh -c \
   'command -v cc >/dev/null && command -v git >/dev/null && command -v python3 >/dev/null'
 
