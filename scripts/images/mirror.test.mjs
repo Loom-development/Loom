@@ -77,7 +77,7 @@ test("defines native readiness probes for every infrastructure mirror", () => {
     "mariadb-11.8",
     "redis-7.4",
     "mongo-7.0",
-    "elasticsearch-8.17",
+    "elasticsearch-8.19",
     "mssql-2022"
   ]) {
     const probe = readinessProbe(name);

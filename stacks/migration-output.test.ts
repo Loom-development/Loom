@@ -120,7 +120,7 @@ test("YAML migration normalization permits declared image pins only", async () =
   const yaml = await readFile(resolve(root, "..", definition.assetPath, "loom.yaml"), "utf8");
   const imageEnvs = definition.runtimeImages.map(({ env }) => env);
   const normalized = normalizeImageDefaults(yaml, imageEnvs);
-  assert.equal(normalizeImageDefaults(yaml.replace("mysql:8.4.6", "mysql:8.4.99"), imageEnvs), normalized);
+  assert.equal(normalizeImageDefaults(yaml.replace("mysql:8.4.11", "mysql:8.4.99"), imageEnvs), normalized);
   assert.notEqual(normalizeImageDefaults(yaml.replace("MYSQL_IMAGE", "UNDECLARED_IMAGE"), imageEnvs), normalized);
 });
 

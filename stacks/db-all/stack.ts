@@ -6,7 +6,7 @@ const sqliteStart = "sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/n
 export const dbAllStack = defineStack({
   id: "db-all", definitionVersion: 2, legacyScaffoldVersions: ["1", "2"], assetPath: "db-all/templates", scaffoldVersion: "2",
   generator: { kind: "none" }, runtimeImages: [
-    { env: "ELASTICSEARCH_IMAGE", reference: runtimeImagePins.elasticsearch817 },
+    { env: "ELASTICSEARCH_IMAGE", reference: runtimeImagePins.elasticsearch819 },
     { env: "MARIADB_IMAGE", reference: runtimeImagePins.mariadb118 },
     { env: "MONGO_IMAGE", reference: runtimeImagePins.mongo70 },
     { env: "MSSQL_IMAGE", reference: runtimeImagePins.mssql2022 },

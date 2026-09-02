@@ -96,7 +96,7 @@ test("repository catalog covers every approved runtime and mirror", async () => 
       "mariadb-11.8",
       "redis-7.4",
       "mongo-7.0",
-      "elasticsearch-8.17",
+      "elasticsearch-8.19",
       "mssql-2022"
     ]
   );

@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04}`
+  - Runtime: `${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04}`
   - Port: `1433`
 
 ## Route

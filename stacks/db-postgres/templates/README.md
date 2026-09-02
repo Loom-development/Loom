@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${POSTGRES_IMAGE:-docker.io/library/postgres:16.9-alpine}`
+  - Runtime: `${POSTGRES_IMAGE:-docker.io/library/postgres:16.15-alpine3.24}`
   - Port: `5432`
 
 ## Route

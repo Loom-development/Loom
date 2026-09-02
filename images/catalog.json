@@ -93,15 +93,15 @@
     {
       "name": "mysql-8.4",
       "kind": "mirror",
-      "source": "docker.io/library/mysql:8.4.6@sha256:869218921e61d6c3c89820955d63cca42971f0e3e6c1e2792247bbd944ebc6e9",
-      "version": "8.4.6",
+      "source": "docker.io/library/mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb",
+      "version": "8.4.11",
       "platforms": ["linux/amd64", "linux/arm64"]
     },
     {
       "name": "mariadb-11.8",
       "kind": "mirror",
-      "source": "docker.io/library/mariadb:11.8.2@sha256:2bcbaec92bd9d4f6591bc8103d3a8e6d0512ee2235506e47a2e129d190444405",
-      "version": "11.8.2",
+      "source": "docker.io/library/mariadb:11.8.9@sha256:2439dcd7d14010ecd1ff7a4e1c5abe8e208c34fe35290744deeeaac3569043c3",
+      "version": "11.8.9",
       "platforms": ["linux/amd64", "linux/arm64"]
     },
     {
@@ -119,10 +119,10 @@
       "platforms": ["linux/amd64", "linux/arm64"]
     },
     {
-      "name": "elasticsearch-8.17",
+      "name": "elasticsearch-8.19",
       "kind": "mirror",
-      "source": "docker.elastic.co/elasticsearch/elasticsearch:8.17.10@sha256:cff047b5ac7bc2c8a470b49c5733e64c1689024455e85630288ef5d9a810f6ca",
-      "version": "8.17.10",
+      "source": "docker.elastic.co/elasticsearch/elasticsearch:8.19.20@sha256:e4797708584bd0df7c746b33a6640d243018a0ae8c8b088391c6f4675a3bef52",
+      "version": "8.19.20",
       "platforms": ["linux/amd64", "linux/arm64"]
     },
     {

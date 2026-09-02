@@ -36,7 +36,7 @@ GHCR with Podman/Skopeo:
 
 ```sh
 node scripts/images/mirror.mjs redis-7.4
-node scripts/images/test-mirror.mjs redis-7.4 ghcr.io/loom-development/redis-7.4:7.4.5-alpine
+node scripts/images/test-mirror.mjs redis-7.4 ghcr.io/loom-development/redis-7.4:7.4.11-alpine3.21
 ```
 
 ## Release and update flow
@@ -59,8 +59,67 @@ A registry lookup failure stops the update before `catalog.json` is written.
 Rerun the workflow after the registry recovers; the last known-good release and
 template digests remain untouched.
 
-To add or update an image, edit `catalog.json`, preserve digest-pinned sources,
-declare exact platforms, add or update its Containerfile/contract or mirror
-readiness probe, and run `pnpm verify`. Temporary vulnerability exceptions in
-`security-exceptions.json` require an identifier, rationale, owner, and an
-expiration no more than 30 days away.
+## Updating images
+
+Keep an image on its cataloged major or LTS line unless a separately reviewed
+change intentionally alters application compatibility. Select the newest
+stable patch that the vendor has published as a container image. Release notes
+alone are insufficient: a documented release can precede its registry
+artifact.
+
+1. Read the vendor's release and support documentation. Confirm that the
+   candidate is stable, supported, and remains on the intended compatibility
+   line.
+2. Confirm that the exact tag exists and provides every platform declared in
+   `catalog.json`. Do not replace a versioned tag with `latest`, a major-only
+   tag, or another floating tag.
+3. Resolve the tag's manifest-list digest directly from its authoritative
+   registry:
+
+   ```sh
+   skopeo inspect --format '{{.Digest}}' docker://docker.io/library/redis:7.4.11-alpine3.21
+   skopeo inspect --raw docker://docker.io/library/redis:7.4.11-alpine3.21
+   ```
+
+   The first command supplies the `sha256:` value. Inspect the second command's
+   platform descriptors and confirm that `linux/amd64` and `linux/arm64` are
+   present unless the catalog records a `platformLimit`.
+4. Update both `source` and `version` in `catalog.json`. The source must contain
+   the exact versioned tag followed by `@sha256:<manifest-digest>`. Keep the
+   runtime default in `stacks/pins.ts` and the affected stack templates'
+   `loom.yaml`, `.env.example`, and `README.md` files on the same version. If
+   those template bytes change, review and refresh their approved
+   `fixtures/migration.json` source digests; the stack tests reject stale
+   fixtures.
+5. Run the catalog and repository verification gates:
+
+   ```sh
+   pnpm test:images
+   pnpm verify
+   ```
+
+6. Open a pull request and let `images-ci.yml` build or copy the image, run its
+   public contract or readiness probe, and scan both supported architectures.
+7. After merge, inspect every job in `images-release.yml`. A release is complete
+   only after readiness, the vulnerability policy, signing, provenance, and the
+   digest-catalog update all succeed.
+
+The Monday update workflow only refreshes a digest when an existing pinned tag
+is republished. It deliberately does not select new version tags; patch-version
+updates require the review above.
+
+Treat a fixable critical vulnerability as an update request first. Upgrade the
+base image or vendor tag whenever fixed packages are available. An exception is
+appropriate only when the vulnerable code path is demonstrably unreachable
+and no fixed upstream artifact exists. Scope an exception with `target` and
+`packageName`, record a concrete rationale and owner, and set `expires` no more
+than 30 days ahead. Never add a CVE-wide exception for a finding that can also
+occur in another binary.
+
+To roll back a bad image update, revert the catalog commit and rerun the release
+workflow. Previously published immutable GHCR digests remain available, so
+stack templates can continue using the last known-good digest until the
+follow-up digest-catalog pull request is reviewed.
+
+To add a new image, preserve the same digest-pinning and platform rules, add its
+Containerfile and contract or mirror readiness probe, and run `pnpm verify`.

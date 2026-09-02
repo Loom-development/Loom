@@ -38,7 +38,7 @@ const probes = {
       "db.runCommand({ ping: 1 })"
     ]
   },
-  "elasticsearch-8.17": {
+  "elasticsearch-8.19": {
     environment: ["discovery.type=single-node", "xpack.security.enabled=false"],
     command: [
       "curl",

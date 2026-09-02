@@ -28,14 +28,14 @@ loom status
 
 ## Image overrides
 
-- `MYSQL_IMAGE=docker.io/library/mysql:8.4.6`
-- `POSTGRES_IMAGE=docker.io/library/postgres:16.9-alpine`
-- `MONGO_IMAGE=docker.io/library/mongo:7.0.21`
-- `REDIS_IMAGE=docker.io/library/redis:7.4.5-alpine`
+- `MYSQL_IMAGE=docker.io/library/mysql:8.4.11`
+- `POSTGRES_IMAGE=docker.io/library/postgres:16.15-alpine3.24`
+- `MONGO_IMAGE=docker.io/library/mongo:7.0.40-jammy`
+- `REDIS_IMAGE=docker.io/library/redis:7.4.11-alpine3.21`
 - `SQLITE_IMAGE=docker.io/keinos/sqlite3:3.46.1`
-- `MSSQL_IMAGE=mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04`
-- `MARIADB_IMAGE=docker.io/library/mariadb:11.8.2`
-- `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:8.17.10`
+- `MSSQL_IMAGE=mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04`
+- `MARIADB_IMAGE=docker.io/library/mariadb:11.8.9`
+- `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:8.19.20`
 
 ## Backup and restore
 

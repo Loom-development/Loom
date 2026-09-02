@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: mongodb
-    image: ${MONGO_IMAGE:-docker.io/library/mongo:7.0.21}
+    image: ${MONGO_IMAGE:-docker.io/library/mongo:7.0.40-jammy}
     env:
       MONGO_INITDB_ROOT_USERNAME: loom
       MONGO_INITDB_ROOT_PASSWORD: loom

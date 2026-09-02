@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${MYSQL_IMAGE:-docker.io/library/mysql:8.4.6}`
+  - Runtime: `${MYSQL_IMAGE:-docker.io/library/mysql:8.4.11}`
   - Port: `3306`
 
 ## Route

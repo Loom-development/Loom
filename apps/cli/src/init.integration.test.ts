@@ -567,9 +567,9 @@ test("init db template defaults to ./db and creates .env", async () => {
     const generatedConfig = await readFile(join(tempRoot, "db", "loom.yaml"), "utf8");
     const generatedEnv = await readFile(join(tempRoot, "db", ".env"), "utf8");
     assert.match(generatedConfig, /name:\s*loom-loom_cli_init_/i);
-    assert.match(generatedConfig, /image:\s*\$\{POSTGRES_IMAGE:-docker\.io\/library\/postgres:16\.9-alpine\}/);
+    assert.match(generatedConfig, /image:\s*\$\{POSTGRES_IMAGE:-docker\.io\/library\/postgres:16\.15-alpine3\.24\}/);
     assert.match(generatedEnv, /POSTGRES_USER=/);
-    assert.match(generatedEnv, /POSTGRES_IMAGE=docker\.io\/library\/postgres:16\.9-alpine/);
+    assert.match(generatedEnv, /POSTGRES_IMAGE=docker\.io\/library\/postgres:16\.15-alpine3\.24/);
     assert.match(result.stdout, /Initialized 'db-postgres' in .*\/db/);
   } finally {
     process.chdir(previousCwd);
@@ -585,13 +585,13 @@ test("init db-all emits every exact database image pin", async () => {
   const generatedConfig = await readFile(join(targetDir, "loom.yaml"), "utf8");
   const generatedEnv = await readFile(join(targetDir, ".env"), "utf8");
   const pins = {
-    ELASTICSEARCH_IMAGE: "docker.elastic.co/elasticsearch/elasticsearch:8.17.10",
-    MARIADB_IMAGE: "docker.io/library/mariadb:11.8.2",
-    MONGO_IMAGE: "docker.io/library/mongo:7.0.21",
-    MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04",
-    MYSQL_IMAGE: "docker.io/library/mysql:8.4.6",
-    POSTGRES_IMAGE: "docker.io/library/postgres:16.9-alpine",
-    REDIS_IMAGE: "docker.io/library/redis:7.4.5-alpine",
+    ELASTICSEARCH_IMAGE: "docker.elastic.co/elasticsearch/elasticsearch:8.19.20",
+    MARIADB_IMAGE: "docker.io/library/mariadb:11.8.9",
+    MONGO_IMAGE: "docker.io/library/mongo:7.0.40-jammy",
+    MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04",
+    MYSQL_IMAGE: "docker.io/library/mysql:8.4.11",
+    POSTGRES_IMAGE: "docker.io/library/postgres:16.15-alpine3.24",
+    REDIS_IMAGE: "docker.io/library/redis:7.4.11-alpine3.21",
     SQLITE_IMAGE: "docker.io/keinos/sqlite3:3.46.1"
   };
   for (const [env, reference] of Object.entries(pins)) {

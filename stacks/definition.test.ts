@@ -17,7 +17,7 @@ test("pin validators reject floating versions and accept exact tag families", ()
     assert.throws(() => validateRuntimeImage({ env: "NODE_IMAGE", reference }), /exact version tag/i);
   }
   for (const reference of [
-    "node:24.4.1-alpine", "postgres:16.9-alpine", "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04",
+    "node:24.4.1-alpine", "postgres:16.15-alpine3.24", "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04",
     `node:24.4.1-alpine@sha256:${"a".repeat(64)}`
   ]) assert.doesNotThrow(() => validateRuntimeImage({ env: "NODE_IMAGE", reference }));
   assert.throws(() => validateRuntimeImage({ env: "node_image", reference: "node:24.4.1-alpine" }), /uppercase/i);
@@ -218,37 +218,37 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
 test("database stacks publish exact versioned package definitions and lifecycle metadata", () => {
   const expected = {
     "db-mysql": {
-      runtimeImages: [{ env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.6" }],
+      runtimeImages: [{ env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.11" }],
       start: [], readiness: { kind: "command", value: "mysqladmin ping -h 127.0.0.1 -uroot -ploomroot", timeoutSeconds: 100 },
       verification: [{ service: "db", command: ["mysql", "-h", "127.0.0.1", "-uloom", "-ploom", "loom", "-e", "SELECT 1"] }],
       architectures: ["arm64", "x64"]
     },
     "db-sqlserver": {
-      runtimeImages: [{ env: "MSSQL_IMAGE", reference: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04" }],
+      runtimeImages: [{ env: "MSSQL_IMAGE", reference: "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04" }],
       start: [], readiness: { kind: "port", value: "127.0.0.1:1433", timeoutSeconds: 300 },
       verification: [{ service: "db", command: ["/opt/mssql-tools18/bin/sqlcmd", "-S", "127.0.0.1", "-U", "sa", "-P", "LoomDev!Passw0rd", "-C", "-Q", "SELECT 1"] }],
       architectures: ["x64"]
     },
     "db-postgres": {
-      runtimeImages: [{ env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.9-alpine" }],
+      runtimeImages: [{ env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.15-alpine3.24" }],
       start: [], readiness: { kind: "command", value: "pg_isready -U loom", timeoutSeconds: 95 },
       verification: [{ service: "db", command: ["psql", "-U", "loom", "-d", "loom", "-c", "SELECT 1"] }],
       architectures: ["arm", "arm64", "x64"]
     },
     "db-mongodb": {
-      runtimeImages: [{ env: "MONGO_IMAGE", reference: "docker.io/library/mongo:7.0.21" }],
+      runtimeImages: [{ env: "MONGO_IMAGE", reference: "docker.io/library/mongo:7.0.40-jammy" }],
       start: [], readiness: { kind: "port", value: "127.0.0.1:27017", timeoutSeconds: 120 },
       verification: [{ service: "db", command: ["mongosh", "--quiet", "--host", "127.0.0.1", "--username", "loom", "--password", "loom", "--authenticationDatabase", "admin", "--eval", "quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)"] }],
       architectures: ["arm64", "x64"]
     },
     "db-redis": {
-      runtimeImages: [{ env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.5-alpine" }],
+      runtimeImages: [{ env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.11-alpine3.21" }],
       start: ["redis-server --appendonly yes"], readiness: { kind: "command", value: "redis-cli ping | grep PONG", timeoutSeconds: 92 },
       verification: [{ service: "db", command: ["redis-cli", "ping"] }],
       architectures: ["arm", "arm64", "x64"]
     },
     "db-elasticsearch": {
-      runtimeImages: [{ env: "ELASTICSEARCH_IMAGE", reference: "docker.elastic.co/elasticsearch/elasticsearch:8.17.10" }],
+      runtimeImages: [{ env: "ELASTICSEARCH_IMAGE", reference: "docker.elastic.co/elasticsearch/elasticsearch:8.19.20" }],
       start: [], readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },
       verification: [{ service: "db", command: ["curl", "--fail", "http://127.0.0.1:9200/_cluster/health"] }],
       architectures: ["arm64", "x64"]
@@ -261,20 +261,20 @@ test("database stacks publish exact versioned package definitions and lifecycle 
       architectures: ["arm", "arm64", "x64"]
     },
     "db-mariadb": {
-      runtimeImages: [{ env: "MARIADB_IMAGE", reference: "docker.io/library/mariadb:11.8.2" }],
+      runtimeImages: [{ env: "MARIADB_IMAGE", reference: "docker.io/library/mariadb:11.8.9" }],
       start: [], readiness: { kind: "command", value: "mariadb-admin ping -h 127.0.0.1 -uroot -ploomroot", timeoutSeconds: 100 },
       verification: [{ service: "db", command: ["mariadb", "-h", "127.0.0.1", "-uloom", "-ploom", "loom", "-e", "SELECT 1"] }],
       architectures: ["arm64", "x64"]
     },
     "db-all": {
       runtimeImages: [
-        { env: "ELASTICSEARCH_IMAGE", reference: "docker.elastic.co/elasticsearch/elasticsearch:8.17.10" },
-        { env: "MARIADB_IMAGE", reference: "docker.io/library/mariadb:11.8.2" },
-        { env: "MONGO_IMAGE", reference: "docker.io/library/mongo:7.0.21" },
-        { env: "MSSQL_IMAGE", reference: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04" },
-        { env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.6" },
-        { env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.9-alpine" },
-        { env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.5-alpine" },
+        { env: "ELASTICSEARCH_IMAGE", reference: "docker.elastic.co/elasticsearch/elasticsearch:8.19.20" },
+        { env: "MARIADB_IMAGE", reference: "docker.io/library/mariadb:11.8.9" },
+        { env: "MONGO_IMAGE", reference: "docker.io/library/mongo:7.0.40-jammy" },
+        { env: "MSSQL_IMAGE", reference: "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04" },
+        { env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.11" },
+        { env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.15-alpine3.24" },
+        { env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.11-alpine3.21" },
         { env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.46.1" }
       ],
       start: ["redis-server --appendonly yes", "sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],

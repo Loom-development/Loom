@@ -14,16 +14,16 @@ export const runtimeImagePins = {
   maven39Temurin21: "docker.io/library/maven:3.9.11-eclipse-temurin-21",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/memcached
   memcached16Alpine: "docker.io/library/memcached:1.6.39-alpine",
-  // Verified 2026-08-17 against Elastic Container Registry: https://docker.elastic.co/r/elasticsearch/elasticsearch
-  elasticsearch817: "docker.elastic.co/elasticsearch/elasticsearch:8.17.10",
-  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/mariadb
-  mariadb118: "docker.io/library/mariadb:11.8.2",
-  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/mongo
-  mongo70: "docker.io/library/mongo:7.0.21",
-  // Verified 2026-08-17 against Microsoft Artifact Registry: https://mcr.microsoft.com/v2/mssql/server/manifests/2022-CU20-ubuntu-22.04
-  mssql2022: "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04",
-  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/mysql
-  mysql84: "docker.io/library/mysql:8.4.6",
+  // Verified 2026-09-02 against Elastic Container Registry: https://docker.elastic.co/r/elasticsearch/elasticsearch
+  elasticsearch819: "docker.elastic.co/elasticsearch/elasticsearch:8.19.20",
+  // Verified 2026-09-02 against Docker Hub: https://hub.docker.com/_/mariadb
+  mariadb118: "docker.io/library/mariadb:11.8.9",
+  // Verified 2026-09-02 against Docker Hub: https://hub.docker.com/_/mongo
+  mongo70: "docker.io/library/mongo:7.0.40-jammy",
+  // Verified 2026-09-02 against Microsoft Artifact Registry: https://mcr.microsoft.com/v2/mssql/server/manifests/2022-CU26-ubuntu-22.04
+  mssql2022: "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04",
+  // Verified 2026-09-02 against Docker Hub: https://hub.docker.com/_/mysql
+  mysql84: "docker.io/library/mysql:8.4.11",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/php
   php84Apache: "docker.io/library/php:8.4.10-apache",
   // Verified 2026-09-01 against Docker Hub and a local extension probe.
@@ -32,12 +32,12 @@ export const runtimeImagePins = {
   ruby338: "docker.io/library/ruby:3.3.8",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/wordpress
   wordpress682Php83Apache: "docker.io/library/wordpress:6.8.2-php8.3-apache",
-  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/postgres
-  postgres16Alpine: "docker.io/library/postgres:16.9-alpine",
+  // Verified 2026-09-02 against Docker Hub: https://hub.docker.com/_/postgres
+  postgres16Alpine: "docker.io/library/postgres:16.15-alpine3.24",
   // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/python
   python312Slim: "docker.io/library/python:3.12.11-slim",
-  // Verified 2026-08-17 against Docker Hub: https://hub.docker.com/_/redis
-  redis74Alpine: "docker.io/library/redis:7.4.5-alpine"
+  // Verified 2026-09-02 against Docker Hub: https://hub.docker.com/_/redis
+  redis74Alpine: "docker.io/library/redis:7.4.11-alpine3.21"
 } as const;
 
 export const generatorPins = {

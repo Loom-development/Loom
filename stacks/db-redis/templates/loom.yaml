@@ -8,7 +8,7 @@ runtime:
 services:
   db:
     type: redis
-    image: ${REDIS_IMAGE:-docker.io/library/redis:7.4.5-alpine}
+    image: ${REDIS_IMAGE:-docker.io/library/redis:7.4.11-alpine3.21}
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
