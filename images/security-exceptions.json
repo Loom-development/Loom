@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "id": "CVE-2025-68121",
+    "target": "usr/local/bin/gosu",
+    "packageName": "stdlib",
+    "rationale": "gosu only changes process credentials during local container startup and does not use the affected crypto/tls certificate validation or session resumption paths; retain until upstream rebuilds gosu with a fixed Go release.",
+    "owner": "@Loom-development",
+    "expires": "2026-10-01"
+  }
+]

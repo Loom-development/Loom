@@ -68,3 +68,31 @@ test("reports the vulnerable package and upgrade path", () => {
     ]
   );
 });
+
+test("scopes an exception to its vulnerable target and package", () => {
+  const exception = {
+    id: finding.id,
+    target: "usr/local/bin/gosu",
+    packageName: "stdlib",
+    rationale: "The affected TLS code is unreachable in gosu.",
+    owner: "@loom-security",
+    expires: "2026-09-15"
+  };
+  const gosuFinding = {
+    ...finding,
+    target: "usr/local/bin/gosu",
+    packageName: "stdlib"
+  };
+  const serverFinding = {
+    ...finding,
+    target: "usr/local/bin/server",
+    packageName: "stdlib"
+  };
+
+  assert.deepEqual(validateSecurityExceptions([exception], now, [gosuFinding]), []);
+  assert.deepEqual(validateSecurityExceptions([exception], now, []), []);
+  assert.match(
+    validateSecurityExceptions([exception], now, [gosuFinding, serverFinding]).join("\n"),
+    /in usr\/local\/bin\/server:stdlib/
+  );
+});

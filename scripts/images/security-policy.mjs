@@ -18,8 +18,11 @@ function expiryDate(value) {
 export function validateSecurityExceptions(entries, now, findings = []) {
   const exceptions = Array.isArray(entries) ? entries : [];
   const currentTime = now instanceof Date ? now : new Date(now);
-  const findingIds = new Set(findings.map(({ id }) => id));
   const errors = [];
+  const matchesException = (entry, finding) =>
+    entry?.id === finding?.id &&
+    (!entry.target || entry.target === finding.target) &&
+    (!entry.packageName || entry.packageName === finding.packageName);
 
   for (const entry of exceptions) {
     const label = entry?.id || "exception without an id";
@@ -42,14 +45,14 @@ export function validateSecurityExceptions(entries, now, findings = []) {
   }
 
   for (const entry of exceptions) {
-    if (entry?.id && !findingIds.has(entry.id)) {
+    const isScoped = entry?.target || entry?.packageName;
+    if (entry?.id && !isScoped && !findings.some((finding) => matchesException(entry, finding))) {
       errors.push(`${entry.id} exception is not present in the vulnerability report`);
     }
   }
 
-  const exceptedIds = new Set(exceptions.map(({ id }) => id));
   for (const finding of findings) {
-    if (finding?.id && !exceptedIds.has(finding.id)) {
+    if (finding?.id && !exceptions.some((entry) => matchesException(entry, finding))) {
       const location = [finding.target, finding.packageName].filter(Boolean).join(":");
       const versions = finding.installedVersion
         ? ` (${finding.installedVersion} -> ${finding.fixedVersion})`
