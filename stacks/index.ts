@@ -33,6 +33,7 @@ import { rails7Stack } from "./rails7/stack.js";
 import { rails7HotwireStack } from "./rails7-hotwire/stack.js";
 
 export * from "./definition.js";
+export * from "./image-pins.js";
 export * from "./pins.js";
 
 const compatibility = { architectures: ["arm", "arm64", "x64"], runtime: "podman-rootless" } as const;
