@@ -1,9 +1,10 @@
 # Loom image catalog
 
 Loom publishes application runtimes and verified infrastructure mirrors below
-`ghcr.io/loom-development`. After the initial release gate, stack templates
-will consume immutable manifest digests from `images/digests.json`; they will
-not consume the human-readable tags.
+`ghcr.io/loom-development`. New stack templates consume immutable manifest
+digests from `images/digests.json`; they do not consume the human-readable tags.
+Existing projects keep the image references already written to their local
+configuration.
 
 ## Catalog contents
 
@@ -45,9 +46,19 @@ Pull requests build, contract-test, and scan both supported architectures but
 cannot publish packages. A merge to protected `main` uses `GITHUB_TOKEN` with
 `packages: write` and OIDC permissions to publish manifests, reject fixable
 critical vulnerabilities, keyless-sign each digest, and attach build
-provenance. The release opens a stable follow-up PR containing the real digest
-catalog. Until that PR exists, `digests.json` remains marked
-`pending-initial-release`; production digests must never be invented locally.
+provenance. The release opens or updates `automation/image-digests` with the
+real digest catalog and synchronized stack defaults. Production digests must
+never be invented locally.
+
+After reviewing a release, use this maintenance sequence:
+
+```text
+release images -> merge automation/image-digests -> pnpm images:sync-stacks -> pnpm verify -> pnpm smoke:published-image
+```
+
+The synchronization command regenerates `stacks/published-image-data.ts` and
+updates each stack's `loom.yaml`, `.env.example`, and README from its compiled
+definition. Running it twice must produce no additional changes.
 
 Every Monday at 09:17 UTC, `images-update.yml` checks whether the registry
 digest behind each explicitly pinned upstream tag changed. It reuses
@@ -85,12 +96,10 @@ artifact.
    platform descriptors and confirm that `linux/amd64` and `linux/arm64` are
    present unless the catalog records a `platformLimit`.
 4. Update both `source` and `version` in `catalog.json`. The source must contain
-   the exact versioned tag followed by `@sha256:<manifest-digest>`. Keep the
-   runtime default in `stacks/pins.ts` and the affected stack templates'
-   `loom.yaml`, `.env.example`, and `README.md` files on the same version. If
-   those template bytes change, review and refresh their approved
-   `fixtures/migration.json` source digests; the stack tests reject stale
-   fixtures.
+   the exact versioned tag followed by `@sha256:<manifest-digest>`. Do not edit
+   published digest values in `stacks/pins.ts` or stack templates by hand. The
+   release writes `images/digests.json`, and `pnpm images:sync-stacks` propagates
+   the reviewed manifest digest to generated stack assets.
 5. Run the catalog and repository verification gates:
 
    ```sh

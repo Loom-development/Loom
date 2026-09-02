@@ -89,6 +89,12 @@ loom stop
 The first start can take a few minutes because Podman may need to download images
 and the project may need to install dependencies. Later starts are usually faster.
 
+New projects default to immutable Loom runtime and database images published at
+`ghcr.io/loom-development`. The exact digest is written into `loom.yaml`, so the
+same project uses the same image on every machine. Existing projects are not
+rewritten automatically. To choose another compatible image, set the matching
+`*_IMAGE` value in the project's `.env` file.
+
 ## Your files stay local
 
 Loom keeps application source, tests, package files, lockfiles, and environment

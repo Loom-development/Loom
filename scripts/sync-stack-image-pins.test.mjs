@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   renderPublishedImageData,
@@ -16,6 +19,7 @@ const document = {
     { name: "loom-node-24", image: "ghcr.io/loom-development/loom-node-24", digest: `sha256:${"a".repeat(64)}` }
   ]
 };
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("renders stable generated TypeScript from a digest document", () => {
   const rendered = renderPublishedImageData(document);
@@ -57,4 +61,15 @@ test("updates exact environment and README defaults", () => {
     () => replaceReadmeDefault("No image here.\n", "NODE_IMAGE", reference),
     /NODE_IMAGE.*README/i
   );
+});
+
+test("tracked documentation explains published image consumption and maintenance", async () => {
+  const rootReadme = await readFile(path.join(repositoryRoot, "README.md"), "utf8");
+  const imageReadme = await readFile(path.join(repositoryRoot, "images/README.md"), "utf8");
+
+  assert.match(rootReadme, /existing projects/i);
+  assert.match(rootReadme, /\*_IMAGE/);
+  for (const phrase of ["images/digests.json", "pnpm images:sync-stacks", "automation/image-digests"]) {
+    assert.match(imageReadme, new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
 });
