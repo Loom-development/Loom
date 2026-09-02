@@ -23,7 +23,10 @@ test("pull-request image workflow builds and contracts both platforms without pu
   assert.match(workflow, /linux\/arm64/);
   assert.match(workflow, /node scripts\/images\/build\.mjs/);
   assert.match(workflow, /node scripts\/images\/test-image\.mjs/);
+  assert.match(workflow, /podman save --format docker-archive/);
   assert.match(workflow, /aquasecurity\/trivy-action@v0\.36\.0/);
+  assert.match(workflow, /input: trivy-image\.tar/);
+  assert.doesNotMatch(workflow, /image-ref: "localhost\/\$\{\{ matrix\.name \}\}/);
   assert.match(workflow, /format: json/);
   assert.match(workflow, /severity: CRITICAL/);
   assert.match(workflow, /ignore-unfixed: true/);

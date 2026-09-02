@@ -49,10 +49,15 @@ jobs:
         run: node scripts/images/build.mjs "${{ matrix.name }}" --platform "${{ matrix.platform }}"
       - name: Run public image contract
         run: node scripts/images/test-image.mjs "${{ matrix.name }}" "localhost/${{ matrix.name }}:${{ matrix.version }}"
+      - name: Export image for vulnerability scanning
+        run: |
+          podman save --format docker-archive \
+            --output trivy-image.tar \
+            "localhost/${{ matrix.name }}:${{ matrix.version }}"
       - name: Scan for fixable critical vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: "localhost/${{ matrix.name }}:${{ matrix.version }}"
+          input: trivy-image.tar
           format: json
           output: trivy-report.json
           severity: CRITICAL
