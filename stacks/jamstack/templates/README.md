@@ -14,11 +14,11 @@ loom status
 ## Services
 
 - `api`
-  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c}`
+  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:091606f63d156c9409ef965dad329283070768baa0033c88bcb776c0bc4cba09}`
   - Port: `3006`
   - Purpose: JSON API for frontend content
 - `web`
-  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c}`
+  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:091606f63d156c9409ef965dad329283070768baa0033c88bcb776c0bc4cba09}`
   - Port: `5174`
   - Purpose: static-first frontend served by Vite
 
@@ -31,4 +31,4 @@ loom status
 
 - `NODE_IMAGE`
 
-After init, edit `.env` or pass `--image NODE_IMAGE=ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c` during `loom init`.
+After init, edit `.env` or pass `--image NODE_IMAGE=ghcr.io/loom-development/loom-node-24@sha256:091606f63d156c9409ef965dad329283070768baa0033c88bcb776c0bc4cba09` during `loom init`.

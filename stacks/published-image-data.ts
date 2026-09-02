@@ -11,52 +11,52 @@ export const publishedImageDocument = {
     {
       "name": "loom-bun-1",
       "image": "ghcr.io/loom-development/loom-bun-1",
-      "digest": "sha256:4d640f6c2554c4ba738d1713dbec45be112cd59f6939d53fef7dc5ec78d9acda"
+      "digest": "sha256:1325194e28cff684e0d7a9ee26085516df897f18f363f4c05dbf4b3bd6b56b6d"
     },
     {
       "name": "loom-dotnet-8",
       "image": "ghcr.io/loom-development/loom-dotnet-8",
-      "digest": "sha256:9dc76e1a67889eb32b9fab8b4665bc40cbb497fe2abe704d83fd7c5cc9ee53ec"
+      "digest": "sha256:1a793c436e9d0ea56607bf1ac8b057b5a56a9091605790422e029082ba117648"
     },
     {
       "name": "loom-java-21",
       "image": "ghcr.io/loom-development/loom-java-21",
-      "digest": "sha256:dd2c87a716b9f86d94cacc5db4b7b44ec3ba864f33ca3d6823461f84522dbe7e"
+      "digest": "sha256:0137fa3f265b304b685757d5aea005a81140f833a49f271350b64bc0b349dedf"
     },
     {
       "name": "loom-node-22",
       "image": "ghcr.io/loom-development/loom-node-22",
-      "digest": "sha256:25823da1bec192be0882fa20a0838f576e2b6cc7e7aefbb1183ebc3cf1c924e6"
+      "digest": "sha256:038cf4b609c8c3802f75d5e90db02781e6edaa1cfc6391aa2834bde92075f744"
     },
     {
       "name": "loom-node-24",
       "image": "ghcr.io/loom-development/loom-node-24",
-      "digest": "sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c"
+      "digest": "sha256:091606f63d156c9409ef965dad329283070768baa0033c88bcb776c0bc4cba09"
     },
     {
       "name": "loom-php",
       "image": "ghcr.io/loom-development/loom-php",
-      "digest": "sha256:d9f67c2ee13bdc0f17cb836c435acb5787062311ac1843aa3ee4cb7ff11c799d"
+      "digest": "sha256:3c439f1e5f3e06d35059b2331f5fd79a1e21544fd1e512c9a74c2442272ae0ba"
     },
     {
       "name": "loom-python-3.12",
       "image": "ghcr.io/loom-development/loom-python-3.12",
-      "digest": "sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94"
+      "digest": "sha256:e31bbfb5c603a8609e6903a9f103c8386a363c5d60fe7690f6a4474e7e847055"
     },
     {
       "name": "loom-ruby-3.3",
       "image": "ghcr.io/loom-development/loom-ruby-3.3",
-      "digest": "sha256:fa3ff65b942751619cecc93a2fbecd23aee0c03400d99390c0be4242938e99e1"
+      "digest": "sha256:6c616e29e2402c62a563f4bae9b576ed435c7666c10cdafcd6b323db4012bca9"
     },
     {
       "name": "loom-sqlite-3",
       "image": "ghcr.io/loom-development/loom-sqlite-3",
-      "digest": "sha256:fb5d256f745a6e26fc5a416e2491f33e02eaba00abd4d786f51a5c8e74667f07"
+      "digest": "sha256:d5a81b6eabeeaab23aea3fe72333df9ecc59ef3b316e85037d3bbf8936ce6b28"
     },
     {
       "name": "loom-wordpress",
       "image": "ghcr.io/loom-development/loom-wordpress",
-      "digest": "sha256:56b061e053c09046384493bffe0849642856ab413890547ca4b3dd8a121e4013"
+      "digest": "sha256:0bf13b40f487a012c98b9922ab2236aca7d56c62f92f0a5b3269797399a47ee0"
     },
     {
       "name": "mariadb-11.8",

@@ -16,7 +16,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${PHP_IMAGE:-ghcr.io/loom-development/loom-php@sha256:d9f67c2ee13bdc0f17cb836c435acb5787062311ac1843aa3ee4cb7ff11c799d}`
+  - Runtime: `${PHP_IMAGE:-ghcr.io/loom-development/loom-php@sha256:3c439f1e5f3e06d35059b2331f5fd79a1e21544fd1e512c9a74c2442272ae0ba}`
   - Port: `8092`
   - Purpose: Apache + PHP application server serving Symfony from `/app/public`
 

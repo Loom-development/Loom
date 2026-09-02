@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${JAVA_IMAGE:-ghcr.io/loom-development/loom-java-21@sha256:dd2c87a716b9f86d94cacc5db4b7b44ec3ba864f33ca3d6823461f84522dbe7e}`
+  - Runtime: `${JAVA_IMAGE:-ghcr.io/loom-development/loom-java-21@sha256:0137fa3f265b304b685757d5aea005a81140f833a49f271350b64bc0b349dedf}`
   - Port: `8080`
   - Purpose: Spring Boot application server with Maven wrapper
 

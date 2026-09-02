@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${SQLITE_IMAGE:-ghcr.io/loom-development/loom-sqlite-3@sha256:fb5d256f745a6e26fc5a416e2491f33e02eaba00abd4d786f51a5c8e74667f07}`
+  - Runtime: `${SQLITE_IMAGE:-ghcr.io/loom-development/loom-sqlite-3@sha256:d5a81b6eabeeaab23aea3fe72333df9ecc59ef3b316e85037d3bbf8936ce6b28}`
   - Port: none
   - Purpose: create and expose the SQLite database file under the project data directory
 

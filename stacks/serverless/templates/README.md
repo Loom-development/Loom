@@ -23,11 +23,11 @@ loom status
 ## Services
 
 - `api`
-  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-22@sha256:25823da1bec192be0882fa20a0838f576e2b6cc7e7aefbb1183ebc3cf1c924e6}`
+  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-22@sha256:038cf4b609c8c3802f75d5e90db02781e6edaa1cfc6391aa2834bde92075f744}`
   - Port: `3007`
 - Purpose: local FaaS-style runtime for backend functions
 - `web`
-  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-22@sha256:25823da1bec192be0882fa20a0838f576e2b6cc7e7aefbb1183ebc3cf1c924e6}`
+  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-22@sha256:038cf4b609c8c3802f75d5e90db02781e6edaa1cfc6391aa2834bde92075f744}`
   - Port: `3008`
   - Purpose: static SPA server with `/api/*` proxying to the backend functions
 
@@ -54,6 +54,6 @@ loom status
 
 - `NODE_IMAGE`
 
-Use `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-22@sha256:25823da1bec192be0882fa20a0838f576e2b6cc7e7aefbb1183ebc3cf1c924e6}` by default here. The backend is modeled after AWS-style Node `nodejs22.x` functions, and Node 22 keeps local behavior aligned with that target.
+Use `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-22@sha256:038cf4b609c8c3802f75d5e90db02781e6edaa1cfc6391aa2834bde92075f744}` by default here. The backend is modeled after AWS-style Node `nodejs22.x` functions, and Node 22 keeps local behavior aligned with that target.
 
 The frontend is intentionally static-first. It demonstrates the common pattern where a SPA calls backend functions over HTTP while deployment stays serverless in production.

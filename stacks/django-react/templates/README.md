@@ -10,13 +10,13 @@ This template gives you a small full-stack project with:
 ## Services
 
 - `backend`
-  - Runtime: `${PYTHON_IMAGE:-ghcr.io/loom-development/loom-python-3.12@sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94}`
+  - Runtime: `${PYTHON_IMAGE:-ghcr.io/loom-development/loom-python-3.12@sha256:e31bbfb5c603a8609e6903a9f103c8386a363c5d60fe7690f6a4474e7e847055}`
   - Working directory: `/workspace/backend`
   - Port: `8001`
   - Starts Django with `python manage.py runserver 0.0.0.0:8001`
 
 - `web`
-  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c}`
+  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:091606f63d156c9409ef965dad329283070768baa0033c88bcb776c0bc4cba09}`
   - Working directory: `/workspace/frontend`
   - Port: `5176`
   - Starts Vite with `npm run dev -- --host 0.0.0.0 --port 5176`
@@ -51,14 +51,14 @@ The backend and frontend both run directly as the host-aligned UID:GID under `us
 
 ```bash
 # Python runtime
-PYTHON_IMAGE=ghcr.io/loom-development/loom-python-3.12@sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94
+PYTHON_IMAGE=ghcr.io/loom-development/loom-python-3.12@sha256:e31bbfb5c603a8609e6903a9f103c8386a363c5d60fe7690f6a4474e7e847055
 
 # Node runtime
-NODE_IMAGE=ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c
+NODE_IMAGE=ghcr.io/loom-development/loom-node-24@sha256:091606f63d156c9409ef965dad329283070768baa0033c88bcb776c0bc4cba09
 ```
 
 You can also choose these during init interactively or pass them directly:
 
 ```bash
-loom init django-react --image PYTHON_IMAGE=ghcr.io/loom-development/loom-python-3.12@sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94 --image NODE_IMAGE=ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c
+loom init django-react --image PYTHON_IMAGE=ghcr.io/loom-development/loom-python-3.12@sha256:e31bbfb5c603a8609e6903a9f103c8386a363c5d60fe7690f6a4474e7e847055 --image NODE_IMAGE=ghcr.io/loom-development/loom-node-24@sha256:091606f63d156c9409ef965dad329283070768baa0033c88bcb776c0bc4cba09
 ```
