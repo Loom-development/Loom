@@ -40,3 +40,12 @@ test("WordPress version probe searches for the literal PHP variable", async () =
   assert.match(source, /'\$wp_version = '/);
   assert.doesNotMatch(source, /'\\\$wp_version = '/);
 });
+
+test("WordPress contract removes container-owned fixtures inside the Podman user namespace", async () => {
+  const source = await readFile(
+    path.join(repositoryRoot, "images/wordpress/contract.sh"),
+    "utf8"
+  );
+  assert.match(source, /podman unshare rm -rf -- "\$\{test_directory\}"/);
+  assert.doesNotMatch(source, /^\s*rm -rf "\$\{test_directory\}"/m);
+});

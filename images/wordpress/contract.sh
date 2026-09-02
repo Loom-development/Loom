@@ -10,7 +10,7 @@ container_name="loom-wordpress-contract-$$"
 
 cleanup() {
   podman rm --force "${container_name}" >/dev/null 2>&1 || true
-  rm -rf "${test_directory}"
+  podman unshare rm -rf -- "${test_directory}"
 }
 trap cleanup EXIT
 
