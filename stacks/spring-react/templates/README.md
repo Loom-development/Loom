@@ -14,11 +14,11 @@ loom status
 ## Services
 
 - `backend`
-  - Runtime: `${JAVA_IMAGE:-docker.io/library/maven:3.9.13-eclipse-temurin-21}`
+  - Runtime: `${JAVA_IMAGE:-ghcr.io/loom-development/loom-java-21@sha256:dd2c87a716b9f86d94cacc5db4b7b44ec3ba864f33ca3d6823461f84522dbe7e}`
   - Port: `8081`
   - Purpose: Spring Boot API
 - `web`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:22.23.2-alpine}`
+  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-22@sha256:25823da1bec192be0882fa20a0838f576e2b6cc7e7aefbb1183ebc3cf1c924e6}`
   - Port: `5175`
   - Purpose: built React frontend served locally with `/api` proxied to Spring Boot
 

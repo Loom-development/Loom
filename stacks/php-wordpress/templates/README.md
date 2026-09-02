@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${WORDPRESS_IMAGE:-docker.io/library/wordpress:6.8.3-php8.4-apache}`
+  - Runtime: `${WORDPRESS_IMAGE:-ghcr.io/loom-development/loom-wordpress@sha256:56b061e053c09046384493bffe0849642856ab413890547ca4b3dd8a121e4013}`
   - Port: `8090`
   - Purpose: WordPress app server
 

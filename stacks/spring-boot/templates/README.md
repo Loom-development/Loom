@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${JAVA_IMAGE:-docker.io/library/maven:3.9.13-eclipse-temurin-21}`
+  - Runtime: `${JAVA_IMAGE:-ghcr.io/loom-development/loom-java-21@sha256:dd2c87a716b9f86d94cacc5db4b7b44ec3ba864f33ca3d6823461f84522dbe7e}`
   - Port: `8080`
   - Purpose: Spring Boot application server with Maven wrapper
 

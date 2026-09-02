@@ -14,7 +14,7 @@ loom status
 ## Services
 
 - `app`
-  - Runtime: `${PHP_IMAGE:-docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5}`
+  - Runtime: `${PHP_IMAGE:-ghcr.io/loom-development/loom-php@sha256:d9f67c2ee13bdc0f17cb836c435acb5787062311ac1843aa3ee4cb7ff11c799d}`
   - Port: `8091`
   - Purpose: Apache + PHP application server serving Drupal from `/app/web`
 

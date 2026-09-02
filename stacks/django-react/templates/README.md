@@ -10,13 +10,13 @@ This template gives you a small full-stack project with:
 ## Services
 
 - `backend`
-  - Runtime: `${PYTHON_IMAGE:-docker.io/library/python:3.12.14-slim}`
+  - Runtime: `${PYTHON_IMAGE:-ghcr.io/loom-development/loom-python-3.12@sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94}`
   - Working directory: `/workspace/backend`
   - Port: `8001`
   - Starts Django with `python manage.py runserver 0.0.0.0:8001`
 
 - `web`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.20.0-alpine}`
+  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c}`
   - Working directory: `/workspace/frontend`
   - Port: `5176`
   - Starts Vite with `npm run dev -- --host 0.0.0.0 --port 5176`
@@ -51,14 +51,14 @@ The backend and frontend both run directly as the host-aligned UID:GID under `us
 
 ```bash
 # Python runtime
-PYTHON_IMAGE=docker.io/library/python:3.12.14-slim
+PYTHON_IMAGE=ghcr.io/loom-development/loom-python-3.12@sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94
 
 # Node runtime
-NODE_IMAGE=docker.io/library/node:24.20.0-alpine
+NODE_IMAGE=ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c
 ```
 
 You can also choose these during init interactively or pass them directly:
 
 ```bash
-loom init django-react --image PYTHON_IMAGE=docker.io/library/python:3.12.14-slim --image NODE_IMAGE=docker.io/library/node:24.20.0-alpine
+loom init django-react --image PYTHON_IMAGE=ghcr.io/loom-development/loom-python-3.12@sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94 --image NODE_IMAGE=ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c
 ```

@@ -18,7 +18,7 @@ The first `loom start` can take a while because the container installs native bu
 ## Services
 
 - `app`
-  - Base image: `${RUBY_IMAGE:-docker.io/library/ruby:3.3.12}`
+  - Base image: `${RUBY_IMAGE:-ghcr.io/loom-development/loom-ruby-3.3@sha256:fa3ff65b942751619cecc93a2fbecd23aee0c03400d99390c0be4242938e99e1}`
   - Port: `3008`
   - Purpose: Ruby container running the bootstrapped Rails 7 app with Hotwire defaults
 

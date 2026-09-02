@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${MARIADB_IMAGE:-docker.io/library/mariadb:11.8.9}`
+  - Runtime: `${MARIADB_IMAGE:-ghcr.io/loom-development/mariadb-11.8@sha256:2439dcd7d14010ecd1ff7a4e1c5abe8e208c34fe35290744deeeaac3569043c3}`
   - Port: `3307`
 
 ## Route

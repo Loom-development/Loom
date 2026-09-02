@@ -11,7 +11,7 @@ loom stop
 ```
 
 The exact default runtime is
-`${PYTHON_IMAGE:-docker.io/library/python:3.12.14-slim}`. Change `PYTHON_IMAGE`
+`${PYTHON_IMAGE:-ghcr.io/loom-development/loom-python-3.12@sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94}`. Change `PYTHON_IMAGE`
 in `.env` to make an explicit runtime override without editing `loom.yaml`. Use
 `python-django`, `python-flask`, or `python-fastapi` when starting one of those
 frameworks.

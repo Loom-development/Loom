@@ -14,7 +14,7 @@ loom status
 ## Service
 
 - `db`
-  - Runtime: `${REDIS_IMAGE:-docker.io/library/redis:7.4.11-alpine3.21}`
+  - Runtime: `${REDIS_IMAGE:-ghcr.io/loom-development/redis-7.4@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf}`
   - Port: `6379`
 
 ## Route

@@ -12,5 +12,5 @@ loom stop
 ```
 
 The app serves its health endpoint at `/health`. Its exact default runtime is
-`${NODE_IMAGE:-docker.io/library/node:24.20.0-alpine}`. Change `NODE_IMAGE` in
+`${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c}`. Change `NODE_IMAGE` in
 `.env` to make an explicit runtime override without editing `loom.yaml`.

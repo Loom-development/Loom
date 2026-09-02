@@ -16,7 +16,7 @@ loom status
 - `db`
   - Port: `5434`
 - `app`
-  - Runtime: `${NODE_IMAGE:-docker.io/library/node:24.20.0-alpine}`
+  - Runtime: `${NODE_IMAGE:-ghcr.io/loom-development/loom-node-24@sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c}`
   - Port: `3003`
   - Purpose: Next.js app server
 

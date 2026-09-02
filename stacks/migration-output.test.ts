@@ -32,6 +32,13 @@ function normalizeEnvironmentImageDefaults(envFile: string, imageEnvs: readonly 
   return envFile.replace(/^([A-Z][A-Z0-9_]*_IMAGE)=.*$/gm, (line, env: string) => declared.has(env) ? `${env}=<IMAGE>` : line);
 }
 
+function normalizeReadmeImageDefaults(readme: string, imageEnvs: readonly string[]): string {
+  const declared = new Set(imageEnvs);
+  return readme
+    .replace(/\$\{([A-Z][A-Z0-9_]*_IMAGE):-([^}\s]+)\}/g, (line, env: string) => declared.has(env) ? `\${${env}:-<IMAGE>}` : line)
+    .replace(/\b([A-Z][A-Z0-9_]*_IMAGE)=([^\s`]+)/g, (line, env: string) => declared.has(env) ? `${env}=<IMAGE>` : line);
+}
+
 async function filesBelow(directory: string): Promise<string[]> {
   const result: string[] = [];
   async function visit(current: string): Promise<void> {
@@ -57,6 +64,8 @@ test("copy stack migration preserves every non-image template byte", async () =>
       let bytes = await readFile(resolve(templateRoot, path));
       if (path === ".env.example") {
         bytes = Buffer.from(normalizeEnvironmentImageDefaults(bytes.toString("utf8"), definition.runtimeImages.map(({ env }) => env)));
+      } else if (path === "README.md") {
+        bytes = Buffer.from(normalizeReadmeImageDefaults(bytes.toString("utf8"), definition.runtimeImages.map(({ env }) => env)));
       }
       digest.update(path).update("\0").update(bytes);
     }
