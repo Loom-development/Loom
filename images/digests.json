@@ -18,7 +18,7 @@
       "name": "loom-bun-1",
       "version": "1.2.23-loom.2",
       "image": "ghcr.io/loom-development/loom-bun-1",
-
+      "digest": "sha256:4d640f6c2554c4ba738d1713dbec45be112cd59f6939d53fef7dc5ec78d9acda",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -28,7 +28,7 @@
       "name": "loom-dotnet-8",
       "version": "8.0.424-loom.1",
       "image": "ghcr.io/loom-development/loom-dotnet-8",
-
+      "digest": "sha256:9dc76e1a67889eb32b9fab8b4665bc40cbb497fe2abe704d83fd7c5cc9ee53ec",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -38,7 +38,7 @@
       "name": "loom-java-21",
       "version": "21-maven3.9.13-loom.1",
       "image": "ghcr.io/loom-development/loom-java-21",
-
+      "digest": "sha256:dd2c87a716b9f86d94cacc5db4b7b44ec3ba864f33ca3d6823461f84522dbe7e",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -48,7 +48,7 @@
       "name": "loom-node-22",
       "version": "22.23.2-loom.3",
       "image": "ghcr.io/loom-development/loom-node-22",
-
+      "digest": "sha256:25823da1bec192be0882fa20a0838f576e2b6cc7e7aefbb1183ebc3cf1c924e6",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -58,7 +58,7 @@
       "name": "loom-node-24",
       "version": "24.20.0-loom.3",
       "image": "ghcr.io/loom-development/loom-node-24",
-
+      "digest": "sha256:5bdb11d871f1cea2d5c20305e35d63ab199d23d9b8be69135fc615425f38420c",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -68,7 +68,7 @@
       "name": "loom-php",
       "version": "8.4.25-loom.1",
       "image": "ghcr.io/loom-development/loom-php",
-
+      "digest": "sha256:d9f67c2ee13bdc0f17cb836c435acb5787062311ac1843aa3ee4cb7ff11c799d",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -78,7 +78,7 @@
       "name": "loom-python-3.12",
       "version": "3.12.14-loom.1",
       "image": "ghcr.io/loom-development/loom-python-3.12",
-
+      "digest": "sha256:dfc56d79d2e1ec7552b172f58bab8468929cf80dca40a33078654bc5fb8d9a94",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -88,7 +88,7 @@
       "name": "loom-ruby-3.3",
       "version": "3.3.12-loom.1",
       "image": "ghcr.io/loom-development/loom-ruby-3.3",
-
+      "digest": "sha256:fa3ff65b942751619cecc93a2fbecd23aee0c03400d99390c0be4242938e99e1",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -98,7 +98,7 @@
       "name": "loom-sqlite-3",
       "version": "3.53.4-loom.1",
       "image": "ghcr.io/loom-development/loom-sqlite-3",
-
+      "digest": "sha256:fb5d256f745a6e26fc5a416e2491f33e02eaba00abd4d786f51a5c8e74667f07",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -108,7 +108,7 @@
       "name": "loom-wordpress",
       "version": "6.8.3-php8.4-loom.1",
       "image": "ghcr.io/loom-development/loom-wordpress",
-
+      "digest": "sha256:56b061e053c09046384493bffe0849642856ab413890547ca4b3dd8a121e4013",
       "platforms": [
         "linux/amd64",
         "linux/arm64"

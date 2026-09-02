@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { createDigestDocument, validateDigestDocument } from "./digests.mjs";
 
 const hash = (character) => `sha256:${character.repeat(64)}`;
 const identity = "https://github.com/Loom-development/Loom/.github/workflows/images-release.yml@refs/heads/main";
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const catalog = {
   schemaVersion: 1,
   registry: "ghcr.io/loom-development",
@@ -87,4 +91,11 @@ test("requires mirror upstream provenance and one release per catalog image", ()
   const document = createDigestDocument(catalog, releases, identity);
   delete document.images[1].upstreamDigest;
   assert.match(validateDigestDocument(document, catalog).join("\n"), /upstream digest/);
+});
+
+test("committed digest catalog is complete and valid", async () => {
+  const committedCatalog = JSON.parse(await readFile(path.join(repositoryRoot, "images/catalog.json"), "utf8"));
+  const committedDigests = JSON.parse(await readFile(path.join(repositoryRoot, "images/digests.json"), "utf8"));
+
+  assert.deepEqual(validateDigestDocument(committedDigests, committedCatalog), []);
 });
