@@ -107,8 +107,8 @@
     {
       "name": "redis-7.4",
       "kind": "mirror",
-      "source": "docker.io/library/redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08",
-      "version": "7.4.5-alpine",
+      "source": "docker.io/library/redis:7.4.11-alpine3.21@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf",
+      "version": "7.4.11-alpine3.21",
       "platforms": ["linux/amd64", "linux/arm64"]
     },
     {
