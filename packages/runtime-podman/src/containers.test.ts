@@ -3,10 +3,18 @@ import assert from "node:assert/strict";
 import type { LoomService } from "@loom/config";
 import {
   buildPodmanRunArgs,
+  ipv4ForwardingError,
   normalizeImage,
   parseHostPorts,
   serviceConfigHash
 } from "./containers.js";
+
+test("ipv4ForwardingError reports disabled forwarding only on Linux", () => {
+  assert.match(ipv4ForwardingError("linux", "0\n") ?? "", /sudo sysctl -w net\.ipv4\.ip_forward=1/);
+  assert.equal(ipv4ForwardingError("linux", "1\n"), null);
+  assert.equal(ipv4ForwardingError("darwin", "0\n"), null);
+  assert.equal(ipv4ForwardingError("win32", "0\n"), null);
+});
 
 test("normalizeImage prefixes library images and preserves registry paths", () => {
   assert.equal(normalizeImage("redis:7"), "docker.io/library/redis:7");

@@ -28,6 +28,19 @@ Loom is designed for local development. It is not a production deployment tool.
 On macOS and Windows, Podman uses a small virtual machine. Loom starts that
 machine automatically when needed.
 
+On Linux and WSL, Podman bridge networks require IPv4 forwarding. Loom checks
+this before starting a project and prints a remediation command if forwarding is
+disabled. Enable it for the current session with:
+
+```bash
+sudo sysctl -w net.ipv4.ip_forward=1
+```
+
+To preserve the setting across restarts, create
+`/etc/sysctl.d/99-podman-forwarding.conf` containing
+`net.ipv4.ip_forward=1`, then run `sudo sysctl --system`. This is a one-time host
+configuration; it is not required on macOS or Windows hosts using Podman Machine.
+
 ## Install
 
 ### From npm

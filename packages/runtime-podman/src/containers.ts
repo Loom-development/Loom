@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -23,6 +23,38 @@ export function normalizeImage(image: string): string {
 
 export function containerName(projectName: string, serviceName: string): string {
   return `${projectName}-${serviceName}`;
+}
+
+export function ipv4ForwardingError(platform: NodeJS.Platform, value: string): string | null {
+  if (platform !== "linux" || value.trim() !== "0") {
+    return null;
+  }
+
+  return [
+    "IPv4 forwarding is disabled, so Loom's Podman bridge networks cannot access the internet.",
+    "Enable it for the current session with: sudo sysctl -w net.ipv4.ip_forward=1",
+    "To keep it enabled after reboot, add net.ipv4.ip_forward=1 to /etc/sysctl.d/99-podman-forwarding.conf and run: sudo sysctl --system"
+  ].join("\n");
+}
+
+async function assertIpv4Forwarding(): Promise<void> {
+  if (process.platform !== "linux") {
+    return;
+  }
+
+  try {
+    const value = await readFile("/proc/sys/net/ipv4/ip_forward", "utf8");
+    const message = ipv4ForwardingError(process.platform, value);
+    if (message) {
+      throw new Error(message);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("IPv4 forwarding is disabled")) {
+      throw error;
+    }
+    // Some constrained Linux environments do not expose this procfs setting.
+    // In that case, let Podman report the underlying network error.
+  }
 }
 
 async function isDnsWorking(networkName: string): Promise<boolean> {
@@ -66,6 +98,8 @@ async function restartAardvarkDns(): Promise<void> {
 }
 
 export async function ensurePodmanNetwork(networkName: string): Promise<void> {
+  await assertIpv4Forwarding();
+
   const exists = await runPodman(["network", "exists", networkName]);
   if (!exists.ok) {
     const create = await runPodman(["network", "create", networkName]);
