@@ -23,7 +23,17 @@ case "${node_major}" in
     ;;
 esac
 
-podman run --rm "${image_reference}" npm --version >/dev/null
+npm_version="$(podman run --rm "${image_reference}" npm --version)"
+if [[ "${npm_version}" != "11.19.1" ]]; then
+  printf 'Expected npm 11.19.1, got %s\n' "${npm_version}" >&2
+  exit 1
+fi
+npm_tar_version="$(podman run --rm "${image_reference}" node --print \
+  'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')"
+if [[ "${npm_tar_version}" != "7.5.22" ]]; then
+  printf 'Expected npm tar 7.5.22, got %s\n' "${npm_tar_version}" >&2
+  exit 1
+fi
 pnpm_version="$(podman run --rm "${image_reference}" pnpm --version)"
 if [[ "${pnpm_version}" != "10.15.0" ]]; then
   printf 'Expected pnpm 10.15.0, got %s\n' "${pnpm_version}" >&2
