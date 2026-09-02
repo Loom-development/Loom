@@ -83,8 +83,9 @@ export function validateRuntimeImage(image: StackRuntimeImage): void {
   const exactTag = /^(?:\d+\.\d+\.\d+(?:[-.][0-9A-Za-z][0-9A-Za-z.-]*)?|\d+\.\d+-[A-Za-z][0-9A-Za-z.-]*)$/.test(tag)
     || /^\d{4}(?:[-.]\d{2}){1,2}(?:[-.][0-9A-Za-z.-]+)?$/.test(tag)
     || /(?:^|-)CU\d+(?:-|$)/i.test(tag);
-  if (!tag || tag.toLowerCase() === "latest" || !exactTag || (digest !== undefined && !/^sha256:[a-f0-9]{64}$/.test(digest))) {
-    throw new Error(`Runtime image '${image.reference}' must use an exact version tag`);
+  const exactDigest = digest !== undefined && /^sha256:[a-f0-9]{64}$/.test(digest);
+  if ((digest === undefined && (!tag || tag.toLowerCase() === "latest" || !exactTag)) || (digest !== undefined && !exactDigest)) {
+    throw new Error(`Runtime image '${image.reference}' must use an exact version tag or immutable digest`);
   }
 }
 

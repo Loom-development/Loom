@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { findStackDefinition, generatorPins, stackDefinitions } from "./index.js";
+import { findStackDefinition, generatorPins, runtimeImagePins, stackDefinitions } from "./index.js";
 import { validateGeneratorVersion, validateRuntimeImage, validateStackDefinition } from "./definition.js";
 
 function templateServiceNames(yaml: string): string[] {
@@ -50,22 +50,34 @@ test("definitions enforce version, aliases, canonical assets, and maintenance sa
   for (const definition of stackDefinitions) assert.doesNotThrow(() => validateStackDefinition(definition));
 });
 
+test("runtime defaults use immutable images published by Loom", () => {
+  for (const definition of stackDefinitions) {
+    for (const image of definition.runtimeImages) {
+      assert.match(
+        image.reference,
+        /^ghcr\.io\/loom-development\/[a-z0-9.-]+@sha256:[a-f0-9]{64}$/,
+        `${definition.id} ${image.env}`
+      );
+    }
+  }
+});
+
 test("language application stacks publish exact versioned package definitions", () => {
   const expected = {
-    python: [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }],
-    "python-django": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }],
-    "python-flask": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }],
-    "python-fastapi": [{ env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }],
-    php: [{ env: "PHP_IMAGE", reference: "docker.io/library/php:8.4.25-apache" }],
-    dotnet: [{ env: "DOTNET_IMAGE", reference: "mcr.microsoft.com/dotnet/sdk:8.0.424" }],
+    python: [{ env: "PYTHON_IMAGE", reference: runtimeImagePins.python312Slim }],
+    "python-django": [{ env: "PYTHON_IMAGE", reference: runtimeImagePins.python312Slim }],
+    "python-flask": [{ env: "PYTHON_IMAGE", reference: runtimeImagePins.python312Slim }],
+    "python-fastapi": [{ env: "PYTHON_IMAGE", reference: runtimeImagePins.python312Slim }],
+    php: [{ env: "PHP_IMAGE", reference: runtimeImagePins.php84Apache }],
+    dotnet: [{ env: "DOTNET_IMAGE", reference: runtimeImagePins.dotnet8Sdk }],
     "spring-react": [
-      { env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.13-eclipse-temurin-21" },
-      { env: "NODE_IMAGE", reference: "docker.io/library/node:22.23.2-alpine" }
+      { env: "JAVA_IMAGE", reference: runtimeImagePins.maven39Temurin21 },
+      { env: "NODE_IMAGE", reference: runtimeImagePins.node22Alpine }
     ],
-    "spring-boot": [{ env: "JAVA_IMAGE", reference: "docker.io/library/maven:3.9.13-eclipse-temurin-21" }],
+    "spring-boot": [{ env: "JAVA_IMAGE", reference: runtimeImagePins.maven39Temurin21 }],
     "django-react": [
-      { env: "NODE_IMAGE", reference: "docker.io/library/node:24.20.0-alpine" },
-      { env: "PYTHON_IMAGE", reference: "docker.io/library/python:3.12.14-slim" }
+      { env: "NODE_IMAGE", reference: runtimeImagePins.node24Alpine },
+      { env: "PYTHON_IMAGE", reference: runtimeImagePins.python312Slim }
     ]
   } as const;
 
@@ -87,7 +99,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
       aliases: ["2", "wordpress-6-php8.3-apache"],
       generator: {
         kind: "command",
-        image: "docker.io/library/wordpress:6.8.3-php8.4-apache",
+        image: runtimeImagePins.wordpress683Php84Apache,
         package: "wordpress",
         version: "6.8.3",
         command: ["sh", "-c", "cp -a /usr/src/wordpress/. /app/"],
@@ -99,7 +111,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "WORDPRESS_IMAGE", reference: "docker.io/library/wordpress:6.8.3-php8.4-apache" }
+        { env: "WORDPRESS_IMAGE", reference: runtimeImagePins.wordpress683Php84Apache }
       ]
     },
     "php-drupal": {
@@ -119,7 +131,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "PHP_IMAGE", reference: "docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5" }
+        { env: "PHP_IMAGE", reference: runtimeImagePins.php84Apache }
       ]
     },
     "php-symfony": {
@@ -143,14 +155,14 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
         }
       },
       runtimeImages: [
-        { env: "PHP_IMAGE", reference: "docker.io/serversideup/php:8.4-fpm-apache@sha256:f21734838459f3c8c9e751e9d2cf20e5ee40fddf2153d16806fe1fcd6ebd49c5" }
+        { env: "PHP_IMAGE", reference: runtimeImagePins.php84Apache }
       ]
     },
     rails7: {
       aliases: ["2", "rails-7.1.5"],
       generator: {
         kind: "command",
-        image: "docker.io/library/ruby:3.3.12",
+        image: runtimeImagePins.ruby3312,
         package: "rails",
         version: "7.1.5",
         command: [
@@ -166,13 +178,13 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
           environment: []
         }
       },
-      runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.12" }]
+      runtimeImages: [{ env: "RUBY_IMAGE", reference: runtimeImagePins.ruby3312 }]
     },
     "rails7-hotwire": {
       aliases: ["2", "rails-7.1.5-hotwire"],
       generator: {
         kind: "command",
-        image: "docker.io/library/ruby:3.3.12",
+        image: runtimeImagePins.ruby3312,
         package: "rails",
         version: "7.1.5",
         command: [
@@ -188,7 +200,7 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
           environment: []
         }
       },
-      runtimeImages: [{ env: "RUBY_IMAGE", reference: "docker.io/library/ruby:3.3.12" }]
+      runtimeImages: [{ env: "RUBY_IMAGE", reference: runtimeImagePins.ruby3312 }]
     }
   } as const;
 
@@ -218,64 +230,64 @@ test("bootstrap-heavy stacks publish exact generator and runtime pins", () => {
 test("database stacks publish exact versioned package definitions and lifecycle metadata", () => {
   const expected = {
     "db-mysql": {
-      runtimeImages: [{ env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.11" }],
+      runtimeImages: [{ env: "MYSQL_IMAGE", reference: runtimeImagePins.mysql84 }],
       start: [], readiness: { kind: "command", value: "mysqladmin ping -h 127.0.0.1 -uroot -ploomroot", timeoutSeconds: 100 },
       verification: [{ service: "db", command: ["mysql", "-h", "127.0.0.1", "-uloom", "-ploom", "loom", "-e", "SELECT 1"] }],
       architectures: ["arm64", "x64"]
     },
     "db-sqlserver": {
-      runtimeImages: [{ env: "MSSQL_IMAGE", reference: "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04" }],
+      runtimeImages: [{ env: "MSSQL_IMAGE", reference: runtimeImagePins.mssql2022 }],
       start: [], readiness: { kind: "port", value: "127.0.0.1:1433", timeoutSeconds: 300 },
       verification: [{ service: "db", command: ["/opt/mssql-tools18/bin/sqlcmd", "-S", "127.0.0.1", "-U", "sa", "-P", "LoomDev!Passw0rd", "-C", "-Q", "SELECT 1"] }],
       architectures: ["x64"]
     },
     "db-postgres": {
-      runtimeImages: [{ env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.15-alpine3.24" }],
+      runtimeImages: [{ env: "POSTGRES_IMAGE", reference: runtimeImagePins.postgres16Alpine }],
       start: [], readiness: { kind: "command", value: "pg_isready -U loom", timeoutSeconds: 95 },
       verification: [{ service: "db", command: ["psql", "-U", "loom", "-d", "loom", "-c", "SELECT 1"] }],
       architectures: ["arm", "arm64", "x64"]
     },
     "db-mongodb": {
-      runtimeImages: [{ env: "MONGO_IMAGE", reference: "docker.io/library/mongo:7.0.40-jammy" }],
+      runtimeImages: [{ env: "MONGO_IMAGE", reference: runtimeImagePins.mongo70 }],
       start: [], readiness: { kind: "port", value: "127.0.0.1:27017", timeoutSeconds: 120 },
       verification: [{ service: "db", command: ["mongosh", "--quiet", "--host", "127.0.0.1", "--username", "loom", "--password", "loom", "--authenticationDatabase", "admin", "--eval", "quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)"] }],
       architectures: ["arm64", "x64"]
     },
     "db-redis": {
-      runtimeImages: [{ env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.11-alpine3.21" }],
+      runtimeImages: [{ env: "REDIS_IMAGE", reference: runtimeImagePins.redis74Alpine }],
       start: ["redis-server --appendonly yes"], readiness: { kind: "command", value: "redis-cli ping | grep PONG", timeoutSeconds: 92 },
       verification: [{ service: "db", command: ["redis-cli", "ping"] }],
       architectures: ["arm", "arm64", "x64"]
     },
     "db-elasticsearch": {
-      runtimeImages: [{ env: "ELASTICSEARCH_IMAGE", reference: "docker.elastic.co/elasticsearch/elasticsearch:8.19.20" }],
+      runtimeImages: [{ env: "ELASTICSEARCH_IMAGE", reference: runtimeImagePins.elasticsearch819 }],
       start: [], readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },
       verification: [{ service: "db", command: ["curl", "--fail", "http://127.0.0.1:9200/_cluster/health"] }],
       architectures: ["arm64", "x64"]
     },
     "db-sqlite": {
-      runtimeImages: [{ env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.53.4" }],
+      runtimeImages: [{ env: "SQLITE_IMAGE", reference: runtimeImagePins.sqlite353 }],
       start: ["sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
       readiness: { kind: "command", value: "sqlite3 /data/loom.db 'select 1;'", timeoutSeconds: 60 },
       verification: [{ service: "db", command: ["sqlite3", "/data/loom.db", "select 1;"] }],
       architectures: ["arm", "arm64", "x64"]
     },
     "db-mariadb": {
-      runtimeImages: [{ env: "MARIADB_IMAGE", reference: "docker.io/library/mariadb:11.8.9" }],
+      runtimeImages: [{ env: "MARIADB_IMAGE", reference: runtimeImagePins.mariadb118 }],
       start: [], readiness: { kind: "command", value: "mariadb-admin ping -h 127.0.0.1 -uroot -ploomroot", timeoutSeconds: 100 },
       verification: [{ service: "db", command: ["mariadb", "-h", "127.0.0.1", "-uloom", "-ploom", "loom", "-e", "SELECT 1"] }],
       architectures: ["arm64", "x64"]
     },
     "db-all": {
       runtimeImages: [
-        { env: "ELASTICSEARCH_IMAGE", reference: "docker.elastic.co/elasticsearch/elasticsearch:8.19.20" },
-        { env: "MARIADB_IMAGE", reference: "docker.io/library/mariadb:11.8.9" },
-        { env: "MONGO_IMAGE", reference: "docker.io/library/mongo:7.0.40-jammy" },
-        { env: "MSSQL_IMAGE", reference: "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04" },
-        { env: "MYSQL_IMAGE", reference: "docker.io/library/mysql:8.4.11" },
-        { env: "POSTGRES_IMAGE", reference: "docker.io/library/postgres:16.15-alpine3.24" },
-        { env: "REDIS_IMAGE", reference: "docker.io/library/redis:7.4.11-alpine3.21" },
-        { env: "SQLITE_IMAGE", reference: "docker.io/keinos/sqlite3:3.53.4" }
+        { env: "ELASTICSEARCH_IMAGE", reference: runtimeImagePins.elasticsearch819 },
+        { env: "MARIADB_IMAGE", reference: runtimeImagePins.mariadb118 },
+        { env: "MONGO_IMAGE", reference: runtimeImagePins.mongo70 },
+        { env: "MSSQL_IMAGE", reference: runtimeImagePins.mssql2022 },
+        { env: "MYSQL_IMAGE", reference: runtimeImagePins.mysql84 },
+        { env: "POSTGRES_IMAGE", reference: runtimeImagePins.postgres16Alpine },
+        { env: "REDIS_IMAGE", reference: runtimeImagePins.redis74Alpine },
+        { env: "SQLITE_IMAGE", reference: runtimeImagePins.sqlite353 }
       ],
       start: ["redis-server --appendonly yes", "sh -c \"sqlite3 /data/loom.db 'select 1;' && tail -f /dev/null\""],
       readiness: { kind: "http", value: "http://127.0.0.1:9200/_cluster/health", timeoutSeconds: 300 },

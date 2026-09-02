@@ -12,7 +12,7 @@ export const phpSymfonyStack = defineStack({
     }
   },
   runtimeImages: [
-    { env: "PHP_IMAGE", reference: runtimeImagePins.php84FpmApache }
+    { env: "PHP_IMAGE", reference: runtimeImagePins.php84Apache }
   ],
   install: [],
   start: ["apache2-foreground"], readiness: { kind: "port", value: "127.0.0.1:80", timeoutSeconds: 90 },
