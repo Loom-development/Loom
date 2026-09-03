@@ -44,7 +44,7 @@ export async function copyPublishableStackAssets(sourceStacksDir, targetStacksDi
   function shouldCopyCompiledDefinition(sourcePath) {
     const compiledPath = relative(compiledStacksDir, sourcePath).replaceAll("\\", "/");
     if (!compiledPath) return true;
-    if (["definition.js", "image-pins.js", "index.js", "pins.js", "published-image-data.js"].includes(compiledPath)) return true;
+    if (["definition.js", "documentation.js", "image-pins.js", "index.js", "pins.js", "published-image-data.js"].includes(compiledPath)) return true;
     if (!compiledPath.includes("/")) return stackIdSet.has(compiledPath);
     const [stackId, fileName, ...rest] = compiledPath.split("/");
     return rest.length === 0 && stackIdSet.has(stackId) && fileName === "stack.js";

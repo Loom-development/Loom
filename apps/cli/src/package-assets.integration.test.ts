@@ -55,6 +55,7 @@ async function npmPackageFiles(): Promise<string[]> {
 function assertCanonicalStackAssets(paths: readonly string[], stacksPrefix: string): void {
   for (const required of [
     "definition.js",
+    "documentation.js",
     "index.js",
     "pins.js",
     "node/stack.js",
