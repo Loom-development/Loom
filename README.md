@@ -30,16 +30,8 @@ machine automatically when needed.
 
 On Linux and WSL, Podman bridge networks require IPv4 forwarding. Loom checks
 this before starting a project and prints a remediation command if forwarding is
-disabled. Enable it for the current session with:
-
-```bash
-sudo sysctl -w net.ipv4.ip_forward=1
-```
-
-To preserve the setting across restarts, create
-`/etc/sysctl.d/99-podman-forwarding.conf` containing
-`net.ipv4.ip_forward=1`, then run `sudo sysctl --system`. This is a one-time host
-configuration; it is not required on macOS or Windows hosts using Podman Machine.
+disabled. See [Linux or WSL containers cannot access the internet](#linux-or-wsl-containers-cannot-access-the-internet)
+for the one-time host setup and Podman networking recovery steps.
 
 ## Install
 
@@ -248,6 +240,52 @@ If the configuration changed but old containers are still present:
 ```bash
 loom start --recreate
 ```
+
+### Linux or WSL containers cannot access the internet
+
+If `npm install`, Composer, `pip`, or another dependency download hangs inside a
+Loom service, first check IPv4 forwarding:
+
+```bash
+sysctl net.ipv4.ip_forward
+```
+
+If it reports `net.ipv4.ip_forward = 0`, enable forwarding for the current
+session:
+
+```bash
+sudo sysctl -w net.ipv4.ip_forward=1
+```
+
+To keep the setting after a restart, create
+`/etc/sysctl.d/99-podman-forwarding.conf` containing
+`net.ipv4.ip_forward=1`, then run `sudo sysctl --system`.
+
+If forwarding is already enabled but downloads still hang, check that Podman and
+its networking components are installed from compatible package sources:
+
+```bash
+podman version
+apt-cache policy podman netavark aardvark-dns passt
+```
+
+Upgrade the networking components together:
+
+```bash
+sudo apt update
+sudo apt install --only-upgrade netavark aardvark-dns passt
+```
+
+On WSL, restart the WSL virtual machine afterward by running the following from
+Windows PowerShell, then reopen the Linux terminal:
+
+```powershell
+wsl --shutdown
+```
+
+Loom does not change these system-wide settings automatically. They are one-time
+host maintenance steps and are not required on macOS or Windows installations
+that use Podman Machine.
 
 ## Clean generated files safely
 
