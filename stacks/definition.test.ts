@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { findStackDefinition, generatorPins, runtimeImagePins, stackDefinitions } from "./index.js";
-import { validateGeneratorVersion, validateRuntimeImage, validateStackDefinition } from "./definition.js";
+import { validateGeneratorVersion, validateRuntimeImage, validateStackDefinition, validateStackDocumentation } from "./definition.js";
 
 function templateServiceNames(yaml: string): string[] {
   const servicesSection = yaml.match(/^services:\n([\s\S]*?)(?=^(?:routes|tasks):|$(?![\s\S]))/m)?.[1] ?? "";
@@ -48,6 +48,29 @@ test("definitions enforce version, aliases, canonical assets, and maintenance sa
   );
   assert.doesNotThrow(() => validateStackDefinition({ ...node, verification: [{ command: ["true"] }] }));
   for (const definition of stackDefinitions) assert.doesNotThrow(() => validateStackDefinition(definition));
+});
+
+test("every canonical stack publishes complete launch documentation", async () => {
+  assert.equal(stackDefinitions.length, 31);
+  for (const definition of stackDefinitions) {
+    assert.doesNotThrow(() => validateStackDocumentation(definition.id, definition.documentation));
+    assert.equal(definition.documentation.initCommand.startsWith(`loom init ${definition.id} `), true, definition.id);
+
+    const yaml = await readFile(resolve(fileURLToPath(new URL(".", import.meta.url)), "..", definition.assetPath, "loom.yaml"), "utf8");
+    assert.deepEqual(
+      definition.documentation.services.map(({ name }) => name).sort(),
+      templateServiceNames(yaml).sort(),
+      `${definition.id} documented services`
+    );
+  }
+});
+
+test("database stack documentation cannot advertise optional databases", () => {
+  const documentation = findStackDefinition("db-postgres")!.documentation;
+  assert.throws(
+    () => validateStackDocumentation("db-postgres", { ...documentation, supportsOptionalDatabases: true }),
+    /cannot support optional databases/i
+  );
 });
 
 test("runtime defaults use immutable images published by Loom", () => {

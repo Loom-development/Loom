@@ -34,6 +34,17 @@ export type StackGenerator =
     };
 export interface StackRuntimeImage { env: string; reference: string }
 export interface StackVerificationCheck { service?: string; command: readonly string[] }
+export interface StackDocumentedService { name: string; purpose: string }
+export interface StackDocumentedEndpoint { label: string; value: string }
+export interface StackDocumentation {
+  summary: string;
+  useCase: string;
+  initCommand: string;
+  supportsOptionalDatabases: boolean;
+  services: readonly StackDocumentedService[];
+  endpoints: readonly StackDocumentedEndpoint[];
+  notes: readonly string[];
+}
 export interface StackDefinition {
   id: StackId;
   definitionVersion: number;
@@ -52,7 +63,9 @@ export interface StackDefinition {
   generatedPaths: readonly StackGeneratedPath[];
   protectedPaths: readonly string[];
   compatibility: StackCompatibility;
+  documentation?: StackDocumentation;
 }
+export type DocumentedStackDefinition = StackDefinition & { documentation: StackDocumentation };
 
 function safeRelative(path: string): boolean {
   if (!path || path === "." || isAbsolute(path) || path.includes("\\")) return false;
@@ -87,6 +100,28 @@ export function validateRuntimeImage(image: StackRuntimeImage): void {
   if ((digest === undefined && (!tag || tag.toLowerCase() === "latest" || !exactTag)) || (digest !== undefined && !exactDigest)) {
     throw new Error(`Runtime image '${image.reference}' must use an exact version tag or immutable digest`);
   }
+}
+
+export function validateStackDocumentation(id: StackId, documentation: StackDocumentation): void {
+  if (!documentation.summary.trim() || !documentation.useCase.trim()) {
+    throw new Error(`${id} documentation requires a summary and use case`);
+  }
+  if (!documentation.initCommand.startsWith(`loom init ${id} `)) {
+    throw new Error(`${id} documentation init command must start with 'loom init ${id}'`);
+  }
+  if (id.startsWith("db-") && documentation.supportsOptionalDatabases) {
+    throw new Error(`${id} database stack cannot support optional databases`);
+  }
+  if (documentation.services.length === 0) throw new Error(`${id} documentation requires services`);
+  const serviceNames = documentation.services.map(({ name }) => name);
+  if (new Set(serviceNames).size !== serviceNames.length || serviceNames.some((name) => !/^[a-z][a-z0-9-]*$/.test(name))) {
+    throw new Error(`${id} documentation requires unique valid service names`);
+  }
+  if (documentation.services.some(({ purpose }) => !purpose.trim())) throw new Error(`${id} documentation requires service purposes`);
+  if (documentation.endpoints.some(({ label, value }) => !label.trim() || !value.trim())) {
+    throw new Error(`${id} documentation requires complete endpoints`);
+  }
+  if (documentation.notes.some((note) => !note.trim())) throw new Error(`${id} documentation contains an empty note`);
 }
 
 export function validateStackDefinition(definition: StackDefinition): void {
@@ -135,6 +170,7 @@ export function validateStackDefinition(definition: StackDefinition): void {
   }
   if (!Number.isInteger(definition.readiness.timeoutSeconds) || definition.readiness.timeoutSeconds <= 0 || !definition.readiness.value.trim()) throw new Error("Readiness requires a value and positive timeout");
   assertSortedUnique(definition.compatibility.architectures, "architectures");
+  if (definition.documentation) validateStackDocumentation(definition.id, definition.documentation);
 }
 
 export function defineStack<const T extends StackDefinition>(definition: T): T {

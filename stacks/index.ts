@@ -1,5 +1,6 @@
-import type { GeneratedPathCategory, StackDefinition, StackGeneratedPath, StackId } from "./definition.js";
+import type { DocumentedStackDefinition, GeneratedPathCategory, StackDefinition, StackGeneratedPath, StackId } from "./definition.js";
 import { defineStack, stackIds, validateStackDefinition } from "./definition.js";
+import { stackDocumentation } from "./documentation.js";
 import { nodeStack } from "./node/stack.js";
 import { astroStack } from "./astro/stack.js";
 import { bunStack } from "./bun/stack.js";
@@ -33,6 +34,7 @@ import { rails7Stack } from "./rails7/stack.js";
 import { rails7HotwireStack } from "./rails7-hotwire/stack.js";
 
 export * from "./definition.js";
+export * from "./documentation.js";
 export * from "./image-pins.js";
 export * from "./pins.js";
 
@@ -81,8 +83,13 @@ const migratedDefinitions = new Map<StackId, StackDefinition>([
   dbElasticsearchStack, dbSqliteStack, dbMariadbStack, dbAllStack, phpWordpressStack, phpDrupalStack,
   phpSymfonyStack, rails7Stack, rails7HotwireStack
 ].map((definition) => [definition.id, definition]));
-export const stackDefinitions = stackIds.map((id) => migratedDefinitions.get(id) ?? compatibilityDefinition(id as Exclude<StackId, "node">)) as readonly StackDefinition[];
-const stackDefinitionsById = new Map<StackId, StackDefinition>(stackDefinitions.map((definition) => [definition.id, definition]));
-export function findStackDefinition(stackId: string): StackDefinition | undefined { return stackDefinitionsById.get(stackId as StackId); }
+export const stackDefinitions = stackIds.map((id): DocumentedStackDefinition => {
+  const definition = migratedDefinitions.get(id) ?? compatibilityDefinition(id as Exclude<StackId, "node">);
+  const documented = { ...definition, documentation: stackDocumentation[id] };
+  validateStackDefinition(documented);
+  return documented;
+});
+const stackDefinitionsById = new Map<StackId, DocumentedStackDefinition>(stackDefinitions.map((definition) => [definition.id, definition]));
+export function findStackDefinition(stackId: string): DocumentedStackDefinition | undefined { return stackDefinitionsById.get(stackId as StackId); }
 export function listStackIds(): string[] { return stackDefinitions.map(({ id }) => id).sort(); }
 for (const definition of stackDefinitions) validateStackDefinition(definition);
