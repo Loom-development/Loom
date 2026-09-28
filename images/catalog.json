@@ -5,9 +5,12 @@
     {
       "name": "loom-php",
       "kind": "custom",
-      "source": "docker.io/library/php:8.4.25-apache@sha256:51da594c844a97f31b1cd6b1ac6660982f40788f4fe13e75f7fd39e2f9b58651",
+      "source": "docker.io/library/php:8.4.25-apache@sha256:bcdc7a2fe1003e50d80ef9c820f0ab00f9023c565c3a162e05d5825e20b04fc5",
       "version": "8.4.25-loom.1",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/php"
     },
     {
@@ -16,15 +19,21 @@
       "source": "docker.io/library/wordpress:6.8.3-php8.4-apache@sha256:da2a1ff20daa435abf260853ebfd829b1f5f9b8400938940c7393f786a63bf94",
       "runtime": "loom-php",
       "version": "6.8.3-php8.4-loom.1",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/wordpress"
     },
     {
       "name": "loom-node-22",
       "kind": "custom",
-      "source": "docker.io/library/node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32",
+      "source": "docker.io/library/node:22.23.2-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85",
       "version": "22.23.2-loom.3",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/node"
     },
     {
@@ -32,23 +41,32 @@
       "kind": "custom",
       "source": "docker.io/library/node:24.20.0-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf",
       "version": "24.20.0-loom.3",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/node"
     },
     {
       "name": "loom-python-3.12",
       "kind": "custom",
-      "source": "docker.io/library/python:3.12.14-slim@sha256:e5c9fa26ffb76e11e0f054f30dc2523a2f9693f0c36c0cf1e39b27e152d899fc",
+      "source": "docker.io/library/python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f",
       "version": "3.12.14-loom.1",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/python/3.12"
     },
     {
       "name": "loom-ruby-3.3",
       "kind": "custom",
-      "source": "docker.io/library/ruby:3.3.12@sha256:2c999559bd44562a83fee97324d229f5dd938c153085deeba6b02cf2f3f269a2",
+      "source": "docker.io/library/ruby:3.3.12@sha256:21e6a5125535e13999143c49b6471f68c92a74d8faad0a3541c51b11de0266ad",
       "version": "3.3.12-loom.1",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/ruby/3.3"
     },
     {
@@ -56,7 +74,10 @@
       "kind": "custom",
       "source": "docker.io/oven/bun:1.2.23@sha256:6ebf306367da43ad75c4d5119563e24de9b66372929ad4fa31546be053a16f74",
       "version": "1.2.23-loom.2",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/bun/1"
     },
     {
@@ -64,7 +85,10 @@
       "kind": "custom",
       "source": "docker.io/library/maven:3.9.13-eclipse-temurin-21@sha256:850d3575de1cf32ee99e6da31acd943242113ee9b7d320564784a30b2f9b0a42",
       "version": "21-maven3.9.13-loom.1",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/java/21"
     },
     {
@@ -72,7 +96,10 @@
       "kind": "custom",
       "source": "mcr.microsoft.com/dotnet/sdk:8.0.424@sha256:bb32ba3ba3ea36e38572d9d8db76fa15f7cbf722f3f886e06bca6d528bd4fba8",
       "version": "8.0.424-loom.1",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/dotnet/8"
     },
     {
@@ -80,57 +107,80 @@
       "kind": "custom",
       "source": "docker.io/keinos/sqlite3:3.53.4@sha256:6addaf450aea7e098e7d6f059d43501c317ec70494c1ace3cc94bfe1631cbfa5",
       "version": "3.53.4-loom.1",
-      "platforms": ["linux/amd64", "linux/arm64"],
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
       "context": "images/sqlite/3"
     },
     {
       "name": "postgres-16",
       "kind": "mirror",
-      "source": "docker.io/library/postgres:16.15-alpine3.24@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+      "source": "docker.io/library/postgres:16.15-alpine3.24@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea",
       "version": "16.15-alpine3.24",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     {
       "name": "mysql-8.4",
       "kind": "mirror",
-      "source": "docker.io/library/mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb",
+      "source": "docker.io/library/mysql:8.4.11@sha256:0744ee5ef89ce6ccfa13de3e579fe6b9e27f93dd70da9c06d2c908b1b193fb8d",
       "version": "8.4.11",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     {
       "name": "mariadb-11.8",
       "kind": "mirror",
-      "source": "docker.io/library/mariadb:11.8.9@sha256:2439dcd7d14010ecd1ff7a4e1c5abe8e208c34fe35290744deeeaac3569043c3",
+      "source": "docker.io/library/mariadb:11.8.9@sha256:79d59758afc91b89b120b0a8904d637f5a3b3e1c4900f29b740d6d46c72fef68",
       "version": "11.8.9",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     {
       "name": "redis-7.4",
       "kind": "mirror",
-      "source": "docker.io/library/redis:7.4.11-alpine3.21@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf",
+      "source": "docker.io/library/redis:7.4.11-alpine3.21@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499",
       "version": "7.4.11-alpine3.21",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     {
       "name": "mongo-7.0",
       "kind": "mirror",
       "source": "docker.io/library/mongo:7.0.40-jammy@sha256:406a4fdca9fc763443268f000218d3849ef8996f66ed9e92ba0b501b446ab822",
       "version": "7.0.40-jammy",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     {
       "name": "elasticsearch-8.19",
       "kind": "mirror",
       "source": "docker.elastic.co/elasticsearch/elasticsearch:8.19.20@sha256:e4797708584bd0df7c746b33a6640d243018a0ae8c8b088391c6f4675a3bef52",
       "version": "8.19.20",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     {
       "name": "mssql-2022",
       "kind": "mirror",
       "source": "mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04@sha256:ba4c8329f48fb8f02e1416be6a930ebfd71268caee78aa985f3af4315e457c89",
       "version": "2022-CU26-ubuntu-22.04",
-      "platforms": ["linux/amd64"],
+      "platforms": [
+        "linux/amd64"
+      ],
       "platformLimit": "Microsoft SQL Server 2022 for Linux is published only for amd64."
     }
   ]
